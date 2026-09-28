@@ -22,8 +22,9 @@ class AuthServiceTest {
     @Mock UserRepository users;
     @Mock StringRedisTemplate redis;
     @Mock ValueOperations<String, String> values;
+    @Mock LoginRateLimiter limiter;
     AuthService service;
-    @BeforeEach void setup() { service = new AuthService(users, new BCryptPasswordEncoder(), redis); }
+    @BeforeEach void setup() { service = new AuthService(users, new BCryptPasswordEncoder(), redis, limiter); }
 
     @Test void registrationHashesPasswordAndNormalizesName() {
         User saved = mock(User.class);
@@ -47,12 +48,15 @@ class AuthServiceTest {
         var result = service.login(new LoginRequest("Maki", "password123"));
         assertEquals(86400, result.expiresInSeconds());
         verify(values).set(startsWith("session:"), eq("42"), eq(java.time.Duration.ofDays(1)));
+        verify(limiter).check("maki");
+        verify(limiter).success("maki");
         service.logout(result.token());
         verify(redis).delete(startsWith("session:"));
     }
     @Test void invalidCredentialsFail() {
         when(users.findByUsername("maki")).thenReturn(Optional.empty());
         assertThrows(AuthFailure.class, () -> service.login(new LoginRequest("maki", "bad")));
+        verify(limiter).failure("maki");
     }
     @Test void expiredSessionFails() {
         when(redis.opsForValue()).thenReturn(values);

@@ -22,9 +22,10 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder encoder;
     private final StringRedisTemplate redis;
+    private final LoginRateLimiter limiter;
     private final SecureRandom random = new SecureRandom();
-    public AuthService(UserRepository users, PasswordEncoder encoder, StringRedisTemplate redis) {
-        this.users = users; this.encoder = encoder; this.redis = redis;
+    public AuthService(UserRepository users, PasswordEncoder encoder, StringRedisTemplate redis, LoginRateLimiter limiter) {
+        this.users = users; this.encoder = encoder; this.redis = redis; this.limiter = limiter;
     }
     @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -34,11 +35,14 @@ public class AuthService {
         return UserResponse.from(user);
     }
     public LoginResponse login(LoginRequest request) {
-        User user = users.findByUsername(request.username().trim().toLowerCase(java.util.Locale.ROOT))
-                .orElseThrow(() -> new AuthFailure(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
-        if (!user.isActive() || !encoder.matches(request.password(), user.getPasswordHash())) {
+        String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
+        limiter.check(username);
+        User user = users.findByUsername(username).orElse(null);
+        if (user == null || !user.isActive() || !encoder.matches(request.password(), user.getPasswordHash())) {
+            limiter.failure(username);
             throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
+        limiter.success(username);
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
