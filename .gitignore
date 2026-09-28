@@ -1,3 +1,4 @@
 myDocs/
 backend/target/
 backend/.env
+.pi/tasks/
