@@ -1,10 +1,28 @@
-# CendoDrive
+# CendoDrive 前端
 
-基于 Vue 3、Vue Router 与 Axios 的百度网盘风格页面复刻，包含登录页、文件首页和登录状态持久化。
+Vue 3 + Vue Router + Axios。账号注册、登录、会话验证和退出使用真实 Spring Boot 接口；首页文件列表目前仍是静态演示数据，上传、分享等功能尚未接入后端。
+
+## 本地运行
+
+先按 `backend/README.md` 启动 MySQL、Redis 和后端（默认 `http://localhost:8080`），然后在 `frontend/` 运行：
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-未配置后端时，输入任意非空账号和密码即可进入演示首页。接入真实接口时复制 `.env.example` 并设置 `VITE_API_BASE_URL`，登录接口为 `POST /auth/login`。
+打开 `http://localhost:5173`。Vite 开发服务器把 `/api` 请求原样代理到后端 8080，不必为本地开发开启宽泛 CORS。后端停止时登录会报网络错误，不存在演示 Token 回退。
+
+如需连接其他部署环境，可复制 `.env.example` 为本机 `.env`，设置完整的 `VITE_API_BASE_URL`；生产环境应由部署方提供同源 `/api` 反向代理，或明确配置安全的 CORS 允许源。不要将任何凭据写入 Vite 环境变量，它们会暴露在浏览器中。
+
+```bash
+npm run build
+```
+
+## 认证行为
+
+- 注册使用用户名（3–64 位字母、数字、下划线）、密码（8–128 位）和可选昵称；成功后跳转登录，不自动登录。
+- 登录只接受用户名和密码。勾选“下次自动登录”将会话存于 localStorage；不勾选时存于 sessionStorage。两者都不会延长后端 Token 的 24 小时有效期。
+- 刷新或打开私有页面时通过 `/api/user/me` 验证保存的 Token，验证前不会展示文件页面。退出调用 `/api/auth/logout` 撤销当前 Token，然后清理本地会话；若网络故障，会提示服务端撤销未确认。
+- 浏览器存储中的 Bearer Token 可被同源恶意脚本读取；正式上线需评估 XSS/CSP、HTTPS、依赖安全和更适合生产的会话方案。
+- 找回密码、扫码和第三方登录尚未实现；首页文件、容量等展示目前仍是静态数据。
