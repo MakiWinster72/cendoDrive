@@ -32,7 +32,8 @@ public class AuthController {
     @Operation(summary = "登录", description = "返回有效期 86400 秒的随机 Token；不使用 Cookie。")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "登录成功"),
             @ApiResponse(responseCode = "400", description = "输入不合法", content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "401", description = "账号或密码错误、账号禁用", content = @Content(schema = @Schema(implementation = ApiError.class)))})
+            @ApiResponse(responseCode = "401", description = "账号或密码错误、账号禁用", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "429", description = "该用户名 15 分钟内失败次数达到 5 次", content = @Content(schema = @Schema(implementation = ApiError.class)))})
     @PostMapping("/api/auth/login")
     LoginResponse login(@Valid @RequestBody LoginRequest request) { return auth.login(request); }
     @Operation(summary = "退出当前登录", description = "撤销当前 Bearer Token，不影响其他设备。")
