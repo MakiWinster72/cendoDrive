@@ -2,7 +2,8 @@ package com.cendodrive.auth;
 
 import com.cendodrive.user.User;
 import jakarta.validation.constraints.*;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 public final class AuthDtos {
     private AuthDtos() {}
@@ -10,11 +11,12 @@ public final class AuthDtos {
                                   @NotBlank @Size(min = 8, max = 128) String password,
                                   @Size(max = 64) String nickname) {}
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
-    public record UserResponse(Long id, String username, String nickname, LocalDateTime createdAt,
+    public record UserResponse(String id, String username, String nickname, OffsetDateTime createdAt,
                                String vipLevel, long storageUsed, long storageLimit) {
         public static UserResponse from(User user) {
-            return new UserResponse(user.getId(), user.getUsername(), user.getNickname(), user.getCreatedAt(),
-                    user.getVipLevel(), user.getStorageUsed(), user.getStorageLimit());
+            return new UserResponse(user.getId().toString(), user.getUsername(), user.getNickname(),
+                    user.getCreatedAt().atOffset(ZoneOffset.UTC), user.getVipLevel(),
+                    user.getStorageUsed(), user.getStorageLimit());
         }
     }
     public record LoginResponse(String token, long expiresInSeconds, UserResponse user) {}

@@ -26,7 +26,10 @@ class AuthServiceTest {
     @BeforeEach void setup() { service = new AuthService(users, new BCryptPasswordEncoder(), redis); }
 
     @Test void registrationHashesPasswordAndNormalizesName() {
-        when(users.saveAndFlush(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        User saved = mock(User.class);
+        when(saved.getId()).thenReturn(1L);
+        when(saved.getCreatedAt()).thenReturn(java.time.LocalDateTime.now());
+        when(users.saveAndFlush(any(User.class))).thenReturn(saved);
         service.register(new RegisterRequest("MaKi", "password123", null));
         var captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(users).saveAndFlush(captor.capture());
@@ -38,6 +41,7 @@ class AuthServiceTest {
         when(user.isActive()).thenReturn(true);
         when(user.getPasswordHash()).thenReturn(new BCryptPasswordEncoder().encode("password123"));
         when(user.getId()).thenReturn(42L);
+        when(user.getCreatedAt()).thenReturn(java.time.LocalDateTime.now());
         when(users.findByUsername("maki")).thenReturn(Optional.of(user));
         when(redis.opsForValue()).thenReturn(values);
         var result = service.login(new LoginRequest("Maki", "password123"));
