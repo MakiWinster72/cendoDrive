@@ -51,16 +51,16 @@ async function submit() {
         <div class="card-title"><h2>注册账号</h2></div>
         <p class="welcome">已有账号？<RouterLink to="/login">返回登录</RouterLink></p>
         <form @submit.prevent="submit">
-          <label class="input-wrap"><input v-model="username" autocomplete="username" maxlength="64" placeholder="用户名（3–64 位字母、数字或下划线）" /></label>
+          <label class="input-wrap"><input v-model="username" autocomplete="username" maxlength="64" aria-label="用户名" :aria-invalid="Boolean(fields.username)" placeholder="用户名（3–64 位字母、数字或下划线）" /></label>
           <p v-if="fields.username" class="field-error">{{ fields.username }}</p>
-          <label class="input-wrap"><input v-model="nickname" autocomplete="nickname" maxlength="64" placeholder="昵称（选填）" /></label>
+          <label class="input-wrap"><input v-model="nickname" autocomplete="nickname" maxlength="64" aria-label="昵称（选填）" :aria-invalid="Boolean(fields.nickname)" placeholder="昵称（选填）" /></label>
           <p v-if="fields.nickname" class="field-error">{{ fields.nickname }}</p>
           <label class="input-wrap password">
-            <input v-model="password" :type="visible ? 'text' : 'password'" autocomplete="new-password" placeholder="密码（8–128 位）" />
+            <input v-model="password" :type="visible ? 'text' : 'password'" autocomplete="new-password" aria-label="密码" :aria-invalid="Boolean(fields.password)" placeholder="密码（8–128 位）" />
             <button type="button" @click="visible = !visible" :aria-label="visible ? '隐藏密码' : '显示密码'"><EyeOff v-if="visible" :size="18" /><Eye v-else :size="18" /></button>
           </label>
           <p v-if="fields.password" class="field-error">{{ fields.password }}</p>
-          <label class="input-wrap password"><input v-model="confirmPassword" :type="visible ? 'text' : 'password'" autocomplete="new-password" placeholder="再次输入密码" /></label>
+          <label class="input-wrap password"><input v-model="confirmPassword" :type="visible ? 'text' : 'password'" autocomplete="new-password" aria-label="确认密码" :aria-invalid="Boolean(fields.confirmPassword)" placeholder="再次输入密码" /></label>
           <p v-if="fields.confirmPassword" class="field-error">{{ fields.confirmPassword }}</p>
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <button class="login-button" :disabled="loading">{{ loading ? '正在注册...' : '注册' }}</button>

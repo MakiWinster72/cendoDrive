@@ -62,10 +62,10 @@ async function submit() {
         <p v-if="route.query.logoutWarning === '1'" class="error" role="alert">本地已退出，但服务端撤销未确认；请检查网络。</p>
         <form @submit.prevent="submit">
           <label class="input-wrap">
-            <input v-model="username" autocomplete="username" placeholder="用户名" />
+            <input v-model="username" autocomplete="username" aria-label="用户名" placeholder="用户名" />
           </label>
           <label class="input-wrap password">
-            <input v-model="password" :type="visible ? 'text' : 'password'" autocomplete="current-password" placeholder="请输入密码" />
+            <input v-model="password" :type="visible ? 'text' : 'password'" autocomplete="current-password" aria-label="密码" placeholder="请输入密码" />
             <button type="button" @click="visible = !visible" :aria-label="visible ? '隐藏密码' : '显示密码'"><EyeOff v-if="visible" :size="18" /><Eye v-else :size="18" /></button>
           </label>
           <div class="form-meta">
