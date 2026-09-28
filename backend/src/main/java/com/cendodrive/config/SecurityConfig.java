@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .formLogin(f -> f.disable()).httpBasic(b -> b.disable())
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(new BearerFilter(auth), UsernamePasswordAuthenticationFilter.class)
