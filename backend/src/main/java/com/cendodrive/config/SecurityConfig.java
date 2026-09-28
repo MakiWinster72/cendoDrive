@@ -16,15 +16,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.http.HttpStatus;
+import com.cendodrive.common.ApiError;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Configuration
 public class SecurityConfig {
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
-    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, AuthService auth) throws Exception {
+    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, AuthService auth, ObjectMapper mapper) throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(f -> f.disable()).httpBasic(b -> b.disable())
@@ -32,13 +32,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
-                .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .addFilterBefore(new BearerFilter(auth), UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, error) -> unauthorized(response, mapper)))
+                .addFilterBefore(new BearerFilter(auth, mapper), UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+    private static void unauthorized(HttpServletResponse response, ObjectMapper mapper) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        mapper.writeValue(response.getOutputStream(), ApiError.of("UNAUTHORIZED", "Unauthorized"));
     }
     static class BearerFilter extends OncePerRequestFilter {
         private final AuthService auth;
-        BearerFilter(AuthService auth) { this.auth = auth; }
+        private final ObjectMapper mapper;
+        BearerFilter(AuthService auth, ObjectMapper mapper) { this.auth = auth; this.mapper = mapper; }
         @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                                   FilterChain chain) throws ServletException, IOException {
             String header = request.getHeader("Authorization");
@@ -49,7 +55,7 @@ public class SecurityConfig {
                             new UsernamePasswordAuthenticationToken(user, null, java.util.List.of()));
                 } catch (com.cendodrive.common.ApiExceptionHandler.AuthFailure ex) {
                     SecurityContextHolder.clearContext();
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                    unauthorized(response, mapper);
                     return;
                 }
             }
