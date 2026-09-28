@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getToken } from '../stores/auth'
+import { getToken, invalidateSession } from '../stores/auth'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -16,9 +16,13 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('cendo-drive-auth')
-      if (location.pathname !== '/login') location.href = '/login'
+    const request = error.config
+    if (error.response?.status === 401 && request?.headers?.Authorization &&
+        request.url !== '/user/me' && request.url !== '/auth/login') {
+      invalidateSession()
+      if (location.pathname !== '/login' && location.pathname !== '/register') {
+        void import('../router').then(({ default: router }) => router.replace({ name: 'login', query: { redirect: location.pathname } }))
+      }
     }
     return Promise.reject(error)
   },

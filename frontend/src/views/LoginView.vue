@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Check, ChevronRight, Eye, EyeOff, FolderOpen, Image, ShieldCheck, Smartphone } from 'lucide-vue-next'
+import { Check, ChevronRight, Eye, EyeOff, FolderOpen, Image, ShieldCheck } from 'lucide-vue-next'
+import { authErrorMessage } from '../api/auth'
 import BrandLogo from '../components/BrandLogo.vue'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
-const account = ref('')
+const username = ref('')
 const password = ref('')
 const remember = ref(true)
 const visible = ref(false)
@@ -17,16 +18,18 @@ const error = ref('')
 
 async function submit() {
   error.value = ''
-  if (!account.value.trim() || !password.value.trim()) {
-    error.value = '请输入手机号/邮箱/用户名和密码'
+  if (!username.value.trim() || !password.value) {
+    error.value = '请输入用户名和密码'
     return
   }
+  if (loading.value) return
   loading.value = true
   try {
-    await auth.login({ account: account.value, password: password.value, remember: remember.value })
-    await router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/')
+    await auth.login({ username: username.value.trim(), password: password.value }, remember.value)
+    const redirect = route.query.redirect
+    await router.replace(typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '登录失败，请稍后重试'
+    error.value = authErrorMessage(e, '登录失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -37,7 +40,7 @@ async function submit() {
   <main class="login-page">
     <header class="login-header">
       <BrandLogo />
-      <nav><a href="#">客户端下载</a><a href="#">会员中心</a><a href="#">帮助中心</a><span></span><a href="#">企业服务</a></nav>
+      <nav><span>安全保存你的文件</span></nav>
     </header>
 
     <section class="login-hero">
@@ -53,11 +56,13 @@ async function submit() {
       </div>
 
       <div class="login-card">
-        <div class="card-title"><h2>账号登录</h2><button title="扫码登录"><Smartphone :size="20" /></button></div>
+        <div class="card-title"><h2>账号登录</h2></div>
         <p class="welcome">登录 CendoDrive，畅享美好生活</p>
+        <p v-if="route.query.registered === '1'" class="success">注册成功，请登录。</p>
+        <p v-if="route.query.logoutWarning === '1'" class="error" role="alert">本地已退出，但服务端撤销未确认；请检查网络。</p>
         <form @submit.prevent="submit">
           <label class="input-wrap">
-            <input v-model="account" autocomplete="username" placeholder="手机号 / 邮箱 / 用户名" />
+            <input v-model="username" autocomplete="username" placeholder="用户名" />
           </label>
           <label class="input-wrap password">
             <input v-model="password" :type="visible ? 'text' : 'password'" autocomplete="current-password" placeholder="请输入密码" />
@@ -65,22 +70,17 @@ async function submit() {
           </label>
           <div class="form-meta">
             <label class="check"><input v-model="remember" type="checkbox" /><span><Check :size="12" /></span>下次自动登录</label>
-            <a href="#">忘记密码？</a>
+            <span class="unavailable">找回密码暂未开放</span>
           </div>
-          <p v-if="error" class="error">{{ error }}</p>
+          <p v-if="auth.verificationError.value" class="error">暂时无法验证登录状态，请检查网络后重试。</p>
+          <p v-if="error" class="error" role="alert">{{ error }}</p>
           <button class="login-button" :disabled="loading">{{ loading ? '正在登录...' : '登录' }}</button>
         </form>
-        <div class="divider"><span>其他登录方式</span></div>
-        <div class="other-login">
-          <button class="social-login" aria-label="微信登录" title="微信登录"><i class="wechat">微</i><span>微信</span></button>
-          <button class="social-login" aria-label="QQ登录" title="QQ登录"><i class="qq">Q</i><span>QQ</span></button>
-          <button class="social-login" aria-label="微博登录" title="微博登录"><i class="weibo">博</i><span>微博</span></button>
-        </div>
-        <div class="register">还没有账号？<a href="#">立即注册 <ChevronRight :size="14" /></a></div>
-        <p class="terms">登录即代表同意 <a href="#">用户协议</a> 和 <a href="#">隐私政策</a></p>
+        <p class="terms">自动登录仅在当前设备保存会话，Token 最多有效 24 小时。</p>
+        <div class="register">还没有账号？<RouterLink to="/register">立即注册 <ChevronRight :size="14" /></RouterLink></div>
       </div>
     </section>
 
-    <footer>© 2026 CendoDrive　|　隐私政策　|　服务协议　|　联系我们</footer>
+    <footer>© 2026 CendoDrive</footer>
   </main>
 </template>

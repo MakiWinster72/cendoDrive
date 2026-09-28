@@ -24,8 +24,8 @@ const filteredFiles = computed(() => files.filter((file) => file.name.toLowerCas
 const iconFor = (kind: string) => kind === 'folder' ? Folder : kind === 'image' ? Image : kind === 'pdf' ? FileText : File
 
 async function logout() {
-  auth.logout()
-  await router.replace('/login')
+  const revoked = await auth.logout()
+  await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } })
 }
 </script>
 
@@ -58,8 +58,8 @@ async function logout() {
       <header class="topbar">
         <button class="mobile-menu" aria-label="打开导航" @click="mobileNavOpen = true"><Menu :size="21" /></button>
         <div class="search"><Search :size="18" /><input v-model="keyword" placeholder="搜索我的文件" /><kbd>⌘ K</kbd></div>
-        <div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ auth.user.value?.name?.slice(0, 1).toUpperCase() || '云' }}</b><em>{{ auth.user.value?.name || '云盘用户' }}</em><ChevronDown :size="15" /></button></div>
-        <div v-if="menuOpen" class="user-menu"><strong>{{ auth.user.value?.name }}</strong><small>普通用户</small><button @click="logout">退出登录</button></div>
+        <div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ (auth.user.value?.nickname || auth.user.value?.username)?.slice(0, 1).toUpperCase() || '云' }}</b><em>{{ auth.user.value?.nickname || auth.user.value?.username || '云盘用户' }}</em><ChevronDown :size="15" /></button></div>
+        <div v-if="menuOpen" class="user-menu"><strong>{{ auth.user.value?.nickname || auth.user.value?.username }}</strong><small>普通用户</small><button @click="logout">退出登录</button></div>
       </header>
 
       <section class="content">

@@ -1,60 +1,115 @@
+import axios from 'axios'
 import { computed, reactive } from 'vue'
-import { loginRequest, type LoginPayload } from '../api/auth'
+import { getCurrentUser, loginRequest, logoutRequest, type LoginPayload, type UserResponse } from '../api/auth'
 
 const STORAGE_KEY = 'cendo-drive-auth'
 
-export interface User {
-  id: string
-  name: string
-  avatar: string
-}
+type SavedSession = { token: string; user: UserResponse; expiresAt: number }
+type StorageMode = 'local' | 'session' | null
 
-interface AuthState {
-  token: string
-  user: User | null
-}
-
-function readState(): AuthState {
+function readStorage(storage: Storage): SavedSession | null {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as AuthState | null
-    if (saved?.token && saved.user) return saved
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
+    const value = storage.getItem(STORAGE_KEY)
+    if (!value) return null
+    const saved: unknown = JSON.parse(value)
+    if (typeof saved === 'object' && saved !== null &&
+        'token' in saved && typeof saved.token === 'string' && saved.token &&
+        'expiresAt' in saved && typeof saved.expiresAt === 'number' && saved.expiresAt > Date.now()) {
+      return saved as SavedSession
+    }
+  } catch { /* corrupt or unavailable storage */ }
+  try { storage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
+  return null
+}
+
+const session = readStorage(sessionStorage)
+const local = session ? null : readStorage(localStorage)
+const initial = session ?? local
+let storageMode: StorageMode = session ? 'session' : local ? 'local' : null
+let verified = false
+let verifying: Promise<boolean> | null = null
+
+const state = reactive({
+  token: initial?.token ?? '',
+  user: initial?.user ?? null as UserResponse | null,
+  expiresAt: initial?.expiresAt ?? 0,
+  verificationError: false,
+})
+
+function clearSession() {
+  state.token = ''
+  state.user = null
+  state.expiresAt = 0
+  state.verificationError = false
+  verified = false
+  storageMode = null
+  for (const storage of [localStorage, sessionStorage]) {
+    try { storage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
   }
-  return { token: '', user: null }
 }
 
-const state = reactive<AuthState>(readState())
-
-function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: state.token, user: state.user }))
+function saveSession(token: string, user: UserResponse, expiresInSeconds: number, remember: boolean) {
+  clearSession()
+  state.token = token
+  state.user = user
+  state.expiresAt = Date.now() + expiresInSeconds * 1000
+  verified = true
+  storageMode = remember ? 'local' : 'session'
+  const storage = storageMode === 'local' ? localStorage : sessionStorage
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ token, user, expiresAt: state.expiresAt }))
+  } catch { /* session stays in memory when storage is blocked */ }
 }
 
-export function getToken() {
-  return state.token || JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')?.token || ''
+async function ensureSession(): Promise<boolean> {
+  if (!state.token) return false
+  if (state.expiresAt <= Date.now()) {
+    clearSession()
+    return false
+  }
+  if (verified) return true
+  if (verifying) return verifying
+  verifying = (async () => {
+    try {
+      state.user = await getCurrentUser()
+      state.verificationError = false
+      verified = true
+      return true
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) clearSession()
+      else state.verificationError = true
+      return false
+    } finally {
+      verifying = null
+    }
+  })()
+  return verifying
 }
 
-export function isAuthenticated() {
-  return Boolean(getToken())
-}
+export function getToken(): string { return state.token }
+export function invalidateSession(): void { clearSession() }
 
 export function useAuth() {
-  const login = async (payload: LoginPayload) => {
+  async function login(payload: LoginPayload, remember: boolean) {
     const result = await loginRequest(payload)
-    state.token = result.token
-    state.user = result.user
-    persist()
+    saveSession(result.token, result.user, result.expiresInSeconds, remember)
   }
 
-  const logout = () => {
-    state.token = ''
-    state.user = null
-    localStorage.removeItem(STORAGE_KEY)
+  async function logout(): Promise<boolean> {
+    let revoked = false
+    try {
+      await logoutRequest()
+      revoked = true
+    } catch { /* local session must still be removed */ }
+    finally { clearSession() }
+    return revoked
   }
 
   return {
     user: computed(() => state.user),
-    loggedIn: computed(() => Boolean(state.token)),
+    loggedIn: computed(() => Boolean(state.token) && verified),
+    verificationError: computed(() => state.verificationError),
+    ensureSession,
     login,
     logout,
   }

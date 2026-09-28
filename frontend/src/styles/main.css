@@ -41,3 +41,6 @@
 @media(max-width:380px){.tool-left button:nth-of-type(2){display:none}.file-grid{grid-template-columns:1fr 1fr}.login-card{padding-inline:19px}}
 
 .other-login{gap:25px}.other-login .social-login{width:48px;height:auto;border:0;border-radius:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:7px;color:#86909c;font-size:11px;font-weight:400}.social-login i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:18px;font-weight:700;font-style:normal;box-shadow:0 4px 10px rgba(35,48,71,.12);transition:.18s ease}.social-login:hover i{transform:translateY(-2px);box-shadow:0 6px 14px rgba(35,48,71,.18)}.social-login .wechat{background:#1aad19}.social-login .qq{background:#31a4ff}.social-login .weibo{background:#f65d5b}
+
+/* Auth feedback */
+.field-error{color:#c9362c;font-size:12px;margin:-10px 0 12px}.success{color:#087a4b;font-size:13px;margin:-12px 0 16px}.unavailable{color:#86909c}
