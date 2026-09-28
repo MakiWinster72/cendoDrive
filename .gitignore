@@ -1,1 +1,3 @@
 myDocs/
+backend/target/
+backend/.env
