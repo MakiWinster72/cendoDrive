@@ -5,8 +5,6 @@ import { getCurrentUser, loginRequest, logoutRequest, type LoginPayload, type Us
 const STORAGE_KEY = 'cendo-drive-auth'
 
 type SavedSession = { token: string; user: UserResponse; expiresAt: number }
-type StorageMode = 'local' | 'session' | null
-
 function readStorage(storage: Storage): SavedSession | null {
   try {
     const value = storage.getItem(STORAGE_KEY)
@@ -25,7 +23,6 @@ function readStorage(storage: Storage): SavedSession | null {
 const session = readStorage(sessionStorage)
 const local = session ? null : readStorage(localStorage)
 const initial = session ?? local
-let storageMode: StorageMode = session ? 'session' : local ? 'local' : null
 let verified = false
 let verifying: Promise<boolean> | null = null
 
@@ -42,7 +39,6 @@ function clearSession() {
   state.expiresAt = 0
   state.verificationError = false
   verified = false
-  storageMode = null
   for (const storage of [localStorage, sessionStorage]) {
     try { storage.removeItem(STORAGE_KEY) } catch { /* storage unavailable */ }
   }
@@ -54,8 +50,7 @@ function saveSession(token: string, user: UserResponse, expiresInSeconds: number
   state.user = user
   state.expiresAt = Date.now() + expiresInSeconds * 1000
   verified = true
-  storageMode = remember ? 'local' : 'session'
-  const storage = storageMode === 'local' ? localStorage : sessionStorage
+  const storage = remember ? localStorage : sessionStorage
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify({ token, user, expiresAt: state.expiresAt }))
   } catch { /* session stays in memory when storage is blocked */ }
@@ -69,13 +64,17 @@ async function ensureSession(): Promise<boolean> {
   }
   if (verified) return true
   if (verifying) return verifying
+  const tokenBeingChecked = state.token
   verifying = (async () => {
     try {
-      state.user = await getCurrentUser()
+      const user = await getCurrentUser()
+      if (state.token !== tokenBeingChecked) return false
+      state.user = user
       state.verificationError = false
       verified = true
       return true
     } catch (error) {
+      if (state.token !== tokenBeingChecked) return false
       if (axios.isAxiosError(error) && error.response?.status === 401) clearSession()
       else state.verificationError = true
       return false
