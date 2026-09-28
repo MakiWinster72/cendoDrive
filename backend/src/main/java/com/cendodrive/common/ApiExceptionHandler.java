@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -32,6 +33,13 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> conflict() {
         // TODO: narrow this mapping to the username unique index; other data failures are not conflicts.
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+    }
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ApiError> rateLimit(ResponseStatusException ex) {
+        if (ex.getStatusCode().value() != 429) throw ex;
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "900")
+                .body(ApiError.of("RATE_LIMITED", "Too many login attempts"));
     }
     @ExceptionHandler(AuthFailure.class)
     ResponseEntity<ApiError> authentication(AuthFailure ex) {
