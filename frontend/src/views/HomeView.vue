@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Archive, Bell, CalendarDays, CheckSquare, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
+import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
+import '../styles/profile.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
@@ -11,7 +12,17 @@ const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false)
 const sortBy = ref<'name' | 'time' | 'size'>('time'), fileInput = ref<HTMLInputElement>(), notice = ref('')
-const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('files')
+const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('profile')
+const profileShortcuts = [
+  { label: '我的收藏', icon: Sparkles }, { label: '我的分享', icon: Share2 },
+  { label: '回收站', icon: Trash2 }, { label: '设备管理', icon: MonitorSmartphone },
+  { label: '我的打印', icon: Printer }, { label: '转存与下载', icon: CloudUpload },
+]
+const profileServices = [
+  { label: '借钱', icon: Wallet, tone: 'rose' }, { label: '免费领会员', icon: Gift, tone: 'mint' },
+  { label: '照片冲印', icon: Printer, tone: 'orange' }, { label: '奇妙赏', icon: Coins, tone: 'rose' },
+  { label: '一刻相册', icon: Image, tone: 'gold' }, { label: '活动中心', icon: TicketPercent, tone: 'orange' },
+]
 const displayName = computed(() => auth.user.value?.nickname || auth.user.value?.username || 'CendoDrive 用户')
 const modeNames: Record<Mode, string> = { all: '全部文件', recent: '最近', image: '图片', video: '视频', doc: '文档', audio: '音频', other: '其他', shares: '我的分享', trash: '回收站' }
 const title = computed(() => currentFolder.value ? drive.get(currentFolder.value)?.name || '文件夹' : modeNames[mode.value])
@@ -68,8 +79,29 @@ async function logout() { const revoked = await auth.logout(); await router.repl
       <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" @click="openItem(item)"><span class="m-folder"><component :is="iconFor(item.kind)" fill="currentColor" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '常看　' : formatSize(item.size) + '　' }}{{ dateText(item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
       <button class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
     </template>
-    <template v-else><section class="m-placeholder"><component :is="mobileTab === 'share' ? Share2 : CircleUserRound" :size="58" /><h2>{{ mobileTab === 'share' ? '我的分享' : '个人中心' }}</h2><p>{{ mobileTab === 'share' ? '已创建的分享可在 PC 端管理' : displayName }}</p></section></template>
-    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow"><i><Sparkles /></i><span>GenFlow</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>25</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
+    <template v-else-if="mobileTab === 'profile'">
+      <main class="profile-page">
+        <header class="profile-header">
+          <div class="profile-avatar"><UserRound :size="30" /></div>
+          <div class="profile-identity"><div><strong>{{ displayName }}</strong><span>SVIP 1</span><ScanLine :size="19" /></div><p>您还不是超级会员 <ChevronRight :size="17" /></p></div>
+          <div class="profile-header-actions"><button aria-label="设备" type="button"><MonitorSmartphone /></button><button aria-label="签到" type="button"><CalendarDays /></button></div>
+        </header>
+        <section class="profile-membership">
+          <div class="membership-hero"><div class="membership-copy"><small>云端生活 · 更多可能</small><h1>解锁 SVIP</h1><p>新用户专享 · 低至 $3.40/月！</p></div>
+            <div class="membership-perks"><div><PackageOpen /><span>8G 解压</span></div><div><CloudUpload /><span>300G 上传</span></div><div><Folder /><span>5 万转存</span></div><div><HardDrive /><span>5T 空间</span></div><div><Gift /><span>等级福利</span></div></div>
+            <button type="button" class="membership-cta">立即解锁 <ChevronRight :size="19" /></button>
+          </div>
+          <div class="membership-links"><button type="button">我的 AI 点数</button><i></i><button type="button">我的资产</button></div>
+        </section>
+        <section class="profile-shortcuts" aria-label="常用工具"><button v-for="tool in profileShortcuts" :key="tool.label" type="button"><component :is="tool.icon" /><span>{{ tool.label }}</span></button></section>
+        <div class="profile-card-pair"><section class="profile-storage"><div><strong>1.6T / 2T</strong><span>79%</span></div><div class="storage-track"><i></i></div><button type="button">管理空间 <ChevronRight :size="17" /></button></section><section class="profile-missions"><div class="mission-orb"><Crown /></div><strong>任务系统</strong><button type="button">领 奖 励 <ChevronRight :size="17" /></button></section></div>
+        <section class="profile-services" aria-label="更多服务"><button v-for="service in profileServices" :key="service.label" type="button" :class="service.tone"><component :is="service.icon" /><span>{{ service.label }}</span></button></section>
+        <section class="profile-promo"><div class="promo-gift"><Gift :size="52" /></div><div><strong>网盘 <em>SVIP</em> 会员免费送</strong><p>限时活动 · 领 90 天会员</p></div><button type="button">立即抢</button></section>
+        <section class="profile-game"><div><h2>游戏中心</h2><button type="button">免费下载券 <ChevronRight :size="18" /></button></div><p>探索更多云端乐趣</p></section>
+      </main>
+    </template>
+    <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
+    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>25</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
     <input ref="fileInput" type="file" multiple hidden @change="uploadFiles" />
   </div>
 
