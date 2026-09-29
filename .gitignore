@@ -6,3 +6,5 @@ backend/.classpath
 backend/.project
 backend/.settings/
 .pi/tasks/
+
+frontend/node_modules/
