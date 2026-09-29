@@ -40,7 +40,7 @@ async function submit() {
   <main class="login-page">
     <header class="login-header">
       <BrandLogo />
-      <nav><span>安全保存你的文件</span></nav>
+      <nav><a href="#">客户端下载</a><a href="#">会员中心</a><a href="#">帮助中心</a><span aria-hidden="true"></span><a href="#">企业服务</a></nav>
     </header>
 
     <section class="login-hero">
