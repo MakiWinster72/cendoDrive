@@ -73,9 +73,20 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> authentication(AuthFailure ex) {
         return ResponseEntity.status(ex.status()).body(ApiError.of("UNAUTHORIZED", ex.getMessage()));
     }
+    @ExceptionHandler(DriveFailure.class)
+    ResponseEntity<ApiError> drive(DriveFailure ex) {
+        return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
+    }
     public static class AuthFailure extends RuntimeException {
         private final HttpStatus status;
         public AuthFailure(HttpStatus status, String message) { super(message); this.status = status; }
         public HttpStatus status() { return status; }
+    }
+    public static class DriveFailure extends RuntimeException {
+        private final HttpStatus status;
+        private final String code;
+        public DriveFailure(HttpStatus status, String code, String message) { super(message); this.status = status; this.code = code; }
+        public HttpStatus status() { return status; }
+        public String code() { return code; }
     }
 }
