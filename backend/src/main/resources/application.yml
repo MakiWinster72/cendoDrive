@@ -16,3 +16,6 @@ spring:
     enabled: true
 server:
   port: ${PORT:8080}
+cendo:
+  storage:
+    root: ${CENDO_STORAGE_ROOT:./storage}
