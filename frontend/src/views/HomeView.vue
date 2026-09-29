@@ -17,6 +17,7 @@ const displayName = computed(() => auth.user.value?.nickname || auth.user.value?
 const modeNames: Record<Mode, string> = { all: '全部文件', recent: '最近', image: '图片', video: '视频', doc: '文档', audio: '音频', other: '其他', shares: '我的分享', trash: '回收站' }
 const title = computed(() => currentFolder.value ? drive.get(currentFolder.value)?.name || '文件夹' : modeNames[mode.value])
 const folders = computed(() => drive.state.files.filter((item) => item.kind === 'folder' && !item.deletedAt))
+const uploadFolders = computed(() => [{ id: null, name: displayName.value }, ...folders.value.map((folder) => ({ id: folder.id, name: folder.name }))])
 const filteredFiles = computed(() => {
   let items: DriveItem[]
   if (mode.value === 'trash') items = drive.state.files.filter((item) => Boolean(item.deletedAt))
@@ -39,6 +40,7 @@ function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !=
 function goRoot() { currentFolder.value = null; checked.value = [] }
 function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch (e) { alert(e instanceof Error ? e.message : '创建失败') } }
 function chooseFiles() { uploadPanelOpen.value = true }
+function handleUpload(_files: File[], _folderId: string | null) { flash('上传接口待接入，文件暂未上传') }
 function uploadFiles(event: Event) { const files = [...((event.target as HTMLInputElement).files || [])]; if (!files.length) return; drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`); (event.target as HTMLInputElement).value = '' }
 function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (name) { drive.rename(item.id, name); flash('重命名成功') } }
 function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); drive.move(item.id, target || null); checked.value = []; flash('移动成功') }
@@ -53,7 +55,7 @@ async function logout() { const revoked = await auth.logout(); await router.repl
 </script>
 
 <template>
-  <UploadPanel :open="uploadPanelOpen" @close="uploadPanelOpen = false" />
+  <UploadPanel :open="uploadPanelOpen" :folder-options="uploadFolders" :initial-folder-id="currentFolder" @close="uploadPanelOpen = false" @upload="handleUpload" />
 
   <div class="mobile-app">
     <template v-if="mobileTab === 'home'">
