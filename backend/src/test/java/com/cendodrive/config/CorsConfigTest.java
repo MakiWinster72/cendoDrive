@@ -23,6 +23,12 @@ class CorsConfigTest {
         assertTrue(cors.getAllowedHeaders().contains("Authorization"));
     }
 
+    @Test void wildcardAndNonOriginValuesFailFast() {
+        assertThrows(IllegalArgumentException.class, () -> config.corsConfigurationSource("*"));
+        assertThrows(IllegalArgumentException.class, () -> config.corsConfigurationSource("https://app.example/path"));
+        assertThrows(IllegalArgumentException.class, () -> config.corsConfigurationSource("http://user:pass@app.example"));
+    }
+
     private static MockHttpServletRequest apiRequest() {
         return new MockHttpServletRequest("OPTIONS", "/api/auth/login");
     }
