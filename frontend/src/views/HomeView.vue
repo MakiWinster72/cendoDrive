@@ -101,7 +101,7 @@ async function logout() { const revoked = await auth.logout(); await router.repl
       </main>
     </template>
     <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
-    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>25</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
+    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
     <input ref="fileInput" type="file" multiple hidden @change="uploadFiles" />
   </div>
 
