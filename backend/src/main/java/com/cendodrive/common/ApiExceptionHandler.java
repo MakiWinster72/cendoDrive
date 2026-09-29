@@ -2,6 +2,7 @@ package com.cendodrive.common;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +31,20 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiError.of("UNAUTHORIZED", "Unauthorized"));
     }
     @ExceptionHandler(DataIntegrityViolationException.class)
-    ResponseEntity<ApiError> conflict() {
-        // TODO: narrow this mapping to the username unique index; other data failures are not conflicts.
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+    ResponseEntity<ApiError> conflict(DataIntegrityViolationException ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException constraint
+                    && "uk_users_username".equalsIgnoreCase(constraint.getConstraintName())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+            }
+            if (cause instanceof java.sql.SQLIntegrityConstraintViolationException sql
+                    && sql.getMessage() != null
+                    && sql.getMessage().toLowerCase(Locale.ROOT).contains("uk_users_username")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+            }
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiError.of("INTERNAL_ERROR", "Internal server error"));
     }
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<ApiError> rateLimit(ResponseStatusException ex) {
