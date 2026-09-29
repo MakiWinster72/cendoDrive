@@ -9,6 +9,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class ApiExceptionHandlerTest {
     private final ApiExceptionHandler handler = new ApiExceptionHandler();
 
+    @Test void frameworkErrorsHaveStableCodes() {
+        assertEquals("NOT_FOUND", handler.notFound().getBody().code());
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, handler.methodNotAllowed().getStatusCode());
+        assertEquals("UNSUPPORTED_MEDIA_TYPE", handler.unsupportedMediaType().getBody().code());
+    }
+
     @Test void usernameUniqueConstraintReturnsConflict() {
         var sql = new SQLIntegrityConstraintViolationException("Duplicate entry for key 'users.uk_users_username'");
         var result = handler.conflict(new DataIntegrityViolationException("insert failed", sql));
