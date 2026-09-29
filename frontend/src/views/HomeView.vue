@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Archive, Bell, CalendarDays, CheckSquare, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
@@ -33,22 +33,24 @@ const filteredFiles = computed(() => {
 const iconFor = (kind: string) => kind === 'folder' ? Folder : kind === 'image' ? Image : kind === 'video' ? Video : kind === 'audio' ? Music2 : ['pdf', 'doc'].includes(kind) ? FileText : File
 const dateText = (date: string) => new Date(date).toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
 function flash(text: string) { notice.value = text; window.setTimeout(() => notice.value = '', 2200) }
-function changeMode(next: Mode) { mode.value = next; currentFolder.value = null; checked.value = []; mobileNavOpen.value = false }
-function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !== 'trash') { mode.value = 'all'; currentFolder.value = item.id; checked.value = [] } }
-function goRoot() { currentFolder.value = null; checked.value = [] }
-function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch (e) { alert(e instanceof Error ? e.message : '创建失败') } }
+async function changeMode(next: Mode) { mode.value = next; currentFolder.value = null; checked.value = []; mobileNavOpen.value = false; if (next === 'all') await loadFolder(null) }
+async function loadFolder(parentId: string | null) { try { await drive.load(parentId); currentFolder.value = parentId } catch { alert(drive.state.error) } }
+async function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !== 'trash') { mode.value = 'all'; checked.value = []; await loadFolder(item.id) } }
+async function goRoot() { checked.value = []; await loadFolder(null) }
+async function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { await drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch { alert(drive.state.error) } }
 function chooseFiles() { fileInput.value?.click() }
 function uploadFiles(event: Event) { const files = [...((event.target as HTMLInputElement).files || [])]; if (!files.length) return; drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`); (event.target as HTMLInputElement).value = '' }
-function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (name) { drive.rename(item.id, name); flash('重命名成功') } }
-function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); drive.move(item.id, target || null); checked.value = []; flash('移动成功') }
+async function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (!name) return; try { await drive.rename(item.id, name); flash('重命名成功') } catch { alert(drive.state.error) } }
+async function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); try { await drive.move(item.id, target || null); checked.value = []; flash('移动成功') } catch { alert(drive.state.error) } }
 function itemMenu(item: DriveItem) { if (mode.value === 'shares') { if (confirm('确定取消该分享吗？')) { const share = drive.state.shares.find((record) => record.itemId === item.id && !record.cancelled); if (share) drive.cancelShare(share.id); flash('分享已取消') } return } const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
 function removeSelected(ids = checked.value) { if (!ids.length || !confirm('确定移入回收站吗？')) return; drive.trash(ids); checked.value = []; flash('已移入回收站') }
 function restoreSelected() { drive.restore(checked.value); checked.value = []; flash('文件已恢复') }
 function permanentDelete() { if (!checked.value.length || !confirm('永久删除后无法恢复，是否继续？')) return; drive.removeForever(checked.value); checked.value = []; flash('已永久删除') }
 function clearTrash() { if (confirm('确定清空回收站吗？')) { drive.emptyTrash(); checked.value = []; flash('回收站已清空') } }
 async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) }
-function downloadSelected() { checked.value.forEach((itemId) => { const item = drive.get(itemId); if (!item || item.kind === 'folder') return; const blob = new Blob([`CendoDrive Mock 文件：${item.name}`]); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = item.name; link.click(); URL.revokeObjectURL(link.href) }); flash('已开始模拟下载') }
+async function downloadSelected() { try { for (const itemId of checked.value) { const item = drive.get(itemId); if (item?.kind !== 'folder') await drive.download(itemId) } flash('已开始下载') } catch { alert(drive.state.error) } }
 async function logout() { const revoked = await auth.logout(); await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } }) }
+onMounted(() => loadFolder(null))
 </script>
 
 <template>
