@@ -18,6 +18,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(com.cendodrive.file.FileBusinessException.class)
+    ResponseEntity<ApiError> fileFailure(com.cendodrive.file.FileBusinessException ex) {
+        return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
+    }
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> invalidParameter() {
+        return ResponseEntity.badRequest().body(ApiError.of("INVALID_INPUT", "Invalid parameter type"));
+    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex) {
         Map<String, String> fields = new LinkedHashMap<>();
@@ -49,6 +57,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> conflict(DataIntegrityViolationException ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            String constraintName = cause instanceof org.hibernate.exception.ConstraintViolationException constraint
+                    ? constraint.getConstraintName() : null;
+            String sqlMessage = cause instanceof java.sql.SQLIntegrityConstraintViolationException sql
+                    ? sql.getMessage() : null;
+            if (matchesConstraint(constraintName, sqlMessage, "uk_file_entries_name")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiError.of("NAME_CONFLICT", "Name already exists in this folder"));
+            }
+            if (matchesConstraint(constraintName, sqlMessage, "uk_file_entries_ingest")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiError.of("IDEMPOTENCY_CONFLICT", "Upload task already registered"));
+            }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException constraint
                     && "uk_users_username".equalsIgnoreCase(constraint.getConstraintName())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
@@ -68,6 +88,10 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", "900")
                 .body(ApiError.of("RATE_LIMITED", "Too many login attempts"));
+    }
+    private static boolean matchesConstraint(String name, String message, String expected) {
+        return expected.equalsIgnoreCase(name)
+                || (message != null && message.toLowerCase(Locale.ROOT).contains(expected));
     }
     @ExceptionHandler(AuthFailure.class)
     ResponseEntity<ApiError> authentication(AuthFailure ex) {

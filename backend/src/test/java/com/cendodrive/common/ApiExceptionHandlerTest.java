@@ -30,4 +30,12 @@ class ApiExceptionHandlerTest {
         assertEquals("INTERNAL_ERROR", result.getBody().code());
         assertEquals("Internal server error", result.getBody().message());
     }
+    @Test void fileConstraintsReturnSpecificCodes() {
+        for (var pair : new String[][]{{"uk_file_entries_name", "NAME_CONFLICT"}, {"uk_file_entries_ingest", "IDEMPOTENCY_CONFLICT"}}) {
+            var sql = new SQLIntegrityConstraintViolationException("Duplicate entry for key 'file_entries." + pair[0] + "'");
+            var result = handler.conflict(new DataIntegrityViolationException("insert failed", sql));
+            assertEquals(HttpStatus.CONFLICT, result.getStatusCode());
+            assertEquals(pair[1], result.getBody().code());
+        }
+    }
 }
