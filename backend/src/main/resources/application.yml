@@ -2,23 +2,23 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:mysql://10.42.0.1:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USER:cendo}
+    password: ${DB_PASSWORD:cendo}
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:10.42.0.1}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
   flyway:
     enabled: true
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://127.0.0.1:5173}
 server:
   port: ${PORT:8080}
 cendo:
