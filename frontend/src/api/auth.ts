@@ -59,7 +59,7 @@ export function authErrorMessage(error: unknown, fallback: string): string {
   switch (error.response.status) {
     case 400: return '请检查填写的信息'
     case 401: return '用户名或密码错误'
-    case 409: return '用户名已存在'
+    case 409: return error.response.data?.code === 'CONFLICT' ? '用户名已存在' : fallback
     case 429: return '登录尝试过于频繁，请稍后再试'
     default: return fallback
   }
