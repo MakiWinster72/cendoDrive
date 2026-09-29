@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Archive, Bell, CalendarDays, CheckSquare, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
+import { Archive, Bell, CalendarDays, CheckSquare, ChevronDown, ChevronRight, CircleUserRound, Cloud, Clock3, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
+import UploadPanel from '../components/UploadPanel.vue'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
 type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | 'shares' | 'trash'
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
-const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false)
+const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
 const sortBy = ref<'name' | 'time' | 'size'>('time'), fileInput = ref<HTMLInputElement>(), notice = ref('')
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('files')
 const displayName = computed(() => auth.user.value?.nickname || auth.user.value?.username || 'CendoDrive 用户')
@@ -37,7 +38,7 @@ function changeMode(next: Mode) { mode.value = next; currentFolder.value = null;
 function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !== 'trash') { mode.value = 'all'; currentFolder.value = item.id; checked.value = [] } }
 function goRoot() { currentFolder.value = null; checked.value = [] }
 function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch (e) { alert(e instanceof Error ? e.message : '创建失败') } }
-function chooseFiles() { fileInput.value?.click() }
+function chooseFiles() { uploadPanelOpen.value = true }
 function uploadFiles(event: Event) { const files = [...((event.target as HTMLInputElement).files || [])]; if (!files.length) return; drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`); (event.target as HTMLInputElement).value = '' }
 function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (name) { drive.rename(item.id, name); flash('重命名成功') } }
 function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); drive.move(item.id, target || null); checked.value = []; flash('移动成功') }
@@ -52,11 +53,13 @@ async function logout() { const revoked = await auth.logout(); await router.repl
 </script>
 
 <template>
+  <UploadPanel :open="uploadPanelOpen" @close="uploadPanelOpen = false" />
+
   <div class="mobile-app">
     <template v-if="mobileTab === 'home'">
-      <header class="m-home-head"><div class="m-vip"><b>VIP</b><span>畅听有声书<small>去领取</small></span></div><div><Bell /><HardDrive /><Plus /></div></header>
+      <header class="m-home-head"><div class="m-vip"><b>VIP</b><span>畅听有声书<small>去领取</small></span></div><div><Bell /><HardDrive /><button class="m-upload-trigger" aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
       <section class="m-profile-search"><div class="m-avatar">C</div><span>{{ displayName }}</span><button><WandSparkles :size="20" /></button></section>
-      <section class="m-tools"><button><FileText /><span>听记</span></button><button><CalendarDays /><span>天天练</span></button><button><MessageCircle /><span>笔记</span></button><button @click="chooseFiles"><Upload /><span>备份</span></button><button><HardDrive /><span>同步</span></button><button @click="changeMode('doc'); mobileTab='files'"><FileText /><span>文档</span></button><button><Music2 /><span>音频</span></button><button><Printer /><span>打印</span></button><button><Sparkles /><span>星盘</span></button><button><LayoutGrid /><span>全部工具</span></button></section>
+      <section class="m-tools"><button><FileText /><span>听记</span></button><button><CalendarDays /><span>天天练</span></button><button><MessageCircle /><span>笔记</span></button><button><Upload /><span>备份</span></button><button><HardDrive /><span>同步</span></button><button @click="changeMode('doc'); mobileTab='files'"><FileText /><span>文档</span></button><button><Music2 /><span>音频</span></button><button><Printer /><span>打印</span></button><button><Sparkles /><span>星盘</span></button><button><LayoutGrid /><span>全部工具</span></button></section>
       <section class="m-panel"><div class="m-panel-title"><h2>最近</h2><button><Eye :size="17" /><ChevronRight :size="18" /></button></div><div v-for="item in drive.state.files.filter(item => !item.deletedAt && item.kind !== 'folder').slice(0,3)" :key="item.id" class="m-recent"><span><component :is="iconFor(item.kind)" /></span><div><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt) }}　来自 CendoDrive</small></div></div></section>
       <section class="m-banner"><div><h2>转存 <small>订阅<i></i></small></h2><p>收藏分享内容，随时查看</p></div></section>
       <section class="m-memory"><div class="m-panel-title"><h2>回忆</h2><button><Eye :size="17" /><ChevronRight :size="18" /></button></div><div class="memory-art"><span>把每一份美好，留在云端</span></div></section>
