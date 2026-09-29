@@ -20,12 +20,15 @@ import com.cendodrive.common.ApiError;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
-    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, AuthService auth, ObjectMapper mapper) throws Exception {
-        return http.csrf(csrf -> csrf.disable())
+    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, AuthService auth, ObjectMapper mapper,
+                                                   CorsConfigurationSource corsSource) throws Exception {
+        return http.cors(cors -> cors.configurationSource(corsSource))
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(f -> f.disable()).httpBasic(b -> b.disable())
                 .authorizeHttpRequests(a -> a
