@@ -38,16 +38,18 @@ Spring Boot API
 
 ## 快速开始
 
-需要 **Java 21、Maven、Node.js/npm 和 Docker Compose**。本地依赖（MySQL `cendo`、Redis、FastDFS tracker + 三个 storage）可一键启动：
+需要 **Docker Compose**。一键构建并启动前端、后端、MySQL `cendo`、Redis、FastDFS tracker 和三个 storage：
 
 ```sh
-docker compose up -d
+docker compose up -d --build
 # 如端口已被现有容器占用，请先停止现有容器；不要删除原有数据卷。
 ```
 
-Compose 默认仅绑定到宿主机回环地址，MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖；同时在后端配置相同的 `DB_PASSWORD`。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。后端仍在宿主机运行，FastDFS tracker 地址为 `localhost:22122`；tracker 返回的三个 storage 容器 IP:`23000` 必须能从后端访问（Linux Docker bridge 通常可达，Docker Desktop/远程主机未必可达）。
+打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，前端 Nginx 将 `/api/` 代理至后端。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
 
 ```sh
+# 可选：在宿主机分别开发时，需 Java 21、Maven、Node.js/npm；只启动依赖：
+# docker compose up -d mysql redis tracker storage1 storage2 storage3
 # 终端 1：后端
 cd backend
 cp src/main/resources/application.example.yml src/main/resources/application.yml
@@ -67,7 +69,7 @@ npm run dev
 打开 `http://localhost:5173`；后端默认监听 `http://localhost:8080`。开发服务器默认把 `/api` 代理到后端 8080；如需调整，设置 `VITE_API_PROXY_TARGET`。不要将密码或 Token 放入 `VITE_*` 环境变量，它们会暴露在浏览器中。本地配置文件不要提交到仓库。
 
 > [!NOTE]
-> Compose 仅用于本地依赖，不含前后端服务。生产部署需要单独配置数据库、Redis、FastDFS、HTTPS 和访问控制；本地开发默认密码不适用于生产。
+> Compose 面向本机开发，不提供生产级 HTTPS、访问控制或备份；默认密码不适用于生产。
 
 ## 技术架构
 

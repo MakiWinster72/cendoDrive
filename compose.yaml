@@ -1,7 +1,35 @@
-# 本地开发依赖；后端与前端仍在宿主机运行。
 services:
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USER: cendo
+      DB_PASSWORD: ${MYSQL_PASSWORD:-cendo_dev_password}
+      REDIS_HOST: redis
+      FASTDFS_TRACKER: tracker:22122
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage1:
+        condition: service_started
+      storage2:
+        condition: service_started
+      storage3:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:80:80"
+    depends_on:
+      - backend
+
   mysql:
-    image: mysql:8.0
+    image: mysql
     environment:
       MYSQL_DATABASE: cendo
       MYSQL_USER: cendo
@@ -12,13 +40,17 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      test:
+        [
+          "CMD-SHELL",
+          'mysqladmin ping -h localhost -u root -p"$$MYSQL_ROOT_PASSWORD" --silent',
+        ]
       interval: 10s
       timeout: 5s
       retries: 15
 
   redis:
-    image: redis:7-alpine
+    image: redis
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
