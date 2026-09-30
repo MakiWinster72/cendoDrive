@@ -2,7 +2,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:cendo}
-    password: ${DB_PASSWORD:change-me}
+    password: ${DB_PASSWORD:cendo}
   jpa:
     hibernate:
       ddl-auto: validate
