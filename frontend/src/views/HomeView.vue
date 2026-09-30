@@ -33,7 +33,7 @@ const profileServices = [
 const displayName = computed(() => auth.user.value?.nickname || auth.user.value?.username || 'CendoDrive 用户')
 const searchPrompts = computed(() => [`${displayName.value}的云端空间`, 'AI学习笔记', '简单听记', '文件清理', '照片动起来'])
 const searchPromptIndex = ref(0)
-let searchPromptTimer: ReturnType<typeof setInterval> | undefined
+let searchPromptTimer: number | undefined
 const modeNames: Record<Mode, string> = { all: '全部文件', recent: '最近', image: '图片', video: '视频', doc: '文档', audio: '音频', other: '其他', shares: '我的分享', trash: '回收站' }
 const title = computed(() => currentFolder.value ? drive.get(currentFolder.value)?.name || '文件夹' : modeNames[mode.value])
 const folders = computed(() => drive.state.files.filter((item) => item.kind === 'folder' && !item.deletedAt))
