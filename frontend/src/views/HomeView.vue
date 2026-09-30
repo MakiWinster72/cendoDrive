@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
+import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, LogOut, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
 import UploadPanel from '../components/UploadPanel.vue'
 import '../styles/profile.css'
@@ -124,6 +124,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
         <section class="profile-services" aria-label="更多服务"><button v-for="service in profileServices" :key="service.label" type="button" :class="service.tone"><component :is="service.icon" /><span>{{ service.label }}</span></button></section>
         <section class="profile-promo"><div class="promo-gift"><Gift :size="52" /></div><div><strong>网盘 <em>SVIP</em> 会员免费送</strong><p>限时活动 · 领 90 天会员</p></div><button type="button">立即抢</button></section>
         <section class="profile-game"><div><h2>游戏中心</h2><button type="button">免费下载券 <ChevronRight :size="18" /></button></div><p>探索更多云端乐趣</p></section>
+        <button class="profile-logout" type="button" @click="logout"><LogOut :size="19" /><span>退出登录</span><ChevronRight :size="18" /></button>
       </main>
     </template>
     <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
