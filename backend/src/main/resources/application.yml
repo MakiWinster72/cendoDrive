@@ -1,6 +1,4 @@
 spring:
-  config:
-    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL:jdbc:mysql://10.42.0.1:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:cendo}
