@@ -79,4 +79,19 @@ class DriveServiceTest {
         assertEquals("NOT_IN_TRASH", error.code());
         verify(files, never()).deleteAll(anyList());
     }
+
+    @Test void trashListOnlyShowsTopLevelDeletedItems() {
+        DriveFile parent = mock(DriveFile.class);
+        DriveFile child = mock(DriveFile.class);
+        when(parent.getId()).thenReturn(1L);
+        when(parent.getName()).thenReturn("父目录");
+        when(parent.getKind()).thenReturn("folder");
+        when(parent.getUpdatedAt()).thenReturn(java.time.LocalDateTime.now());
+        when(parent.getDeletedAt()).thenReturn(java.time.LocalDateTime.now());
+        when(child.getId()).thenReturn(2L);
+        when(child.getParentId()).thenReturn(1L);
+        when(files.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(7L)).thenReturn(List.of(parent, child));
+        List<FileResponse> result = service.listTrash(user);
+        assertEquals(List.of("1"), result.stream().map(FileResponse::id).toList());
+    }
 }

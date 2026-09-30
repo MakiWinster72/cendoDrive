@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
@@ -33,8 +35,11 @@ public class DriveService {
 
     @Transactional(readOnly = true)
     public List<FileResponse> listTrash(User user) {
-        return files.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(user.getId())
-                .stream().map(FileResponse::from).toList();
+        List<DriveFile> deleted = files.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(user.getId());
+        Set<Long> deletedIds = deleted.stream().map(DriveFile::getId).collect(Collectors.toSet());
+        return deleted.stream()
+                .filter(file -> file.getParentId() == null || !deletedIds.contains(file.getParentId()))
+                .map(FileResponse::from).toList();
     }
 
     @Transactional
