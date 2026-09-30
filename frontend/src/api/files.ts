@@ -51,7 +51,11 @@ export function uploadErrorMessage(error: unknown): string {
   if (error.response.status === 404 && code === 'NOT_FOUND') return '上传接口或请求资源不存在'
   if (error.response.status === 405 && code === 'METHOD_NOT_ALLOWED') return '上传接口不支持此请求方式'
   if (error.response.status === 415 && code === 'UNSUPPORTED_MEDIA_TYPE') return '不支持此文件类型'
-  if (code === 'FILE_TOO_LARGE') return '文件超过大小限制'
+  if (code === 'FILE_TOO_LARGE' || code === 'MAX_UPLOAD_SIZE_EXCEEDED') return '文件超过大小限制'
+  if (code === 'UPLOAD_NOT_FOUND') return '上传任务已失效，请重新选择文件'
+  if (code === 'INCOMPLETE_UPLOAD') return '还有分片未上传，请重试'
+  if (code === 'HASH_MISMATCH') return '文件校验失败，请重新选择文件'
+  if (code === 'STORAGE_UNAVAILABLE') return '存储服务暂不可用，请稍后重试'
   if (error.response.status >= 500 || code === 'INTERNAL_ERROR') return '服务器处理失败，请稍后重试'
   return '上传失败，请重试'
 }

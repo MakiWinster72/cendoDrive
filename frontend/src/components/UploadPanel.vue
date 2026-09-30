@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check, FilePlus2, FileText, FolderPlus, Image, LoaderCircle, Music2, RotateCcw, Trash2, UploadCloud, Video, X } from 'lucide-vue-next'
 import { isUploadCancelled, uploadErrorMessage, uploadFile } from '../api/files'
+import { shouldUseChunkedUpload, uploadFileInChunks } from '../api/chunkedUpload'
 import type { DriveItem } from '../stores/drive'
 
 interface FolderOption { id: string | null; name: string }
@@ -15,8 +16,9 @@ const props = withDefaults(defineProps<{
 })
 const emit = defineEmits<{ close: []; uploaded: [item: DriveItem] }>()
 type UploadType = 'image' | 'video' | 'document' | 'audio' | 'other'
-type UploadStatus = 'waiting' | 'uploading' | 'success' | 'failed' | 'cancelled'
-interface UploadTask { id: string; file: File; status: UploadStatus; progress: number; parentId?: string | null; error?: string }
+type UploadStatus = 'waiting' | 'preparing' | 'uploading' | 'success' | 'failed' | 'cancelled'
+type UploadMode = 'normal' | 'chunked'
+interface UploadTask { id: string; file: File; status: UploadStatus; progress: number; mode?: UploadMode; parentId?: string | null; error?: string }
 
 const fileInput = ref<HTMLInputElement>()
 const accept = ref('*/*')
@@ -29,7 +31,7 @@ watch(() => props.initialFolderId, (folderId) => {
   if (!props.open || uploadTasks.value.length === 0) selectedFolderId.value = folderId
 })
 const selectedFiles = computed(() => uploadTasks.value.filter((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))
-const activeCount = computed(() => uploadTasks.value.filter((task) => task.status === 'uploading').length)
+const activeCount = computed(() => uploadTasks.value.filter((task) => task.status === 'preparing' || task.status === 'uploading').length)
 const hasPending = computed(() => uploadTasks.value.some((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))
 const waitingCount = computed(() => uploadTasks.value.filter((task) => task.status === 'waiting').length)
 const retryCount = computed(() => uploadTasks.value.filter((task) => task.status === 'failed' || task.status === 'cancelled').length)
@@ -80,17 +82,27 @@ function selectFolder(folderId: string | null) {
 
 async function runUpload(task: UploadTask) {
   const controller = new AbortController()
+  const useChunks = shouldUseChunkedUpload(task.file.size)
   controllers.set(task.id, controller)
-  task.status = 'uploading'
+  task.mode = useChunks ? 'chunked' : 'normal'
+  task.status = useChunks ? 'preparing' : 'uploading'
   task.progress = 0
   task.error = undefined
   try {
-    const item = await uploadFile({
-      file: task.file,
-      parentId: task.parentId ?? null,
-      signal: controller.signal,
-      onProgress: (progress) => { task.progress = progress },
-    })
+    const item = useChunks
+      ? await uploadFileInChunks({
+          file: task.file,
+          parentId: task.parentId ?? null,
+          signal: controller.signal,
+          onPhase: (phase) => { task.status = phase === 'hashing' ? 'preparing' : 'uploading' },
+          onProgress: (progress) => { task.progress = progress },
+        })
+      : await uploadFile({
+          file: task.file,
+          parentId: task.parentId ?? null,
+          signal: controller.signal,
+          onProgress: (progress) => { task.progress = progress },
+        })
     task.progress = 100
     task.status = 'success'
     emit('uploaded', item)
@@ -128,8 +140,10 @@ function cancelUpload(task: UploadTask) {
   controllers.get(task.id)?.abort()
 }
 
-function statusText(status: UploadStatus) {
-  return ({ waiting: '等待上传', uploading: '上传中', success: '上传成功', failed: '上传失败', cancelled: '已取消' })[status]
+function statusText(task: UploadTask) {
+  if (task.status === 'preparing') return '正在计算文件校验值'
+  if (task.status === 'uploading' && task.mode === 'chunked') return '分片上传中'
+  return ({ waiting: '等待上传', preparing: '准备中', uploading: '上传中', success: '上传成功', failed: '上传失败', cancelled: '已取消' })[task.status]
 }
 </script>
 
@@ -155,12 +169,12 @@ function statusText(status: UploadStatus) {
       </div>
 
       <div v-if="uploadTasks.length" class="selected-files">
-        <div class="selected-files-heading"><div><strong>上传任务</strong><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small></div><span v-if="activeCount">{{ activeCount }} 个正在上传</span><span v-else>逐个显示上传结果</span></div>
+        <div class="selected-files-heading"><div><strong>上传任务</strong><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small></div><span v-if="activeCount">{{ activeCount }} 个处理中</span><span v-else>逐个显示上传结果</span></div>
         <ul>
           <li v-for="task in uploadTasks" :key="task.id" class="upload-task-row">
-            <span class="file-badge"><Check v-if="task.status === 'success'" :size="17" /><LoaderCircle v-else-if="task.status === 'uploading'" class="spin" :size="17" /><FileText v-else :size="17" /></span>
-            <div class="file-meta"><b :title="task.file.name">{{ task.file.name }}</b><small>{{ formatSize(task.file.size) }} · {{ fileType(task.file) }} · {{ statusText(task.status) }}</small><div v-if="task.status === 'uploading' || task.status === 'success'" class="progress-line"><div class="progress-track"><span :class="task.status" :style="{ width: `${task.progress}%` }"></span></div><small>{{ task.progress }}%</small></div><small v-if="task.error" class="task-error">{{ task.error }}</small></div>
-            <button v-if="task.status === 'uploading'" type="button" aria-label="取消上传" @click="cancelUpload(task)"><X :size="16" /></button>
+            <span class="file-badge"><Check v-if="task.status === 'success'" :size="17" /><LoaderCircle v-else-if="task.status === 'preparing' || task.status === 'uploading'" class="spin" :size="17" /><FileText v-else :size="17" /></span>
+            <div class="file-meta"><b :title="task.file.name">{{ task.file.name }}</b><small>{{ formatSize(task.file.size) }} · {{ fileType(task.file) }} · {{ statusText(task) }}</small><div v-if="task.status === 'preparing' || task.status === 'uploading' || task.status === 'success'" class="progress-line"><div class="progress-track"><span :class="task.status" :style="{ width: `${task.progress}%` }"></span></div><small>{{ task.status === 'preparing' ? `校验 ${task.progress}%` : `${task.progress}%` }}</small></div><small v-if="task.error" class="task-error">{{ task.error }}</small></div>
+            <button v-if="task.status === 'preparing' || task.status === 'uploading'" type="button" aria-label="取消上传" @click="cancelUpload(task)"><X :size="16" /></button>
             <button v-else-if="task.status === 'failed' || task.status === 'cancelled'" type="button" aria-label="重试上传" @click="retryUpload(task)"><RotateCcw :size="16" /></button>
             <button v-else-if="task.status !== 'success'" type="button" aria-label="移除文件" @click="removeFile(task.id)"><Trash2 :size="16" /></button>
           </li>
