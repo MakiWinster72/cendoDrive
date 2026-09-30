@@ -5,29 +5,22 @@
 <h1 align="center">千度网盘 · CendoDrive</h1>
 
 <p align="center">
-  一个正在开发的个人网盘：登录账号，整理文件，在回收站找回误删内容。
+  Cendo 谐音千度，仿照百度网盘的一个web App
   <br>
   Vue 3 前端 + Spring Boot API，文件内容存储于 FastDFS。
-</p>
-
-<p align="center">
-  <a href="#快速开始">快速开始</a> ·
-  <a href="./docs/认证与用户接口文档.md">认证接口</a> ·
-  <a href="./docs/文件管理接口文档.md">文件接口</a> ·
-  <a href="./docs/CendoDrive详细设计.md">详细设计</a>
 </p>
 
 ## 产品一览
 
 CendoDrive 面向个人文件的上传、归类和管理。前端提供文件列表及文件夹视图；后端负责身份校验、文件元数据、存储读写与回收站操作。目前仍处于开发阶段，分享页面不是可用的真实分享服务。
 
-| 能力 | 当前实现 |
-| --- | --- |
+| 能力       | 当前实现                                           |
+| ---------- | -------------------------------------------------- |
 | 账号与会话 | 注册、登录、查询当前用户、退出；Redis 管理登录状态 |
-| 文件整理 | 按目录浏览、新建文件夹、重命名和移动 |
-| 文件传输 | 上传至 FastDFS、经鉴权下载；单文件上限 100 MB |
-| 回收站 | 移入、恢复、永久删除和清空 |
-| 分享 | 尚无后端分享接口；前端相关页面仅供展示 |
+| 文件整理   | 按目录浏览、新建文件夹、重命名和移动               |
+| 文件传输   | 上传至 FastDFS、经鉴权下载；单文件上限 100 MB      |
+| 回收站     | 移入、恢复、永久删除和清空                         |
+| 分享       | 尚无后端分享接口；前端相关页面仅供展示             |
 
 ## 它如何工作
 
@@ -69,13 +62,13 @@ npm run dev
 
 ## 技术架构
 
-| 层级 | 技术 |
-| --- | --- |
-| Web | Vue 3、TypeScript、Vite、Vue Router、Axios |
-| API | Java 21、Spring Boot 3.3、Spring Security、Spring Data JPA |
-| 数据 | MySQL、Flyway、Redis |
-| 文件 | FastDFS（兼容读取历史本地文件） |
-| 测试 | Vitest、JUnit / Spring Boot Test |
+| 层级 | 技术                                                       |
+| ---- | ---------------------------------------------------------- |
+| Web  | Vue 3、TypeScript、Vite、Vue Router、Axios                 |
+| API  | Java 21、Spring Boot 3.3、Spring Security、Spring Data JPA |
+| 数据 | MySQL、Flyway、Redis                                       |
+| 文件 | FastDFS（兼容读取历史本地文件）                            |
+| 测试 | Vitest、JUnit / Spring Boot Test                           |
 
 ## 项目结构
 
@@ -97,11 +90,3 @@ cendoDrive/
 ```
 
 需要连接数据库和 Redis 的集成测试配置参见 [后端说明](./backend/README.md)。
-
-## 文档
-
-- [后端说明](./backend/README.md) · [前端说明](./frontend/README.md)
-- [认证与用户接口](./docs/认证与用户接口文档.md)
-- [文件管理接口](./docs/文件管理接口文档.md)
-- [详细设计](./docs/CendoDrive详细设计.md)
-- [FastDFS 接入方案](./docs/FastDFS文件存储接入方案.md)
