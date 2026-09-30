@@ -10,16 +10,13 @@
   .m-head-actions button { display: grid; place-items: center; width: 31px; height: 36px; border: 0; background: transparent; color: #071020; padding: 0; }
   .m-head-actions svg { width: 27px; height: 27px; stroke-width: 2.4; }
   .m-profile-search { width: calc(100% - 36px); margin: 15px 18px 22px; height: 58px; border: 2px solid #3986eb; border-radius: 17px; box-shadow: 0 5px 18px #4089d61a; text-align: left; padding: 0 15px; gap: 13px; }
-  .m-profile-search .m-avatar { width: 33px; height: 33px; border: 2px solid #b4eafa; background: radial-gradient(circle at 30% 27%, #fff, #d4fbff 44%, #89d3f3 75%, #b4a9ef); box-shadow: inset 0 0 5px #fff, 0 1px 6px #63cff180; }
-  .m-profile-search > span:nth-child(2) { font-size: 16px; color: #555e70; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-profile-search > span { font-size: 16px; color: #555e70; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .m-profile-search > svg { flex: none; color: #0d1725; }
   .m-tools { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 0; padding: 2px 8px 8px; background: transparent; }
   .m-tools::-webkit-scrollbar { display: none; }
   .m-tools button { flex: 0 0 19%; min-width: 67px; gap: 9px; scroll-snap-align: start; font-size: 14px; color: #09111e; }
-  .m-tools .m-tool-icon { width: 45px; height: 45px; display: grid; place-items: center; position: relative; }
-  .m-tools .m-tool-icon::before { content: ''; position: absolute; inset: 8px 3px 3px 6px; border-radius: 11px; background: linear-gradient(150deg, #428bf6, #5cd0ef); box-shadow: 6px 3px 0 #ed79aa; transform: rotate(-5deg); }
-  .m-tools button:nth-child(3n) .m-tool-icon::before { border-radius: 50% 50% 10px 10px; }
-  .m-tools svg { position: relative; width: 26px; height: 26px; padding: 0; border-radius: 0; background: none; filter: none; color: white; stroke-width: 2.2; }
+  .m-tools .m-tool-icon { width: 56px; height: 56px; display: grid; place-items: center; position: relative; }
+  .m-tools .m-tool-icon svg { width: 56px; height: 56px; padding: 0; border-radius: 0; background: none; color: inherit; overflow: visible; filter: drop-shadow(0 5px 5px #459acb24); }
   .m-tools-indicator { display: flex; justify-content: center; gap: 3px; margin: 5px 0 0; }
   .m-tools-indicator i { width: 10px; height: 3px; background: #dce1e9; border-radius: 4px; }
   .m-tools-indicator i:first-child { background: #478ef6; }

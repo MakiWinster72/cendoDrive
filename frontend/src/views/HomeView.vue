@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Trash2, Upload, UserRound, Video, WandSparkles } from 'lucide-vue-next'
+import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, LogOut, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Copy, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Star, Trash2, Upload, UserRound, Video, WandSparkles, X, Info, LockKeyhole, Pencil, FolderInput } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
+import HomeToolIcon from '../components/HomeToolIcon.vue'
 import UploadPanel from '../components/UploadPanel.vue'
 import '../styles/profile.css'
 import '../styles/home.css'
+import '../styles/selection.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
@@ -13,7 +15,7 @@ type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | '
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
-const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref('')
+const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref(''), loggingOut = ref(false), downloading = ref(false)
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('home')
 const recentItems = computed(() => [...drive.state.files].filter(item => !item.deletedAt && item.kind !== 'folder').sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)).slice(0, 3))
 const savedItems = computed(() => drive.state.files.filter(item => !item.deletedAt && drive.state.shares.some(share => share.itemId === item.id && !share.cancelled)).slice(0, 3))
@@ -77,8 +79,35 @@ async function permanentDelete(ids = checked.value) { if (!ids.length || !confir
 async function clearTrash() { if (!trashCount.value || !confirm(`将永久删除回收站中的 ${trashCount.value} 个项目，是否继续？`)) return; try { await drive.emptyTrash(); checked.value = []; flash('回收站已清空') } catch { alert(drive.state.error) } }
 async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); try { const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) } catch (error) { alert(error instanceof Error ? error.message : '分享失败') } }
 async function openProfileShortcut(label: string) { if (label === '回收站') { mobileTab.value = 'files'; await changeMode('trash') } else if (label === '我的分享') { mobileTab.value = 'share' } }
-async function downloadSelected() { try { for (const itemId of checked.value) { const item = drive.get(itemId); if (item?.kind !== 'folder') await drive.download(itemId) } flash('已开始下载') } catch { alert(drive.state.error) } }
-async function logout() { const revoked = await auth.logout(); await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } }) }
+async function downloadSelected() {
+  if (downloading.value) return
+  const files = checked.value.filter(id => drive.get(id)?.kind !== 'folder')
+  if (!files.length) return flash('文件夹暂不支持下载')
+  downloading.value = true
+  try {
+    for (const id of files) await drive.download(id)
+    flash(`已下载 ${files.length} 个文件`)
+  } catch { alert(drive.state.error || '下载失败') }
+  finally { downloading.value = false }
+}
+const selectionActions = [
+  { label: '下载', icon: Download }, { label: '分享', icon: Share2 }, { label: '删除', icon: Trash2 },
+  { label: '智能整理', icon: Sparkles }, { label: '收藏', icon: Star }, { label: '添加至', icon: Folder },
+  { label: '移入隐藏空间', icon: LockKeyhole }, { label: '重命名', icon: Pencil },
+  { label: '移动', icon: FolderInput }, { label: '复制', icon: Copy }, { label: '文件详情', icon: Info },
+]
+function mobileSelectionAction(label: string) {
+  if (label === '下载') void downloadSelected()
+  else flash(`${label}功能即将上线`)
+}
+async function logout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try {
+    const revoked = await auth.logout()
+    await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } })
+  } finally { loggingOut.value = false }
+}
 onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } catch { /* 回收站入口会再次加载并显示错误 */ } })
 </script>
 
@@ -89,8 +118,8 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
     <template v-if="mobileTab === 'home'">
       <div class="m-home-top">
         <header class="m-home-head"><div class="m-vip"><span class="m-vip-envelope">领</span><span>会员免费领<small>新用户福利 ❯</small></span></div><div class="m-head-actions"><button aria-label="签到" @click="flash('签到功能即将上线')"><CalendarDays /></button><button aria-label="存储空间" @click="mobileTab='files'"><HardDrive /></button><button aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
-        <button class="m-profile-search" @click="mobileTab='profile'"><span class="m-avatar"></span><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
-        <section class="m-tools" aria-label="文件分类"><button @click="openHomeCategory('image')"><span class="m-tool-icon"><Image /></span><span>相册</span></button><button @click="openHomeCategory('video')"><span class="m-tool-icon"><Video /></span><span>视频</span></button><button @click="flash('更多功能即将上线')"><span class="m-tool-icon"><UserRound /></span><span>求职</span></button><button @click="openHomeCategory('doc')"><span class="m-tool-icon"><FileText /></span><span>文档</span></button><button @click="chooseFiles"><span class="m-tool-icon"><ScanLine /></span><span>扫描</span></button><button @click="openHomeCategory('audio')"><span class="m-tool-icon"><Music2 /></span><span>听记</span></button></section>
+        <button class="m-profile-search" @click="mobileTab='profile'"><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
+        <section class="m-tools" aria-label="文件分类"><button @click="openHomeCategory('image')"><span class="m-tool-icon"><HomeToolIcon name="photo" /></span><span>相册</span></button><button @click="openHomeCategory('video')"><span class="m-tool-icon"><HomeToolIcon name="video" /></span><span>视频</span></button><button @click="flash('更多功能即将上线')"><span class="m-tool-icon"><HomeToolIcon name="career" /></span><span>求职</span></button><button @click="openHomeCategory('doc')"><span class="m-tool-icon"><HomeToolIcon name="document" /></span><span>文档</span></button><button @click="chooseFiles"><span class="m-tool-icon"><HomeToolIcon name="scan" /></span><span>扫描</span></button><button @click="openHomeCategory('audio')"><span class="m-tool-icon"><HomeToolIcon name="audio" /></span><span>听记</span></button></section>
         <div class="m-tools-indicator"><i></i><i></i></div>
       </div>
       <section class="m-panel"><div class="m-panel-title"><h2>最近</h2><button aria-label="查看最近文件" @click="openHomeCategory('recent')"><Eye :size="20" /><ChevronRight :size="20" /></button></div><div v-for="item in recentItems" :key="item.id" class="m-recent" @click="openHomeCategory('recent')"><span class="m-item-icon"><component :is="iconFor(item.kind)" /></span><div><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt) }} · 我的资源</small></div></div><p v-if="!recentItems.length" class="m-home-empty">还没有文件，点击右上角 ＋ 上传第一份文件</p></section>
@@ -98,12 +127,13 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
       <section class="m-memory"><div class="m-panel-title"><h2>推荐 <span>创意</span></h2><button aria-label="更多推荐" @click="flash('更多内容即将上线')"><MoreHorizontal :size="22" /></button></div><div class="m-discover"><button @click="openHomeCategory('image')"><span class="m-discover-art photo"><Image :size="38" /></span><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button><button @click="openHomeCategory('video')"><span class="m-discover-art film"><Video :size="38" /></span><b>收藏精彩视频</b><small>你的回忆都在这里</small></button></div></section>
     </template>
     <template v-else-if="mobileTab === 'files'">
-      <header class="m-file-head"><h1>文件</h1><div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div></header>
+      <header class="m-file-head"><template v-if="checked.length && mode !== 'trash'"><button class="m-selection-close" aria-label="退出选择" @click="checked = []"><X /></button><h1>已选中 {{ checked.length }} 个文件</h1><button class="m-selection-all" @click="allVisibleSelected = !allVisibleSelected">{{ allVisibleSelected ? '取消全选' : '全选' }}</button></template><template v-else><h1>文件</h1><div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div></template></header>
       <div class="m-search"><Search :size="19" /><input v-model="keyword" placeholder="搜索网盘文件" /></div>
       <div v-if="mode === 'trash'" class="m-trash-actions"><button :disabled="!filteredFiles.length || drive.state.loading" @click="allVisibleSelected = !allVisibleSelected">{{ allVisibleSelected ? '取消全选' : '全选' }}</button><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected()"><RotateCcw :size="16" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete()"><Trash2 :size="16" />删除</button><button :disabled="!trashCount || drive.state.loading" @click="clearTrash">清空</button></div>
       <div class="m-filter"><button>智能排序 <SlidersHorizontal :size="15" /></button><button class="active">全部</button><button>我的资源</button><button>我创建的</button><button>我加工的</button></div>
-      <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" @click="openItem(item)"><span class="m-folder"><component :is="iconFor(item.kind)" fill="currentColor" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '' : formatSize(item.size) + '　' }}{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
-      <button v-if="mode !== 'trash'" class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
+      <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" :class="{ selected: checked.includes(item.id) }" @click="checked.length && mode !== 'trash' ? (checked = checked.includes(item.id) ? checked.filter(id => id !== item.id) : [...checked, item.id]) : openItem(item)"><span class="m-folder"><component :is="iconFor(item.kind)" fill="currentColor" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '' : formatSize(item.size) + '　' }}{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
+      <section v-if="checked.length && mode !== 'trash'" class="m-selection-sheet" aria-label="已选文件操作"><div class="m-selection-actions"><button v-for="action in selectionActions" :key="action.label" type="button" :disabled="action.label === '下载' && downloading" @click="mobileSelectionAction(action.label)"><component :is="action.icon" :size="25" :stroke-width="1.9" /><span>{{ action.label }}</span></button></div></section>
+      <button v-if="mode !== 'trash' && !checked.length" class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
     </template>
     <template v-else-if="mobileTab === 'profile'">
       <main class="profile-page">
@@ -124,10 +154,11 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
         <section class="profile-services" aria-label="更多服务"><button v-for="service in profileServices" :key="service.label" type="button" :class="service.tone"><component :is="service.icon" /><span>{{ service.label }}</span></button></section>
         <section class="profile-promo"><div class="promo-gift"><Gift :size="52" /></div><div><strong>网盘 <em>SVIP</em> 会员免费送</strong><p>限时活动 · 领 90 天会员</p></div><button type="button">立即抢</button></section>
         <section class="profile-game"><div><h2>游戏中心</h2><button type="button">免费下载券 <ChevronRight :size="18" /></button></div><p>探索更多云端乐趣</p></section>
+        <button class="profile-logout" type="button" :disabled="loggingOut" @click="logout"><LogOut :size="19" /><span>{{ loggingOut ? '正在退出…' : '退出登录' }}</span><ChevronRight :size="18" /></button>
       </main>
     </template>
     <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
-    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button" @click="flash('库库 AI 即将上线')"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
+    <nav v-if="!(mobileTab === 'files' && checked.length && mode !== 'trash')" class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button" @click="flash('库库 AI 即将上线')"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
   </div>
 
   <div class="drive-shell desktop-drive">
@@ -138,7 +169,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
       </nav><div class="storage"><div><span>Mock 已用 18.6 GB</span><b>1 TB</b></div><progress value="18.6" max="1000"></progress><button>扩容至 5 TB</button></div>
     </aside>
     <button v-if="mobileNavOpen" class="nav-backdrop" aria-label="关闭导航" @click="mobileNavOpen = false"></button>
-    <main class="workspace"><header class="topbar"><button class="mobile-menu" aria-label="打开导航" @click="mobileNavOpen = true"><Menu :size="21" /></button><div class="search"><Search :size="18" /><input v-model="keyword" placeholder="搜索我的文件" /><kbd>⌘ K</kbd></div><div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ displayName.slice(0, 1).toUpperCase() }}</b><em>{{ displayName }}</em><ChevronDown :size="15" /></button></div><div v-if="menuOpen" class="user-menu"><strong>{{ displayName }}</strong><small>普通用户</small><button @click="logout">退出登录</button></div></header>
+    <main class="workspace"><header class="topbar"><button class="mobile-menu" aria-label="打开导航" @click="mobileNavOpen = true"><Menu :size="21" /></button><div class="search"><Search :size="18" /><input v-model="keyword" placeholder="搜索我的文件" /><kbd>⌘ K</kbd></div><div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ displayName.slice(0, 1).toUpperCase() }}</b><em>{{ displayName }}</em><ChevronDown :size="15" /></button></div><div v-if="menuOpen" class="user-menu"><strong>{{ displayName }}</strong><small>普通用户</small><button :disabled="loggingOut" @click="logout">{{ loggingOut ? '正在退出…' : '退出登录' }}</button></div></header>
       <section class="content">
         <div class="content-title"><div><h1>{{ title }}</h1><p>共 {{ filteredFiles.length }} 个项目</p></div><select v-model="sortBy" class="sort-select"><option value="time">按时间排序</option><option value="name">按名称排序</option><option value="size">按大小排序</option></select></div>
         <div v-if="currentFolder" class="breadcrumb"><button @click="goRoot">全部文件</button><ChevronRight :size="14" /><span>{{ title }}</span></div>
