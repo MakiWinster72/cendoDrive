@@ -1,12 +1,12 @@
 # CendoDrive 接入 FastDFS：文件存储与管理实施方案
 
-> 实施状态（2026-09-30）：已在 `feat/fastDFS` 分支实现普通文件上传、鉴权下载与本地旧文件兼容；文件永久删除、回收站、集群迁移、断点续传尚未实现。本文后续章节是原始规划，不代表全部功能已完成。
+> 实施状态（2026-09-30）：已在 `feat/fastDFS` 分支实现普通文件上传、鉴权下载与本地旧文件兼容；回收站接口已合并；集群迁移、断点续传尚未实现。本文后续章节是原始规划，不代表全部功能已完成。
 
 ## 1. 现状与目标
 
-- 后端 Spring Boot 3.3.5 / Java 21；`drive_files` 新增 `storage_backend`，上传文件记录 `fastdfs`，旧记录默认 `local`。已实现普通文件上传、下载；**尚无永久删除 API**。
+- 后端 Spring Boot 3.3.5 / Java 21；`drive_files` 新增 `storage_backend`，上传文件记录 `fastdfs`，旧记录默认 `local`。已实现普通文件上传、下载及回收站接口。
 - 前端上传已调用 `POST /api/files/upload`，成功后更新列表；失败提示错误信息。
-- 当前 Docker 有一个 tracker（`127.0.0.1:22122`），三个 storage 分别映射 `127.0.0.1:23000/23001/23002`，HTTP 映射 `127.0.0.1:8080/8081/8082`。tracker 仍报告 Docker 桥接地址 `172.24.0.3/.4/.5:23000`；宿主机后端经 Docker bridge 路由可达时已完成一次上传与下载 SHA-256 一致的实测，不能据此推断远程后端也可达。
+- 当前 Docker 有一个 tracker（`127.0.0.1:22122`），三个 storage 分别映射 `127.0.0.1:23000/23001/23002`，HTTP 映射 `127.0.0.1:10001/10002/10003`。tracker 仍报告 Docker 桥接地址 `172.24.0.3/.4/.5:23000`；宿主机后端经 Docker bridge 路由可达时已完成一次上传与下载 SHA-256 一致的实测，不能据此推断远程后端也可达。
 - **目标**：FastDFS 存实际字节；MySQL 管所属用户、目录、文件名、大小和 FastDFS file ID；业务接口统一鉴权，浏览器不直接访问 storage。
 
 ## 本机运行（已实现的最小闭环）
@@ -14,11 +14,11 @@
 ```sh
 # 后端使用 Java 21，避免本机默认 Java 25 下旧版 Mockito 测试运行失败
 cd backend
-JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH PORT=8083 FASTDFS_TRACKER=127.0.0.1:22122 mvn spring-boot:run
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH PORT=8080 FASTDFS_TRACKER=127.0.0.1:22122 mvn spring-boot:run
 # 新终端
 cd frontend
 npm install
-npm run dev  # 默认代理 http://localhost:8083；可用 VITE_API_PROXY_TARGET 覆盖
+npm run dev  # 默认代理 http://localhost:8080；可用 VITE_API_PROXY_TARGET 覆盖
 ```
 
 使用已有 DB/Redis 环境配置；确认后端能连接 `127.0.0.1:22122` 以及 tracker 返回的每个 storage 地址。登录后上传文件，下载核对字节；调试时可用 `docker exec fastdfs-tracker fdfs_monitor /etc/fdfs/client.conf` 查看 storage 状态。当前后端不支持直接指定单台 storage 的不同宿主机映射端口，tracker 返回的是容器内部地址和 `23000`。
@@ -29,7 +29,7 @@ FastDFS 客户端不是只访问 tracker：它向 tracker 查询 storage 后还�
 
 推荐开发方案：**把后端也作为容器加入 `fastdfs_fastdfs`**，同时加入能访问 MySQL/Redis 的网络（或让其通过可达的宿主机地址连接）。后端 tracker 配 `tracker:22122`，核实 tracker 返回的 storage 地址在该网络内可达。若后端继续在宿主机运行，需要另行设计每个 storage 的可路由地址、端口映射与 FastDFS 向 tracker 注册/对客户端报告的 IP；不能仅改 Java tracker 地址解决。
 
-本机 storage 已占宿主机 `8080`、`8081`、`8082`；后端 `application.yml` 默认也用 `8080`。本机运行后端可用 `PORT=8083`（前端 Vite 代理默认指向 `8080`，需改代理目标或设置 `VITE_API_BASE_URL=http://localhost:8083/api` 并允许该前端来源）；不要同时绑定同一个宿主机端口。
+本机 storage 的 HTTP 端口现为 `10001`、`10002`、`10003`，宿主机 `8080` 可供后端使用。`application.yml` 和前端 Vite 代理默认均指向 `8080`；若本地设置过 `VITE_API_PROXY_TARGET` 或 `VITE_API_BASE_URL`，请检查是否仍覆盖为旧端口。
 
 检查部署状态（只读）：
 
