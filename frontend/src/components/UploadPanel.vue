@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Check, FilePlus2, FileText, FolderPlus, Image, LoaderCircle, Music2, RotateCcw, Trash2, UploadCloud, Video, X } from 'lucide-vue-next'
 import { isUploadCancelled, uploadErrorMessage, uploadFile } from '../api/files'
 import type { DriveItem } from '../stores/drive'
@@ -25,6 +25,9 @@ const selectedType = ref<UploadType | null>(null)
 const selectedFolderId = ref<string | null>(props.initialFolderId)
 const folderPickerOpen = ref(false)
 const controllers = new Map<string, AbortController>()
+watch(() => props.initialFolderId, (folderId) => {
+  if (!props.open || uploadTasks.value.length === 0) selectedFolderId.value = folderId
+})
 const selectedFiles = computed(() => uploadTasks.value.filter((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))
 const activeCount = computed(() => uploadTasks.value.filter((task) => task.status === 'uploading').length)
 const hasPending = computed(() => uploadTasks.value.some((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))

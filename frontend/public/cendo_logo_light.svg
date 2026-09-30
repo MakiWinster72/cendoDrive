@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="qianTile" x1="72" y1="56" x2="440" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4E9AFF"/>
+      <stop offset="1" stop-color="#1D50DC"/>
+    </linearGradient>
+    <mask id="qianCut">
+      <rect width="512" height="512" fill="#FFFFFF"/>
+      <path d="M272 148 C220 175 178 201 144 244 C185 213 236 194 290 184 C298 179 280 143 272 148 Z" fill="#000000"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#qianTile)"/>
+  <g fill="#FFFFFF" mask="url(#qianCut)">
+    <circle cx="164" cy="216" r="54"/>
+    <circle cx="262" cy="196" r="72"/>
+    <circle cx="360" cy="222" r="48"/>
+    <circle cx="216" cy="246" r="20"/>
+    <circle cx="312" cy="246" r="20"/>
+    <rect x="74" y="256" width="364" height="46" rx="23"/>
+    <rect x="233" y="278" width="46" height="110" rx="23"/>
+  </g>
+</svg>
