@@ -30,6 +30,8 @@
   .m-panel-title h2 { font-size: 21px; margin: 0; font-weight: 750; }
   .m-panel-title h2 span { color: #a1a9bb; margin-left: 14px; }
   .m-panel-title button { align-items: center; padding: 4px; }
+  .m-panel-actions { display: flex; align-items: center; gap: 12px; }
+  .m-panel-actions button { border: 0; background: transparent; color: #a1a9b5; display: grid; place-items: center; }
   .m-recent { height: 67px; cursor: pointer; gap: 13px; }
   .m-item-icon { flex: none; width: 47px; height: 47px; border-radius: 12px; display: grid; place-items: center; background: #eaf4ff; color: #4b9bf2; }
   .m-item-icon svg { width: 25px; height: 25px; }
