@@ -23,6 +23,13 @@ class CorsConfigTest {
         assertTrue(cors.getAllowedHeaders().contains("Authorization"));
     }
 
+    @Test void renamePreflightAllowsPut() {
+        var cors = config.corsConfigurationSource("https://app.example").getCorsConfiguration(apiRequest());
+        assertNotNull(cors);
+        assertTrue(cors.checkHttpMethod(org.springframework.http.HttpMethod.PUT)
+                .contains(org.springframework.http.HttpMethod.PUT));
+    }
+
     @Test void wildcardAndNonOriginValuesFailFast() {
         assertThrows(IllegalArgumentException.class, () -> config.corsConfigurationSource("*"));
         assertThrows(IllegalArgumentException.class, () -> config.corsConfigurationSource("https://app.example/path"));
