@@ -13,7 +13,7 @@ type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | '
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
-const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref('')
+const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref(''), loggingOut = ref(false)
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('home')
 const recentItems = computed(() => [...drive.state.files].filter(item => !item.deletedAt && item.kind !== 'folder').sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)).slice(0, 3))
 const savedItems = computed(() => drive.state.files.filter(item => !item.deletedAt && drive.state.shares.some(share => share.itemId === item.id && !share.cancelled)).slice(0, 3))
@@ -78,7 +78,14 @@ async function clearTrash() { if (!trashCount.value || !confirm(`将永久删除
 async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); try { const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) } catch (error) { alert(error instanceof Error ? error.message : '分享失败') } }
 async function openProfileShortcut(label: string) { if (label === '回收站') { mobileTab.value = 'files'; await changeMode('trash') } else if (label === '我的分享') { mobileTab.value = 'share' } }
 async function downloadSelected() { try { for (const itemId of checked.value) { const item = drive.get(itemId); if (item?.kind !== 'folder') await drive.download(itemId) } flash('已开始下载') } catch { alert(drive.state.error) } }
-async function logout() { const revoked = await auth.logout(); await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } }) }
+async function logout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try {
+    const revoked = await auth.logout()
+    await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } })
+  } finally { loggingOut.value = false }
+}
 onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } catch { /* 回收站入口会再次加载并显示错误 */ } })
 </script>
 
@@ -124,7 +131,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
         <section class="profile-services" aria-label="更多服务"><button v-for="service in profileServices" :key="service.label" type="button" :class="service.tone"><component :is="service.icon" /><span>{{ service.label }}</span></button></section>
         <section class="profile-promo"><div class="promo-gift"><Gift :size="52" /></div><div><strong>网盘 <em>SVIP</em> 会员免费送</strong><p>限时活动 · 领 90 天会员</p></div><button type="button">立即抢</button></section>
         <section class="profile-game"><div><h2>游戏中心</h2><button type="button">免费下载券 <ChevronRight :size="18" /></button></div><p>探索更多云端乐趣</p></section>
-        <button class="profile-logout" type="button" @click="logout"><LogOut :size="19" /><span>退出登录</span><ChevronRight :size="18" /></button>
+        <button class="profile-logout" type="button" :disabled="loggingOut" @click="logout"><LogOut :size="19" /><span>{{ loggingOut ? '正在退出…' : '退出登录' }}</span><ChevronRight :size="18" /></button>
       </main>
     </template>
     <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
@@ -139,7 +146,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
       </nav><div class="storage"><div><span>Mock 已用 18.6 GB</span><b>1 TB</b></div><progress value="18.6" max="1000"></progress><button>扩容至 5 TB</button></div>
     </aside>
     <button v-if="mobileNavOpen" class="nav-backdrop" aria-label="关闭导航" @click="mobileNavOpen = false"></button>
-    <main class="workspace"><header class="topbar"><button class="mobile-menu" aria-label="打开导航" @click="mobileNavOpen = true"><Menu :size="21" /></button><div class="search"><Search :size="18" /><input v-model="keyword" placeholder="搜索我的文件" /><kbd>⌘ K</kbd></div><div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ displayName.slice(0, 1).toUpperCase() }}</b><em>{{ displayName }}</em><ChevronDown :size="15" /></button></div><div v-if="menuOpen" class="user-menu"><strong>{{ displayName }}</strong><small>普通用户</small><button @click="logout">退出登录</button></div></header>
+    <main class="workspace"><header class="topbar"><button class="mobile-menu" aria-label="打开导航" @click="mobileNavOpen = true"><Menu :size="21" /></button><div class="search"><Search :size="18" /><input v-model="keyword" placeholder="搜索我的文件" /><kbd>⌘ K</kbd></div><div class="top-actions"><button><Bell :size="19" /><i></i></button><button><Settings :size="19" /></button><span></span><button class="user" @click="menuOpen = !menuOpen"><b>{{ displayName.slice(0, 1).toUpperCase() }}</b><em>{{ displayName }}</em><ChevronDown :size="15" /></button></div><div v-if="menuOpen" class="user-menu"><strong>{{ displayName }}</strong><small>普通用户</small><button :disabled="loggingOut" @click="logout">{{ loggingOut ? '正在退出…' : '退出登录' }}</button></div></header>
       <section class="content">
         <div class="content-title"><div><h1>{{ title }}</h1><p>共 {{ filteredFiles.length }} 个项目</p></div><select v-model="sortBy" class="sort-select"><option value="time">按时间排序</option><option value="name">按名称排序</option><option value="size">按大小排序</option></select></div>
         <div v-if="currentFolder" class="breadcrumb"><button @click="goRoot">全部文件</button><ChevronRight :size="14" /><span>{{ title }}</span></div>

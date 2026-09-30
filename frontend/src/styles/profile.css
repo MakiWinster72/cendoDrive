@@ -14,6 +14,7 @@
   .profile-promo{min-height:84px;padding:13px 12px;display:flex;align-items:center;gap:9px;background:#fffaf0;margin-bottom:8px}.promo-gift{flex:none;color:#f48b57;transform:rotate(-10deg)}.profile-promo>div:nth-child(2){min-width:0;flex:1}.profile-promo strong{font-size:13px;white-space:nowrap}.profile-promo em{color:#f58239;font-style:normal}.profile-promo p{font-size:11px;color:#f18b45;margin:5px 0 0;white-space:nowrap}.profile-promo>button{flex:none;padding:8px 11px;border-radius:24px;background:#ffe8c8;color:#e67e28;font-size:11px;font-weight:700}.profile-game{padding:18px 16px;min-height:100px}.profile-game>div{display:flex;justify-content:space-between;align-items:center}.profile-game h2{font-size:18px;margin:0}.profile-game button{display:flex;align-items:center;color:#a5aec0;font-size:12px;padding:0}.profile-game p{color:#a5aec0;font-size:12px}
   .profile-page .profile-logout{width:100%;min-height:55px;margin-top:8px;padding:0 16px;display:flex;align-items:center;gap:12px;border-radius:18px;background:#fff;color:#df5362;text-align:left;font-size:14px;font-weight:650}
   .profile-logout span{flex:1}
+  .profile-page .profile-logout:disabled{opacity:.55;cursor:wait}
   .profile-logout svg:last-child{color:#a5aec0}
   .profile-page button:focus-visible{outline:2px solid #386ff1;outline-offset:3px}
   .mobile-app:has(.profile-page) .m-bottom-nav{height:78px;box-shadow:0 -8px 30px rgba(37,51,88,.06)}
