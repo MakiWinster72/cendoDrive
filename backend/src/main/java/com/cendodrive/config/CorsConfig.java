@@ -19,7 +19,7 @@ public class CorsConfig {
                 .map(CorsConfig::validateOrigin).toList();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowed);
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);
