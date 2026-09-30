@@ -20,10 +20,14 @@ public class DriveFile {
     private long size;
     @Column(name = "storage_key", length = 512)
     private String storageKey;
+    @Column(name = "storage_backend", nullable = false, length = 32)
+    private String storageBackend = "local";
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     protected DriveFile() {}
     private DriveFile(Long ownerId, Long parentId, String name) {
@@ -35,6 +39,14 @@ public class DriveFile {
     public static DriveFile folder(Long ownerId, Long parentId, String name) {
         return new DriveFile(ownerId, parentId, name);
     }
+    public static DriveFile uploaded(Long ownerId, Long parentId, String name, long size, String key) {
+        DriveFile file = new DriveFile(ownerId, parentId, name);
+        file.kind = "file";
+        file.size = size;
+        file.storageKey = key;
+        file.storageBackend = "fastdfs";
+        return file;
+    }
     @PrePersist void created() { createdAt = updatedAt = LocalDateTime.now(java.time.Clock.systemUTC()); }
     @PreUpdate void updated() { updatedAt = LocalDateTime.now(java.time.Clock.systemUTC()); }
     public Long getId() { return id; }
@@ -44,8 +56,13 @@ public class DriveFile {
     public String getKind() { return kind; }
     public long getSize() { return size; }
     public String getStorageKey() { return storageKey; }
+    public String getStorageBackend() { return storageBackend; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
     public boolean isFolder() { return "folder".equals(kind); }
+    public boolean isDeleted() { return deletedAt != null; }
     void rename(String value) { name = value; }
     void moveTo(Long value) { parentId = value; }
+    void moveToTrash() { deletedAt = LocalDateTime.now(java.time.Clock.systemUTC()); }
+    void restore() { deletedAt = null; }
 }

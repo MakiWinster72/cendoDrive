@@ -18,6 +18,16 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiError.of("MAX_UPLOAD_SIZE_EXCEEDED", "File is too large"));
+    }
+    @ExceptionHandler(java.io.IOException.class)
+    ResponseEntity<ApiError> storageUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiError.of("STORAGE_UNAVAILABLE", "Storage unavailable"));
+    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex) {
         Map<String, String> fields = new LinkedHashMap<>();

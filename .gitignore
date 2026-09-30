@@ -1,10 +1,21 @@
 myDocs/
 backend/target/
 backend/.env
+backend/src/main/resources/application.yml
+
 # Eclipse / Spring Tools 本机工程配置
 backend/.classpath
 backend/.project
 backend/.settings/
+
+# JetBrains IDE 本机工程配置
+.idea/
+
 .pi/tasks/
 
-frontend/node_modules/
+# NOTE: 前端依赖
+**/node_modules/
+**/dist/
+
+# NOTE: AI
+AGENTS.md

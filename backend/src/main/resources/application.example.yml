@@ -1,17 +1,15 @@
 spring:
-  config:
-    import: optional:file:.env[.properties]
   datasource:
-    url: ${DB_URL:jdbc:mysql://10.42.0.1:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:cendo}
-    password: ${DB_PASSWORD:cendo}
+    password: ${DB_PASSWORD:change-me}
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
   data:
     redis:
-      host: ${REDIS_HOST:10.42.0.1}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
   flyway:
@@ -24,3 +22,12 @@ server:
 cendo:
   storage:
     root: ${CENDO_STORAGE_ROOT:./storage}
+    backend: ${CENDO_STORAGE_BACKEND:fastdfs}
+fdfs:
+  tracker-list:
+    - ${FASTDFS_TRACKER:localhost:22122}
+  connect-timeout: 3000
+  so-timeout: 30000
+spring.servlet.multipart:
+  max-file-size: 100MB
+  max-request-size: 100MB

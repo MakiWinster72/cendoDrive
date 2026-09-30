@@ -3,8 +3,6 @@ import * as api from '../api/drive'
 
 export type FileKind = api.FileKind
 export interface DriveItem extends api.DriveItemResponse {
-  deletedAt?: string
-  originalParentId?: string | null
 }
 export interface ShareRecord {
   id: string
@@ -39,6 +37,12 @@ export function useDrive() {
     items.forEach(upsert)
     return items
   })
+  const loadTrash = () => run(async () => {
+    const items = await api.listTrash()
+    state.files = state.files.filter((item) => !item.deletedAt)
+    items.forEach(upsert)
+    return items
+  })
   const createFolder = (name: string, parentId: string | null) => run(async () => {
     const item = await api.createFolder(name, parentId); upsert(item); return item
   })
@@ -53,14 +57,24 @@ export function useDrive() {
     if (!item) return Promise.reject(new Error('文件不存在'))
     return run(() => api.downloadFile(item.id, item.name))
   }
-  const upload = (_files: File[], _parentId: string | null) => { throw new Error('文件上传接口暂未开放') }
-  const trash = (itemIds: string[]) => { state.files = state.files.filter((item) => !itemIds.includes(item.id)) }
-  const restore = (_itemIds: string[]) => undefined
-  const removeForever = (itemIds: string[]) => { state.files = state.files.filter((item) => !itemIds.includes(item.id)) }
-  const emptyTrash = () => undefined
+  const addUploaded = (item: DriveItem) => upsert(item)
+  const trash = (itemIds: string[]) => run(async () => {
+    const items = await api.trashFiles(itemIds); items.forEach(upsert); return items
+  })
+  const restore = (itemIds: string[]) => run(async () => {
+    const items = await api.restoreFiles(itemIds); items.forEach(upsert); return items
+  })
+  const removeForever = (itemIds: string[]) => run(async () => {
+    await api.deleteFilesForever(itemIds)
+    state.files = state.files.filter((item) => !itemIds.includes(item.id))
+  })
+  const emptyTrash = () => run(async () => {
+    await api.emptyTrash()
+    state.files = state.files.filter((item) => !item.deletedAt)
+  })
   const share = (_itemId: string, _days: number): ShareRecord => { throw new Error('文件分享接口暂未开放') }
   const cancelShare = (_shareId: string) => undefined
-  return { state, list, get, load, createFolder, upload, rename, move, download, trash, restore, removeForever, emptyTrash, share, cancelShare }
+  return { state, list, get, load, loadTrash, createFolder, addUploaded, rename, move, download, trash, restore, removeForever, emptyTrash, share, cancelShare }
 }
 
 export function formatSize(size: number) {

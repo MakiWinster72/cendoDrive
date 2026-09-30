@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.http.*;
@@ -32,6 +34,31 @@ public class DriveController {
             @ApiResponse(responseCode = "404", description = "父目录不存在", content = @Content(schema = @Schema(implementation = ApiError.class)))})
     @GetMapping List<FileResponse> list(@AuthenticationPrincipal User user, @RequestParam(required = false) Long parentId) {
         return drive.list(user, parentId);
+    }
+    @Operation(summary = "获取回收站列表")
+    @GetMapping("/trash") List<FileResponse> listTrash(@AuthenticationPrincipal User user) {
+        return drive.listTrash(user);
+    }
+    @Operation(summary = "将文件或文件夹移入回收站")
+    @PostMapping("/trash") List<FileResponse> trash(@AuthenticationPrincipal User user,
+                                                     @RequestBody FileIdsRequest request) {
+        return drive.trash(user, request);
+    }
+    @Operation(summary = "恢复回收站中的文件或文件夹")
+    @PostMapping("/trash/restore") List<FileResponse> restore(@AuthenticationPrincipal User user,
+                                                               @RequestBody FileIdsRequest request) {
+        return drive.restore(user, request);
+    }
+    @Operation(summary = "彻底删除回收站中的文件或文件夹")
+    @PostMapping("/trash/delete") ResponseEntity<Void> deleteForever(@AuthenticationPrincipal User user,
+                                                                       @RequestBody FileIdsRequest request) {
+        drive.deleteForever(user, request);
+        return ResponseEntity.noContent().build();
+    }
+    @Operation(summary = "清空回收站")
+    @DeleteMapping("/trash") ResponseEntity<Void> emptyTrash(@AuthenticationPrincipal User user) {
+        drive.emptyTrash(user);
+        return ResponseEntity.noContent().build();
     }
     @Operation(summary = "新建文件夹")
     @ApiResponses({@ApiResponse(responseCode = "201", description = "创建成功"),
@@ -58,18 +85,25 @@ public class DriveController {
                                                  @Valid @RequestBody MoveRequest request) {
         return drive.move(user, id, request);
     }
+    @Operation(summary = "上传文件")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<FileResponse> upload(@AuthenticationPrincipal User user,
+                                        @RequestPart("file") MultipartFile file,
+                                        @RequestParam(required = false) Long parentId) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(drive.upload(user, file, parentId));
+    }
     @Operation(summary = "下载文件")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "文件二进制内容", content = @Content(mediaType = "application/octet-stream")),
             @ApiResponse(responseCode = "400", description = "目标是文件夹", content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "文件记录或存储内容不存在", content = @Content(schema = @Schema(implementation = ApiError.class)))})
-    @GetMapping("/{id}/download") ResponseEntity<org.springframework.core.io.Resource> download(
+    @GetMapping("/{id}/download") ResponseEntity<StreamingResponseBody> download(
             @AuthenticationPrincipal User user, @PathVariable Long id) throws IOException {
         var result = drive.download(user, id);
         String encoded = UriUtils.encode(result.name(), StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(result.resource().contentLength())
-                .body(result.resource());
+                .contentLength(result.size())
+                .body(result.body());
     }
 }

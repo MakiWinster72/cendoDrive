@@ -70,17 +70,15 @@ async function submit() {
           </label>
           <div class="form-meta">
             <label class="check"><input v-model="remember" type="checkbox" /><span><Check :size="12" /></span>下次自动登录</label>
-            <span class="unavailable">找回密码暂未开放</span>
           </div>
           <p v-if="auth.verificationError.value" class="error">暂时无法验证登录状态，请检查网络后重试。</p>
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <button class="login-button" :disabled="loading">{{ loading ? '正在登录...' : '登录' }}</button>
         </form>
-        <p class="terms">自动登录仅在当前设备保存会话，Token 最多有效 24 小时。</p>
         <div class="register">还没有账号？<RouterLink to="/register">立即注册 <ChevronRight :size="14" /></RouterLink></div>
       </div>
     </section>
 
-    <footer>© 2026 CendoDrive</footer>
+    <footer class="login-footer"><span>© 2026 CendoDrive</span><span>开发团队 MIND</span></footer>
   </main>
 </template>
