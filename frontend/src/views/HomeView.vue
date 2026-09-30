@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, LogOut, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Copy, Download, Eye, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Star, Trash2, Upload, UserRound, Video, WandSparkles, X, Info, LockKeyhole, Pencil, FolderInput } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
@@ -31,6 +31,9 @@ const profileServices = [
   { label: '一刻相册', icon: Image, tone: 'gold' }, { label: '活动中心', icon: TicketPercent, tone: 'orange' },
 ]
 const displayName = computed(() => auth.user.value?.nickname || auth.user.value?.username || 'CendoDrive 用户')
+const searchPrompts = computed(() => [`${displayName.value}的云端空间`, 'AI学习笔记', '简单听记', '文件清理', '照片动起来'])
+const searchPromptIndex = ref(0)
+let searchPromptTimer: ReturnType<typeof setInterval> | undefined
 const modeNames: Record<Mode, string> = { all: '全部文件', recent: '最近', image: '图片', video: '视频', doc: '文档', audio: '音频', other: '其他', shares: '我的分享', trash: '回收站' }
 const title = computed(() => currentFolder.value ? drive.get(currentFolder.value)?.name || '文件夹' : modeNames[mode.value])
 const folders = computed(() => drive.state.files.filter((item) => item.kind === 'folder' && !item.deletedAt))
@@ -108,7 +111,12 @@ async function logout() {
     await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } })
   } finally { loggingOut.value = false }
 }
-onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } catch { /* 回收站入口会再次加载并显示错误 */ } })
+onMounted(async () => {
+  searchPromptTimer = window.setInterval(() => { searchPromptIndex.value = (searchPromptIndex.value + 1) % searchPrompts.value.length }, 3000)
+  await loadFolder(null)
+  try { await drive.loadTrash() } catch { /* 回收站入口会再次加载并显示错误 */ }
+})
+onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
 </script>
 
 <template>
@@ -118,7 +126,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
     <template v-if="mobileTab === 'home'">
       <div class="m-home-top">
         <header class="m-home-head"><div class="m-vip"><span class="m-vip-envelope">领</span><span>会员免费领<small>新用户福利 ❯</small></span></div><div class="m-head-actions"><button aria-label="签到" @click="flash('签到功能即将上线')"><CalendarDays /></button><button aria-label="存储空间" @click="mobileTab='files'"><HardDrive /></button><button aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
-        <button class="m-profile-search" @click="mobileTab='profile'"><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
+        <button class="m-profile-search" @click="mobileTab='profile'"><span class="m-search-prompt-window"><Transition name="m-prompt-slide"><span :key="searchPromptIndex" class="m-search-prompt">{{ searchPrompts[searchPromptIndex] }}</span></Transition></span><WandSparkles :size="23" /></button>
         <section class="m-tools" aria-label="文件分类"><button @click="openHomeCategory('image')"><span class="m-tool-icon"><HomeToolIcon name="photo" /></span><span>相册</span></button><button @click="openHomeCategory('video')"><span class="m-tool-icon"><HomeToolIcon name="video" /></span><span>视频</span></button><button @click="flash('更多功能即将上线')"><span class="m-tool-icon"><HomeToolIcon name="career" /></span><span>求职</span></button><button @click="openHomeCategory('doc')"><span class="m-tool-icon"><HomeToolIcon name="document" /></span><span>文档</span></button><button @click="chooseFiles"><span class="m-tool-icon"><HomeToolIcon name="scan" /></span><span>扫描</span></button><button @click="openHomeCategory('audio')"><span class="m-tool-icon"><HomeToolIcon name="audio" /></span><span>听记</span></button></section>
         <div class="m-tools-indicator"><i></i><i></i></div>
       </div>
