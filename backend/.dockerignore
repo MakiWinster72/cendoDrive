@@ -1,0 +1,4 @@
+target
+.env
+src/main/resources/application.yml
+.pi

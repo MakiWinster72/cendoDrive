@@ -4,15 +4,14 @@
 
 ## 环境
 
-Java 21、Maven 3.9+、MySQL、Redis。当前本机已有 `cendo-mysql`（3306，数据库 `cendo`）与 `cendo-redis`（6379）；MongoDB 暂不使用。请创建只授权 `cendo` 数据库的应用用户，勿将密码提交到仓库。
+Java 21、Maven 3.9+。整个项目可在仓库根目录通过 `docker compose up -d --build` 启动；仅需依赖服务时运行 `docker compose up -d mysql redis tracker storage1 storage2 storage3`；勿将真实密码提交到仓库。以 `src/main/resources/application.example.yml` 为配置示例。
 
 ```sh
 cd backend
-cp .env.example .env
-# 编辑 .env 配置 DB_USER、DB_PASSWORD 等；.env 已加入 .gitignore
-set -a; . ./.env; set +a
+cp src/main/resources/application.example.yml src/main/resources/application.yml
+# 按需修改 application.yml，或通过环境变量覆盖；Compose 默认 DB_PASSWORD=cendo_dev_password
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn test
-JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn spring-boot:run
+DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn spring-boot:run
 ```
 
 首次启动时 Flyway 创建 `users` 和 `drive_files` 表，并应用后续迁移。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
@@ -31,8 +30,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 可选数据库与 Redis 集成测试（会临时创建用户、使用独立随机用户名并在测试后删除）：
 
 ```sh
-set -a; . ./.env; set +a
-RUN_INTEGRATION_TESTS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn -Dtest=AuthIntegrationTest test
+DB_PASSWORD=cendo_dev_password RUN_INTEGRATION_TESTS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn -Dtest=AuthIntegrationTest test
 ```
 
 生产环境仍需部署层加固：由反向代理/负载均衡终止 TLS 并强制 HTTPS；同源反向代理无需开放 CORS，确需跨源部署时设置 `CORS_ALLOWED_ORIGINS` 为逗号分隔的**精确**前端 Origin（如 `https://app.example.com`）。默认留空，不允许跨域；仅 `/api/**` 接受已配置来源的 GET、POST、PUT、DELETE、OPTIONS 及 Authorization、Content-Type 请求头，不使用 Cookie 凭证。开发环境继续使用 Vite 同源代理。Redis 只开放给应用内网，设置 ACL 账户及密码、限制密钥权限，并通过环境变量/密钥管理注入凭据。当前本地开发配置不等于生产安全配置。

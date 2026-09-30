@@ -38,14 +38,25 @@ Spring Boot API
 
 ## 快速开始
 
-需要 **Java 21、Maven、Node.js/npm、MySQL 和 Redis**。使用上传和下载功能还需可访问的 FastDFS tracker 及其返回的 storage 地址。先创建 `cendo` 数据库，并为应用账号提供 Flyway 迁移所需的建表权限及数据读写权限。
+需要 **Docker Compose**。一键构建并启动前端、后端、MySQL `cendo`、Redis、FastDFS tracker 和三个 storage：
 
 ```sh
+docker compose up -d --build
+# 如端口已被现有容器占用，请先停止现有容器；不要删除原有数据卷。
+```
+
+打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，前端 Nginx 将 `/api/` 代理至后端。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
+
+```sh
+# 可选：在宿主机分别开发时，需 Java 21、Maven、Node.js/npm；只启动依赖：
+# docker compose up -d mysql redis tracker storage1 storage2 storage3
 # 终端 1：后端
 cd backend
 cp src/main/resources/application.example.yml src/main/resources/application.yml
-# 编辑本地 application.yml，或设置 DB_URL、DB_USER、DB_PASSWORD、REDIS_*、FASTDFS_TRACKER 等环境变量
-mvn spring-boot:run
+# 示例默认 DB_USER=cendo、REDIS_HOST=localhost、FASTDFS_TRACKER=localhost:22122
+# Compose 默认密码需同步设置；也可编辑本地 application.yml
+DB_PASSWORD=cendo_dev_password mvn spring-boot:run
+# 若已在 application.yml 设置密码，则直接运行 mvn spring-boot:run
 ```
 
 ```sh
@@ -58,7 +69,7 @@ npm run dev
 打开 `http://localhost:5173`；后端默认监听 `http://localhost:8080`。开发服务器默认把 `/api` 代理到后端 8080；如需调整，设置 `VITE_API_PROXY_TARGET`。不要将密码或 Token 放入 `VITE_*` 环境变量，它们会暴露在浏览器中。本地配置文件不要提交到仓库。
 
 > [!NOTE]
-> 本仓库没有 Docker Compose 一键部署配置。生产部署需要单独配置数据库、Redis、FastDFS、HTTPS 和访问控制；本地开发默认值不等于生产安全配置。
+> Compose 面向本机开发，不提供生产级 HTTPS、访问控制或备份；默认密码不适用于生产。
 
 ## 技术架构
 
