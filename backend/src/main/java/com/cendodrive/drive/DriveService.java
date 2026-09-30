@@ -41,11 +41,16 @@ public class DriveService {
             key = fastDfs.upload(input, content.getSize(), extension);
         }
         try {
-            return FileResponse.from(files.saveAndFlush(DriveFile.uploaded(user.getId(), parentId, name, content.getSize(), key)));
+            return registerUploadedFile(user, parentId, name, content.getSize(), key);
         } catch (RuntimeException ex) {
             try { fastDfs.delete(key); } catch (IOException cleanup) { ex.addSuppressed(cleanup); }
             throw ex;
         }
+    }
+
+    private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
+        DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
+        return FileResponse.from(files.saveAndFlush(file));
     }
 
     @Transactional(readOnly = true)
