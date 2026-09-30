@@ -1,0 +1,80 @@
+# 本地开发依赖；后端与前端仍在宿主机运行。
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: cendo
+      MYSQL_USER: cendo
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cendo_dev_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-cendo_dev_root_password}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  tracker:
+    image: ygqygq2/fastdfs-nginx:latest
+    ports:
+      - "127.0.0.1:22122:22122"
+    volumes:
+      - tracker-data:/var/fdfs
+
+  storage1:
+    image: ygqygq2/fastdfs-nginx:latest
+    environment: &storage-env
+      TRACKER_SERVER: tracker:22122
+    depends_on:
+      - tracker
+    ports:
+      - "127.0.0.1:23000:23000"
+      - "127.0.0.1:10001:8080"
+    volumes:
+      - storage1-data:/var/fdfs
+
+  storage2:
+    image: ygqygq2/fastdfs-nginx:latest
+    environment: *storage-env
+    depends_on:
+      - tracker
+    ports:
+      - "127.0.0.1:23001:23000"
+      - "127.0.0.1:10002:8080"
+    volumes:
+      - storage2-data:/var/fdfs
+
+  storage3:
+    image: ygqygq2/fastdfs-nginx:latest
+    environment: *storage-env
+    depends_on:
+      - tracker
+    ports:
+      - "127.0.0.1:23002:23000"
+      - "127.0.0.1:10003:8080"
+    volumes:
+      - storage3-data:/var/fdfs
+
+volumes:
+  mysql-data:
+  redis-data:
+  tracker-data:
+  storage1-data:
+  storage2-data:
+  storage3-data:
