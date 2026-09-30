@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import http from './http'
-import { createFolder, listFiles, moveFile, renameFile } from './drive'
+import { createFolder, deleteFilesForever, emptyTrash, listFiles, listTrash, moveFile, renameFile, restoreFiles, trashFiles } from './drive'
 
-vi.mock('./http', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi.fn() } }))
+vi.mock('./http', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -24,5 +24,21 @@ describe('drive API contract', () => {
     expect(http.post).toHaveBeenCalledWith('/files/folder', { name: '资料', parentId: null })
     expect(http.put).toHaveBeenNthCalledWith(1, '/files/1/rename', { name: '文档' })
     expect(http.put).toHaveBeenNthCalledWith(2, '/files/1/move', { parentId: '2' })
+  })
+
+  it('uses persistent trash endpoints for list, trash, restore, delete and empty', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: [] })
+    vi.mocked(http.post).mockResolvedValue({ data: [] })
+    vi.mocked(http.delete).mockResolvedValue({ data: undefined })
+    await listTrash()
+    await trashFiles(['1'])
+    await restoreFiles(['1'])
+    await deleteFilesForever(['1'])
+    await emptyTrash()
+    expect(http.get).toHaveBeenCalledWith('/files/trash')
+    expect(http.post).toHaveBeenNthCalledWith(1, '/files/trash', { ids: ['1'] })
+    expect(http.post).toHaveBeenNthCalledWith(2, '/files/trash/restore', { ids: ['1'] })
+    expect(http.post).toHaveBeenNthCalledWith(3, '/files/trash/delete', { ids: ['1'] })
+    expect(http.delete).toHaveBeenCalledWith('/files/trash')
   })
 })
