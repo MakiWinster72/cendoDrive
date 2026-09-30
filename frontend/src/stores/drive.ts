@@ -97,17 +97,6 @@ export function useDrive() {
       }
       return uploaded;
     });
-  const trash = (itemIds: string[]) => {
-    state.files = state.files.filter((item) => !itemIds.includes(item.id));
-  };
-  const restore = (_itemIds: string[]) => undefined;
-  const removeForever = (itemIds: string[]) => {
-    state.files = state.files.filter((item) => !itemIds.includes(item.id));
-  };
-  const emptyTrash = () => undefined;
-  const upload = (_files: File[], _parentId: string | null) => {
-    throw new Error("文件上传接口暂未开放");
-  };
   const trash = (itemIds: string[]) =>
     run(async () => {
       const items = await api.trashFiles(itemIds);
