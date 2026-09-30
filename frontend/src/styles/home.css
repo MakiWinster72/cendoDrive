@@ -16,7 +16,7 @@
   .m-tools::-webkit-scrollbar { display: none; }
   .m-tools button { flex: 0 0 19%; min-width: 67px; gap: 9px; scroll-snap-align: start; font-size: 14px; color: #09111e; }
   .m-tools .m-tool-icon { width: 56px; height: 56px; display: grid; place-items: center; position: relative; }
-  .m-tools .m-tool-icon svg { width: 56px; height: 56px; padding: 0; border-radius: 0; background: none; color: inherit; overflow: visible; filter: drop-shadow(0 5px 5px #459acb24); }
+  .m-tools .m-tool-icon svg { width: 45px; height: 45px; padding: 0; border-radius: 0; background: none; color: inherit; overflow: visible; filter: drop-shadow(0 5px 5px #459acb24); }
   .m-tools-indicator { display: flex; justify-content: center; gap: 3px; margin: 5px 0 0; }
   .m-tools-indicator i { width: 10px; height: 3px; background: #dce1e9; border-radius: 4px; }
   .m-tools-indicator i:first-child { background: #478ef6; }
