@@ -25,7 +25,7 @@ cendo:
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
 fdfs:
   tracker-list:
-    - ${FASTDFS_TRACKER:127.0.0.1:22122}
+    - ${FASTDFS_TRACKER:10.42.0.1:22122}
   connect-timeout: 3000
   so-timeout: 30000
 spring.servlet.multipart:
