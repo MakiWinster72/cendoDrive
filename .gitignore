@@ -5,6 +5,10 @@ backend/.env
 backend/.classpath
 backend/.project
 backend/.settings/
+
+# JetBrains IDE 本机工程配置
+.idea/
+
 .pi/tasks/
 
 frontend/node_modules/

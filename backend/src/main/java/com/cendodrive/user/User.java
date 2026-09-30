@@ -45,12 +45,6 @@ public class User {
     public String getVipLevel() { return vipLevel; }
     public long getStorageUsed() { return storageUsed; }
     public long getStorageLimit() { return storageLimit; }
-    public void addStorageUsed(long bytes) {
-        if (bytes < 0 || storageUsed < 0 || storageUsed > storageLimit || bytes > storageLimit - storageUsed) {
-            throw new IllegalArgumentException("Storage quota exceeded");
-        }
-        storageUsed += bytes;
-    }
     public boolean isActive() { return active; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

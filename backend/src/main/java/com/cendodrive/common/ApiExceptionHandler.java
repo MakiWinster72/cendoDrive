@@ -18,13 +18,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-    @ExceptionHandler(com.cendodrive.file.FileBusinessException.class)
-    ResponseEntity<ApiError> fileFailure(com.cendodrive.file.FileBusinessException ex) {
-        return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiError.of("MAX_UPLOAD_SIZE_EXCEEDED", "File is too large"));
     }
-    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
-    ResponseEntity<ApiError> invalidParameter() {
-        return ResponseEntity.badRequest().body(ApiError.of("INVALID_INPUT", "Invalid parameter type"));
+    @ExceptionHandler(java.io.IOException.class)
+    ResponseEntity<ApiError> storageUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiError.of("STORAGE_UNAVAILABLE", "Storage unavailable"));
     }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex) {
@@ -57,18 +59,6 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> conflict(DataIntegrityViolationException ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            String constraintName = cause instanceof org.hibernate.exception.ConstraintViolationException constraint
-                    ? constraint.getConstraintName() : null;
-            String sqlMessage = cause instanceof java.sql.SQLIntegrityConstraintViolationException sql
-                    ? sql.getMessage() : null;
-            if (matchesConstraint(constraintName, sqlMessage, "uk_file_entries_name")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(ApiError.of("NAME_CONFLICT", "Name already exists in this folder"));
-            }
-            if (matchesConstraint(constraintName, sqlMessage, "uk_file_entries_ingest")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(ApiError.of("IDEMPOTENCY_CONFLICT", "Upload task already registered"));
-            }
             if (cause instanceof org.hibernate.exception.ConstraintViolationException constraint
                     && "uk_users_username".equalsIgnoreCase(constraint.getConstraintName())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
@@ -89,17 +79,24 @@ public class ApiExceptionHandler {
                 .header("Retry-After", "900")
                 .body(ApiError.of("RATE_LIMITED", "Too many login attempts"));
     }
-    private static boolean matchesConstraint(String name, String message, String expected) {
-        return expected.equalsIgnoreCase(name)
-                || (message != null && message.toLowerCase(Locale.ROOT).contains(expected));
-    }
     @ExceptionHandler(AuthFailure.class)
     ResponseEntity<ApiError> authentication(AuthFailure ex) {
         return ResponseEntity.status(ex.status()).body(ApiError.of("UNAUTHORIZED", ex.getMessage()));
+    }
+    @ExceptionHandler(DriveFailure.class)
+    ResponseEntity<ApiError> drive(DriveFailure ex) {
+        return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
     }
     public static class AuthFailure extends RuntimeException {
         private final HttpStatus status;
         public AuthFailure(HttpStatus status, String message) { super(message); this.status = status; }
         public HttpStatus status() { return status; }
+    }
+    public static class DriveFailure extends RuntimeException {
+        private final HttpStatus status;
+        private final String code;
+        public DriveFailure(HttpStatus status, String code, String message) { super(message); this.status = status; this.code = code; }
+        public HttpStatus status() { return status; }
+        public String code() { return code; }
     }
 }
