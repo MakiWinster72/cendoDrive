@@ -44,21 +44,28 @@ const filteredFiles = computed(() => {
 const iconFor = (kind: string) => kind === 'folder' ? Folder : kind === 'image' ? Image : kind === 'video' ? Video : kind === 'audio' ? Music2 : ['pdf', 'doc'].includes(kind) ? FileText : File
 const dateText = (date: string) => new Date(date).toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
 function flash(text: string) { notice.value = text; window.setTimeout(() => notice.value = '', 2200) }
-async function changeMode(next: Mode) { mode.value = next; currentFolder.value = null; checked.value = []; mobileNavOpen.value = false; if (next === 'all') await loadFolder(null) }
+async function changeMode(next: Mode) {
+  mode.value = next; currentFolder.value = null; checked.value = []; mobileNavOpen.value = false
+  try {
+    if (next === 'all') await drive.load(null)
+    else if (next === 'trash') await drive.loadTrash()
+  } catch { alert(drive.state.error) }
+}
 async function loadFolder(parentId: string | null) { try { await drive.load(parentId); currentFolder.value = parentId } catch { alert(drive.state.error) } }
 async function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !== 'trash') { mode.value = 'all'; checked.value = []; await loadFolder(item.id) } }
 async function goRoot() { checked.value = []; await loadFolder(null) }
 async function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { await drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch { alert(drive.state.error) } }
 function chooseFiles() { fileInput.value?.click() }
-function uploadFiles(event: Event) { const files = [...((event.target as HTMLInputElement).files || [])]; if (!files.length) return; drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`); (event.target as HTMLInputElement).value = '' }
+async function uploadFiles(event: Event) { const input = event.target as HTMLInputElement; const files = [...(input.files || [])]; if (!files.length) return; try { await drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`) } catch (error) { alert(error instanceof Error ? error.message : '上传失败') } finally { input.value = '' } }
 async function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (!name) return; try { await drive.rename(item.id, name); flash('重命名成功') } catch { alert(drive.state.error) } }
 async function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); try { await drive.move(item.id, target || null); checked.value = []; flash('移动成功') } catch { alert(drive.state.error) } }
 function itemMenu(item: DriveItem) { if (mode.value === 'shares') { if (confirm('确定取消该分享吗？')) { const share = drive.state.shares.find((record) => record.itemId === item.id && !record.cancelled); if (share) drive.cancelShare(share.id); flash('分享已取消') } return } const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
-function removeSelected(ids = checked.value) { if (!ids.length || !confirm('确定移入回收站吗？')) return; drive.trash(ids); checked.value = []; flash('已移入回收站') }
-function restoreSelected() { drive.restore(checked.value); checked.value = []; flash('文件已恢复') }
-function permanentDelete() { if (!checked.value.length || !confirm('永久删除后无法恢复，是否继续？')) return; drive.removeForever(checked.value); checked.value = []; flash('已永久删除') }
-function clearTrash() { if (confirm('确定清空回收站吗？')) { drive.emptyTrash(); checked.value = []; flash('回收站已清空') } }
-async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) }
+async function removeSelected(ids = checked.value) { if (!ids.length || !confirm('确定移入回收站吗？')) return; try { await drive.trash(ids); checked.value = []; flash('已移入回收站') } catch { alert(drive.state.error) } }
+async function restoreSelected() { if (!checked.value.length) return; try { await drive.restore(checked.value); checked.value = []; flash('文件已恢复') } catch { alert(drive.state.error) } }
+async function permanentDelete() { if (!checked.value.length || !confirm('永久删除后无法恢复，是否继续？')) return; try { await drive.removeForever(checked.value); checked.value = []; flash('已永久删除') } catch { alert(drive.state.error) } }
+async function clearTrash() { if (!confirm('确定清空回收站吗？')) return; try { await drive.emptyTrash(); checked.value = []; flash('回收站已清空') } catch { alert(drive.state.error) } }
+async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); try { const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) } catch (error) { alert(error instanceof Error ? error.message : '分享失败') } }
+async function openProfileShortcut(label: string) { if (label === '回收站') { mobileTab.value = 'files'; await changeMode('trash') } else if (label === '我的分享') { mobileTab.value = 'share' } }
 async function downloadSelected() { try { for (const itemId of checked.value) { const item = drive.get(itemId); if (item?.kind !== 'folder') await drive.download(itemId) } flash('已开始下载') } catch { alert(drive.state.error) } }
 async function logout() { const revoked = await auth.logout(); await router.replace({ name: 'login', query: revoked ? {} : { logoutWarning: '1' } }) }
 onMounted(() => loadFolder(null))
@@ -77,9 +84,10 @@ onMounted(() => loadFolder(null))
     <template v-else-if="mobileTab === 'files'">
       <header class="m-file-head"><h1>文件</h1><div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div></header>
       <div class="m-search"><Search :size="19" /><input v-model="keyword" placeholder="搜索网盘文件" /></div>
+      <div v-if="mode === 'trash'" class="m-trash-actions"><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected"><RotateCcw :size="16" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete"><Trash2 :size="16" />永久删除</button><button :disabled="drive.state.loading" @click="clearTrash">清空</button></div>
       <div class="m-filter"><button>智能排序 <SlidersHorizontal :size="15" /></button><button class="active">全部</button><button>我的资源</button><button>我创建的</button><button>我加工的</button></div>
       <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" @click="openItem(item)"><span class="m-folder"><component :is="iconFor(item.kind)" fill="currentColor" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '常看　' : formatSize(item.size) + '　' }}{{ dateText(item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
-      <button class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
+      <button v-if="mode !== 'trash'" class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
     </template>
     <template v-else-if="mobileTab === 'profile'">
       <main class="profile-page">
@@ -95,7 +103,7 @@ onMounted(() => loadFolder(null))
           </div>
           <div class="membership-links"><button type="button">我的 AI 点数</button><i></i><button type="button">我的资产</button></div>
         </section>
-        <section class="profile-shortcuts" aria-label="常用工具"><button v-for="tool in profileShortcuts" :key="tool.label" type="button"><component :is="tool.icon" /><span>{{ tool.label }}</span></button></section>
+        <section class="profile-shortcuts" aria-label="常用工具"><button v-for="tool in profileShortcuts" :key="tool.label" type="button" @click="openProfileShortcut(tool.label)"><component :is="tool.icon" /><span>{{ tool.label }}</span></button></section>
         <div class="profile-card-pair"><section class="profile-storage"><div><strong>1.6T / 2T</strong><span>79%</span></div><div class="storage-track"><i></i></div><button type="button">管理空间 <ChevronRight :size="17" /></button></section><section class="profile-missions"><div class="mission-orb"><Crown /></div><strong>任务系统</strong><button type="button">领 奖 励 <ChevronRight :size="17" /></button></section></div>
         <section class="profile-services" aria-label="更多服务"><button v-for="service in profileServices" :key="service.label" type="button" :class="service.tone"><component :is="service.icon" /><span>{{ service.label }}</span></button></section>
         <section class="profile-promo"><div class="promo-gift"><Gift :size="52" /></div><div><strong>网盘 <em>SVIP</em> 会员免费送</strong><p>限时活动 · 领 90 天会员</p></div><button type="button">立即抢</button></section>

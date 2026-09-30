@@ -9,6 +9,7 @@ export interface DriveItemResponse {
   size: number
   parentId: string | null
   updatedAt: string
+  deletedAt: string | null
 }
 interface ApiError { code: string; message: string }
 
@@ -27,6 +28,24 @@ export async function renameFile(id: string, name: string): Promise<DriveItemRes
 export async function moveFile(id: string, parentId: string | null): Promise<DriveItemResponse> {
   const { data } = await http.put<DriveItemResponse>(`/files/${id}/move`, { parentId })
   return data
+}
+export async function listTrash(): Promise<DriveItemResponse[]> {
+  const { data } = await http.get<DriveItemResponse[]>('/files/trash')
+  return data
+}
+export async function trashFiles(ids: string[]): Promise<DriveItemResponse[]> {
+  const { data } = await http.post<DriveItemResponse[]>('/files/trash', { ids })
+  return data
+}
+export async function restoreFiles(ids: string[]): Promise<DriveItemResponse[]> {
+  const { data } = await http.post<DriveItemResponse[]>('/files/trash/restore', { ids })
+  return data
+}
+export async function deleteFilesForever(ids: string[]): Promise<void> {
+  await http.post('/files/trash/delete', { ids })
+}
+export async function emptyTrash(): Promise<void> {
+  await http.delete('/files/trash')
 }
 export async function downloadFile(id: string, fallbackName: string): Promise<void> {
   const response = await http.get<Blob>(`/files/${id}/download`, { responseType: 'blob' })
@@ -51,6 +70,10 @@ export function driveErrorMessage(error: unknown, fallback: string): string {
     NOT_A_FOLDER: '目标位置不是文件夹',
     CONTENT_NOT_FOUND: '文件内容不存在',
     FOLDER_NOT_DOWNLOADABLE: '暂不支持下载文件夹',
+    ALREADY_IN_TRASH: '文件已在回收站中',
+    NOT_IN_TRASH: '只能操作回收站中的文件',
+    PARENT_IN_TRASH: '请先恢复所在的父文件夹',
+    INVALID_SELECTION: '请至少选择一个文件',
   }
   return messages[error.response.data?.code] || fallback
 }
