@@ -97,7 +97,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
     <template v-if="mobileTab === 'home'">
       <div class="m-home-top">
         <header class="m-home-head"><div class="m-vip"><span class="m-vip-envelope">领</span><span>会员免费领<small>新用户福利 ❯</small></span></div><div class="m-head-actions"><button aria-label="签到" @click="flash('签到功能即将上线')"><CalendarDays /></button><button aria-label="存储空间" @click="mobileTab='files'"><HardDrive /></button><button aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
-        <button class="m-profile-search" @click="mobileTab='profile'"><span class="m-avatar"></span><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
+        <button class="m-profile-search" @click="mobileTab='profile'"><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
         <section class="m-tools" aria-label="文件分类"><button @click="openHomeCategory('image')"><span class="m-tool-icon"><HomeToolIcon name="photo" /></span><span>相册</span></button><button @click="openHomeCategory('video')"><span class="m-tool-icon"><HomeToolIcon name="video" /></span><span>视频</span></button><button @click="flash('更多功能即将上线')"><span class="m-tool-icon"><HomeToolIcon name="career" /></span><span>求职</span></button><button @click="openHomeCategory('doc')"><span class="m-tool-icon"><HomeToolIcon name="document" /></span><span>文档</span></button><button @click="chooseFiles"><span class="m-tool-icon"><HomeToolIcon name="scan" /></span><span>扫描</span></button><button @click="openHomeCategory('audio')"><span class="m-tool-icon"><HomeToolIcon name="audio" /></span><span>听记</span></button></section>
         <div class="m-tools-indicator"><i></i><i></i></div>
       </div>
