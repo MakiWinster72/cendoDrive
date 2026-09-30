@@ -9,6 +9,7 @@ import UploadPanel from '../components/UploadPanel.vue'
 import '../styles/profile.css'
 import '../styles/home.css'
 import '../styles/selection.css'
+import '../styles/file-list.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
