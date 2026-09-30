@@ -10,7 +10,12 @@
   .m-head-actions button { display: grid; place-items: center; width: 31px; height: 36px; border: 0; background: transparent; color: #071020; padding: 0; }
   .m-head-actions svg { width: 27px; height: 27px; stroke-width: 2.4; }
   .m-profile-search { width: calc(100% - 36px); margin: 15px 18px 22px; height: 58px; border: 2px solid #3986eb; border-radius: 17px; box-shadow: 0 5px 18px #4089d61a; text-align: left; padding: 0 15px; gap: 13px; }
-  .m-profile-search > span { font-size: 16px; color: #555e70; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-profile-search > .m-search-prompt-window { position: relative; display: block; flex: 1; min-width: 0; height: 24px; overflow: hidden; color: #555e70; font-size: 16px; line-height: 24px; }
+  .m-search-prompt { display: block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-prompt-slide-enter-active, .m-prompt-slide-leave-active { transition: transform .38s ease, opacity .38s ease; }
+  .m-prompt-slide-enter-from { transform: translateY(100%); opacity: 0; }
+  .m-prompt-slide-leave-to { transform: translateY(-100%); opacity: 0; }
+  .m-prompt-slide-leave-active { position: absolute; inset: 0; }
   .m-profile-search > svg { flex: none; color: #0d1725; }
   .m-tools { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 0; padding: 2px 8px 8px; background: transparent; }
   .m-tools::-webkit-scrollbar { display: none; }
@@ -52,4 +57,7 @@
   .m-home-top button:focus-visible, .m-panel button:focus-visible, .m-banner button:focus-visible, .m-memory button:focus-visible { outline: 2px solid #347fec; outline-offset: 3px; }
 }
 @media (max-width: 360px) { .m-vip-envelope { width: 43px; } .m-vip > span:last-child { font-size: 13px; } .m-head-actions { gap: 5px !important; } }
-@media (prefers-reduced-motion: reduce) { .m-tools { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) {
+  .m-tools { scroll-behavior: auto; }
+  .m-prompt-slide-enter-active, .m-prompt-slide-leave-active { transition: none; }
+}
