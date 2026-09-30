@@ -4,7 +4,7 @@
 
 ## 环境
 
-Java 21、Maven 3.9+。本地 MySQL、Redis 和 FastDFS 可在仓库根目录通过 `docker compose up -d` 启动；勿将真实密码提交到仓库。以 `src/main/resources/application.example.yml` 为配置示例。
+Java 21、Maven 3.9+。整个项目可在仓库根目录通过 `docker compose up -d --build` 启动；仅需依赖服务时运行 `docker compose up -d mysql redis tracker storage1 storage2 storage3`；勿将真实密码提交到仓库。以 `src/main/resources/application.example.yml` 为配置示例。
 
 ```sh
 cd backend
