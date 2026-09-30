@@ -26,9 +26,53 @@ public class DriveService {
     public List<FileResponse> list(User user, Long parentId) {
         if (parentId != null) requireFolder(user, parentId);
         var result = parentId == null
-                ? files.findAllByOwnerIdAndParentIdIsNullOrderByKindAscNameAsc(user.getId())
-                : files.findAllByOwnerIdAndParentIdOrderByKindAscNameAsc(user.getId(), parentId);
+                ? files.findAllByOwnerIdAndParentIdIsNullAndDeletedAtIsNullOrderByKindAscNameAsc(user.getId())
+                : files.findAllByOwnerIdAndParentIdAndDeletedAtIsNullOrderByKindAscNameAsc(user.getId(), parentId);
         return result.stream().map(FileResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FileResponse> listTrash(User user) {
+        return files.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(user.getId())
+                .stream().map(FileResponse::from).toList();
+    }
+
+    @Transactional
+    public List<FileResponse> trash(User user, FileIdsRequest request) {
+        List<DriveFile> selected = requireSelection(user, request);
+        selected.forEach(file -> {
+            if (file.isDeleted()) fail(HttpStatus.CONFLICT, "ALREADY_IN_TRASH", "Item is already in trash");
+            file.moveToTrash();
+        });
+        return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
+    }
+
+    @Transactional
+    public List<FileResponse> restore(User user, FileIdsRequest request) {
+        List<DriveFile> selected = requireSelection(user, request);
+        selected.forEach(file -> {
+            if (!file.isDeleted()) fail(HttpStatus.CONFLICT, "NOT_IN_TRASH", "Item is not in trash");
+            if (file.getParentId() != null && requireOwned(user, file.getParentId()).isDeleted())
+                fail(HttpStatus.CONFLICT, "PARENT_IN_TRASH", "Parent folder is still in trash");
+            requireAvailableName(user.getId(), file.getParentId(), file.getName(), file);
+            file.restore();
+        });
+        return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
+    }
+
+    @Transactional
+    public void deleteForever(User user, FileIdsRequest request) {
+        List<DriveFile> selected = requireSelection(user, request);
+        if (selected.stream().anyMatch(file -> !file.isDeleted()))
+            fail(HttpStatus.CONFLICT, "NOT_IN_TRASH", "Only trashed items can be permanently deleted");
+        files.deleteAll(selected);
+        files.flush();
+    }
+
+    @Transactional
+    public void emptyTrash(User user) {
+        files.deleteAll(files.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(user.getId()));
+        files.flush();
     }
 
     @Transactional
@@ -41,7 +85,7 @@ public class DriveService {
 
     @Transactional
     public FileResponse rename(User user, Long id, RenameRequest request) {
-        DriveFile file = requireOwned(user, id);
+        DriveFile file = requireActiveOwned(user, id);
         String name = validName(request.name());
         requireAvailableName(user.getId(), file.getParentId(), name, file);
         file.rename(name);
@@ -50,7 +94,7 @@ public class DriveService {
 
     @Transactional
     public FileResponse move(User user, Long id, MoveRequest request) {
-        DriveFile file = requireOwned(user, id);
+        DriveFile file = requireActiveOwned(user, id);
         Long targetId = request.parentId();
         if (id.equals(targetId)) fail(HttpStatus.BAD_REQUEST, "INVALID_MOVE", "Cannot move an item into itself");
         if (targetId != null) {
@@ -64,7 +108,7 @@ public class DriveService {
 
     @Transactional(readOnly = true)
     public Download download(User user, Long id) {
-        DriveFile file = requireOwned(user, id);
+        DriveFile file = requireActiveOwned(user, id);
         if (file.isFolder()) fail(HttpStatus.BAD_REQUEST, "FOLDER_NOT_DOWNLOADABLE", "Folders cannot be downloaded");
         if (file.getStorageKey() == null || file.getStorageKey().isBlank()) fail(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "File content not found");
         Path path = storageRoot.resolve(file.getStorageKey()).normalize();
@@ -76,8 +120,19 @@ public class DriveService {
         return files.findByIdAndOwnerId(id, user.getId()).orElseThrow(() ->
                 new DriveFailure(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found"));
     }
+    private DriveFile requireActiveOwned(User user, Long id) {
+        DriveFile file = requireOwned(user, id);
+        if (file.isDeleted()) fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
+        return file;
+    }
+    private List<DriveFile> requireSelection(User user, FileIdsRequest request) {
+        if (request.ids() == null || request.ids().isEmpty())
+            throw new DriveFailure(HttpStatus.BAD_REQUEST, "INVALID_SELECTION", "Select at least one item");
+        return request.ids().stream().distinct().map(id -> requireOwned(user, id)).toList();
+    }
     private DriveFile requireFolder(User user, Long id) {
         DriveFile file = requireOwned(user, id);
+        if (file.isDeleted()) fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
         if (!file.isFolder()) fail(HttpStatus.BAD_REQUEST, "NOT_A_FOLDER", "Target is not a folder");
         return file;
     }
@@ -89,10 +144,10 @@ public class DriveService {
         }
     }
     private void requireAvailableName(Long ownerId, Long parentId, String name, DriveFile current) {
-        if (current != null && Objects.equals(current.getParentId(), parentId) && current.getName().equalsIgnoreCase(name)) return;
+        if (current != null && !current.isDeleted() && Objects.equals(current.getParentId(), parentId) && current.getName().equalsIgnoreCase(name)) return;
         boolean exists = parentId == null
-                ? files.existsByOwnerIdAndParentIdIsNullAndNameIgnoreCase(ownerId, name)
-                : files.existsByOwnerIdAndParentIdAndNameIgnoreCase(ownerId, parentId, name);
+                ? files.existsByOwnerIdAndParentIdIsNullAndDeletedAtIsNullAndNameIgnoreCase(ownerId, name)
+                : files.existsByOwnerIdAndParentIdAndDeletedAtIsNullAndNameIgnoreCase(ownerId, parentId, name);
         if (exists) fail(HttpStatus.CONFLICT, "NAME_CONFLICT", "An item with the same name already exists");
     }
     private static String validName(String raw) {

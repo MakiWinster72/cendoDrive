@@ -33,6 +33,31 @@ public class DriveController {
     @GetMapping List<FileResponse> list(@AuthenticationPrincipal User user, @RequestParam(required = false) Long parentId) {
         return drive.list(user, parentId);
     }
+    @Operation(summary = "获取回收站列表")
+    @GetMapping("/trash") List<FileResponse> listTrash(@AuthenticationPrincipal User user) {
+        return drive.listTrash(user);
+    }
+    @Operation(summary = "将文件或文件夹移入回收站")
+    @PostMapping("/trash") List<FileResponse> trash(@AuthenticationPrincipal User user,
+                                                     @RequestBody FileIdsRequest request) {
+        return drive.trash(user, request);
+    }
+    @Operation(summary = "恢复回收站中的文件或文件夹")
+    @PostMapping("/trash/restore") List<FileResponse> restore(@AuthenticationPrincipal User user,
+                                                               @RequestBody FileIdsRequest request) {
+        return drive.restore(user, request);
+    }
+    @Operation(summary = "彻底删除回收站中的文件或文件夹")
+    @PostMapping("/trash/delete") ResponseEntity<Void> deleteForever(@AuthenticationPrincipal User user,
+                                                                       @RequestBody FileIdsRequest request) {
+        drive.deleteForever(user, request);
+        return ResponseEntity.noContent().build();
+    }
+    @Operation(summary = "清空回收站")
+    @DeleteMapping("/trash") ResponseEntity<Void> emptyTrash(@AuthenticationPrincipal User user) {
+        drive.emptyTrash(user);
+        return ResponseEntity.noContent().build();
+    }
     @Operation(summary = "新建文件夹")
     @ApiResponses({@ApiResponse(responseCode = "201", description = "创建成功"),
             @ApiResponse(responseCode = "400", description = "名称或父目录不合法", content = @Content(schema = @Schema(implementation = ApiError.class))),

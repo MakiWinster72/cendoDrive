@@ -24,6 +24,8 @@ public class DriveFile {
     private LocalDateTime createdAt;
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     protected DriveFile() {}
     private DriveFile(Long ownerId, Long parentId, String name) {
@@ -45,7 +47,11 @@ public class DriveFile {
     public long getSize() { return size; }
     public String getStorageKey() { return storageKey; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
     public boolean isFolder() { return "folder".equals(kind); }
+    public boolean isDeleted() { return deletedAt != null; }
     void rename(String value) { name = value; }
     void moveTo(Long value) { parentId = value; }
+    void moveToTrash() { deletedAt = LocalDateTime.now(java.time.Clock.systemUTC()); }
+    void restore() { deletedAt = null; }
 }
