@@ -11,7 +11,8 @@ CendoDrive 谐音千度网盘，
 
    ```sh
    cd backend
-   # 修改application.yaml
+   cp src/main/resources/application.example.yml src/main/resources/application.yml
+   # 按需修改 application.yml（本地配置，不会被 Git 跟踪）
    mvn spring-boot:run
    ```
 
