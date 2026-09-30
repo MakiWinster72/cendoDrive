@@ -53,7 +53,17 @@ export function useDrive() {
     if (!item) return Promise.reject(new Error('文件不存在'))
     return run(() => api.downloadFile(item.id, item.name))
   }
-  const upload = (_files: File[], _parentId: string | null) => { throw new Error('文件上传接口暂未开放') }
+  const upload = (files: File[], parentId: string | null) => run(async () => {
+    let uploaded = 0
+    for (const file of files) {
+      try { upsert(await api.uploadFile(file, parentId)); uploaded++ }
+      catch (error) {
+        state.error = `${uploaded} 个文件已上传，${file.name} 上传失败：${api.driveErrorMessage(error, '上传失败')}`
+        throw error
+      }
+    }
+    return uploaded
+  })
   const trash = (itemIds: string[]) => { state.files = state.files.filter((item) => !itemIds.includes(item.id)) }
   const restore = (_itemIds: string[]) => undefined
   const removeForever = (itemIds: string[]) => { state.files = state.files.filter((item) => !itemIds.includes(item.id)) }

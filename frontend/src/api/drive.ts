@@ -28,6 +28,13 @@ export async function moveFile(id: string, parentId: string | null): Promise<Dri
   const { data } = await http.put<DriveItemResponse>(`/files/${id}/move`, { parentId })
   return data
 }
+export async function uploadFile(file: File, parentId: string | null): Promise<DriveItemResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  if (parentId !== null) form.append('parentId', parentId)
+  const { data } = await http.post<DriveItemResponse>('/files/upload', form, { headers: { 'Content-Type': undefined }, timeout: 120000 })
+  return data
+}
 export async function downloadFile(id: string, fallbackName: string): Promise<void> {
   const response = await http.get<Blob>(`/files/${id}/download`, { responseType: 'blob' })
   const disposition = response.headers['content-disposition'] as string | undefined
@@ -51,6 +58,7 @@ export function driveErrorMessage(error: unknown, fallback: string): string {
     NOT_A_FOLDER: '目标位置不是文件夹',
     CONTENT_NOT_FOUND: '文件内容不存在',
     FOLDER_NOT_DOWNLOADABLE: '暂不支持下载文件夹',
+    INVALID_INPUT: '文件为空或不符合要求',
   }
   return messages[error.response.data?.code] || fallback
 }
