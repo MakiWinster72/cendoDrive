@@ -5,6 +5,7 @@ import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, Cloud
 import BrandLogo from '../components/BrandLogo.vue'
 import UploadPanel from '../components/UploadPanel.vue'
 import '../styles/profile.css'
+import '../styles/home.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
@@ -13,7 +14,10 @@ const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
 const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref('')
-const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('profile')
+const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('home')
+const recentItems = computed(() => [...drive.state.files].filter(item => !item.deletedAt && item.kind !== 'folder').sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)).slice(0, 3))
+const savedItems = computed(() => drive.state.files.filter(item => !item.deletedAt && drive.state.shares.some(share => share.itemId === item.id && !share.cancelled)).slice(0, 3))
+function openHomeCategory(next: Mode) { mobileTab.value = 'files'; void changeMode(next) }
 const profileShortcuts = [
   { label: '我的收藏', icon: Sparkles }, { label: '我的分享', icon: Share2 },
   { label: '回收站', icon: Trash2 }, { label: '设备管理', icon: MonitorSmartphone },
@@ -83,12 +87,15 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
 
   <div class="mobile-app">
     <template v-if="mobileTab === 'home'">
-      <header class="m-home-head"><div class="m-vip"><b>VIP</b><span>畅听有声书<small>去领取</small></span></div><div><Bell /><HardDrive /><button class="m-upload-trigger" aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
-      <section class="m-profile-search"><div class="m-avatar">C</div><span>{{ displayName }}</span><button><WandSparkles :size="20" /></button></section>
-      <section class="m-tools"><button><FileText /><span>听记</span></button><button><CalendarDays /><span>天天练</span></button><button><MessageCircle /><span>笔记</span></button><button @click="chooseFiles"><Upload /><span>备份</span></button><button><HardDrive /><span>同步</span></button><button @click="changeMode('doc'); mobileTab='files'"><FileText /><span>文档</span></button><button><Music2 /><span>音频</span></button><button><Printer /><span>打印</span></button><button><Sparkles /><span>星盘</span></button><button><LayoutGrid /><span>全部工具</span></button></section>
-      <section class="m-panel"><div class="m-panel-title"><h2>最近</h2><button><Eye :size="17" /><ChevronRight :size="18" /></button></div><div v-for="item in drive.state.files.filter(item => !item.deletedAt && item.kind !== 'folder').slice(0,3)" :key="item.id" class="m-recent"><span><component :is="iconFor(item.kind)" /></span><div><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt) }}　来自 CendoDrive</small></div></div></section>
-      <section class="m-banner"><div><h2>转存 <small>订阅<i></i></small></h2><p>收藏分享内容，随时查看</p></div></section>
-      <section class="m-memory"><div class="m-panel-title"><h2>回忆</h2><button><Eye :size="17" /><ChevronRight :size="18" /></button></div><div class="memory-art"><span>把每一份美好，留在云端</span></div></section>
+      <div class="m-home-top">
+        <header class="m-home-head"><div class="m-vip"><span class="m-vip-envelope">领</span><span>会员免费领<small>新用户福利 ❯</small></span></div><div class="m-head-actions"><button aria-label="签到" @click="flash('签到功能即将上线')"><CalendarDays /></button><button aria-label="存储空间" @click="mobileTab='files'"><HardDrive /></button><button aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
+        <button class="m-profile-search" @click="mobileTab='profile'"><span class="m-avatar"></span><span>{{ displayName }}的云端空间</span><WandSparkles :size="23" /></button>
+        <section class="m-tools" aria-label="文件分类"><button @click="openHomeCategory('image')"><span class="m-tool-icon"><Image /></span><span>相册</span></button><button @click="openHomeCategory('video')"><span class="m-tool-icon"><Video /></span><span>视频</span></button><button @click="flash('更多功能即将上线')"><span class="m-tool-icon"><UserRound /></span><span>求职</span></button><button @click="openHomeCategory('doc')"><span class="m-tool-icon"><FileText /></span><span>文档</span></button><button @click="chooseFiles"><span class="m-tool-icon"><ScanLine /></span><span>扫描</span></button><button @click="openHomeCategory('audio')"><span class="m-tool-icon"><Music2 /></span><span>听记</span></button></section>
+        <div class="m-tools-indicator"><i></i><i></i></div>
+      </div>
+      <section class="m-panel"><div class="m-panel-title"><h2>最近</h2><button aria-label="查看最近文件" @click="openHomeCategory('recent')"><Eye :size="20" /><ChevronRight :size="20" /></button></div><div v-for="item in recentItems" :key="item.id" class="m-recent" @click="openHomeCategory('recent')"><span class="m-item-icon"><component :is="iconFor(item.kind)" /></span><div><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt) }} · 我的资源</small></div></div><p v-if="!recentItems.length" class="m-home-empty">还没有文件，点击右上角 ＋ 上传第一份文件</p></section>
+      <section class="m-banner"><div class="m-panel-title"><h2>转存 <span>订阅</span></h2><button aria-label="查看分享" @click="mobileTab='share'"><Eye :size="20" /><ChevronRight :size="20" /></button></div><div v-if="savedItems.length" class="m-saved-scroll"><button v-for="item in savedItems" :key="item.id" @click="openHomeCategory('shares')"><span class="m-item-icon"><component :is="iconFor(item.kind)" /></span><span><b>{{ item.name }}</b><small>位置：我的资源 ❯</small></span></button></div><p v-else class="m-home-empty">分享的文件会显示在这里</p></section>
+      <section class="m-memory"><div class="m-panel-title"><h2>推荐 <span>创意</span></h2><button aria-label="更多推荐" @click="flash('更多内容即将上线')"><MoreHorizontal :size="22" /></button></div><div class="m-discover"><button @click="openHomeCategory('image')"><span class="m-discover-art photo"><Image :size="38" /></span><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button><button @click="openHomeCategory('video')"><span class="m-discover-art film"><Video :size="38" /></span><b>收藏精彩视频</b><small>你的回忆都在这里</small></button></div></section>
     </template>
     <template v-else-if="mobileTab === 'files'">
       <header class="m-file-head"><h1>文件</h1><div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div></header>
@@ -120,7 +127,7 @@ onMounted(async () => { await loadFolder(null); try { await drive.loadTrash() } 
       </main>
     </template>
     <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
-    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
+    <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button" @click="flash('库库 AI 即将上线')"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
   </div>
 
   <div class="drive-shell desktop-drive">
