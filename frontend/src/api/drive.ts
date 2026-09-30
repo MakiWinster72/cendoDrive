@@ -106,8 +106,11 @@ export async function downloadFile(
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Let the browser resolve the download before releasing the blob URL.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 export function driveErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError<ApiError>(error))
