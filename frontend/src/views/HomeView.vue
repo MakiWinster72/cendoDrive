@@ -10,6 +10,7 @@ import '../styles/profile.css'
 import '../styles/home.css'
 import '../styles/selection.css'
 import '../styles/file-list.css'
+import '../styles/rename.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
 
@@ -17,6 +18,7 @@ type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | '
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
+const renameTarget = ref<DriveItem | null>(null), renameName = ref(''), renaming = ref(false), renameError = ref('')
 const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref(''), loggingOut = ref(false), downloading = ref(false)
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('home')
 const recentVisible = ref(true)
@@ -75,7 +77,38 @@ async function goRoot() { checked.value = []; await loadFolder(null) }
 async function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { await drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch { alert(drive.state.error) } }
 function chooseFiles() { uploadPanelOpen.value = true }
 function handleUploaded(item: DriveItem) { drive.addUploaded(item); flash(`已上传：${item.name}`) }
-async function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (!name) return; try { await drive.rename(item.id, name); flash('重命名成功') } catch { alert(drive.state.error) } }
+async function renameItem(item: DriveItem) {
+  const name = prompt('请输入新名称', item.name)?.trim()
+  if (!name || name === item.name) return
+  try { await drive.rename(item.id, name); flash('重命名成功') }
+  catch { alert(drive.state.error) }
+}
+function startMobileRename() {
+  if (checked.value.length !== 1) return
+  const item = drive.get(checked.value[0]!)
+  if (!item) return
+  renameTarget.value = item
+  renameName.value = item.name
+  renameError.value = ''
+}
+async function submitMobileRename() {
+  if (!renameTarget.value || renaming.value) return
+  const name = renameName.value.trim()
+  if (!name || name === '.' || name === '..' || /[\\/]/.test(name)) {
+    renameError.value = '请输入有效名称，不能包含斜杠'
+    return
+  }
+  if (name === renameTarget.value.name) { renameTarget.value = null; return }
+  renaming.value = true
+  renameError.value = ''
+  try {
+    await drive.rename(renameTarget.value.id, name)
+    checked.value = []
+    renameTarget.value = null
+    flash('重命名成功')
+  } catch { renameError.value = drive.state.error || '重命名失败，请重试' }
+  finally { renaming.value = false }
+}
 async function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); try { await drive.move(item.id, target || null); checked.value = []; flash('移动成功') } catch { alert(drive.state.error) } }
 function itemMenu(item: DriveItem) { if (mode.value === 'shares') { if (confirm('确定取消该分享吗？')) { const share = drive.state.shares.find((record) => record.itemId === item.id && !record.cancelled); if (share) drive.cancelShare(share.id); flash('分享已取消') } return } const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
 async function removeSelected(ids = checked.value) { if (!ids.length || !confirm('确定移入回收站吗？')) return; try { await drive.trash(ids); checked.value = []; flash('已移入回收站') } catch { alert(drive.state.error) } }
@@ -103,6 +136,7 @@ const selectionActions = [
 ]
 function mobileSelectionAction(label: string) {
   if (label === '下载') void downloadSelected()
+  else if (label === '重命名') startMobileRename()
   else flash(`${label}功能即将上线`)
 }
 async function logout() {
@@ -123,6 +157,15 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
 
 <template>
   <UploadPanel :open="uploadPanelOpen" :folder-options="uploadFolders" :initial-folder-id="currentFolder" @close="uploadPanelOpen = false" @uploaded="handleUploaded" />
+  <div v-if="renameTarget" class="rename-backdrop" @click.self="!renaming && (renameTarget = null)">
+    <form class="rename-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title" @submit.prevent="submitMobileRename">
+      <h2 id="rename-title">重命名文件</h2>
+      <label for="rename-name">文件名称</label>
+      <input id="rename-name" v-model="renameName" autofocus maxlength="255" :disabled="renaming" @input="renameError = ''" />
+      <p v-if="renameError" class="rename-error" role="alert">{{ renameError }}</p>
+      <div class="rename-actions"><button type="button" :disabled="renaming" @click="renameTarget = null">取消</button><button type="submit" :disabled="renaming">{{ renaming ? '保存中…' : '保存' }}</button></div>
+    </form>
+  </div>
 
   <div class="mobile-app">
     <template v-if="mobileTab === 'home'">
@@ -142,7 +185,7 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
       <div v-if="mode === 'trash'" class="m-trash-actions"><button :disabled="!filteredFiles.length || drive.state.loading" @click="allVisibleSelected = !allVisibleSelected">{{ allVisibleSelected ? '取消全选' : '全选' }}</button><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected()"><RotateCcw :size="16" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete()"><Trash2 :size="16" />删除</button><button :disabled="!trashCount || drive.state.loading" @click="clearTrash">清空</button></div>
       <div class="m-filter"><button>智能排序 <SlidersHorizontal :size="15" /></button><button class="active">全部</button><button>我的资源</button><button>我创建的</button><button>我加工的</button></div>
       <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" :class="{ selected: checked.includes(item.id) }" @click="checked.length && mode !== 'trash' ? (checked = checked.includes(item.id) ? checked.filter(id => id !== item.id) : [...checked, item.id]) : openItem(item)"><span class="m-folder"><component :is="iconForFile(item)" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '' : formatSize(item.size) + '　' }}{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
-      <section v-if="checked.length && mode !== 'trash'" class="m-selection-sheet" aria-label="已选文件操作"><div class="m-selection-actions"><button v-for="action in selectionActions" :key="action.label" type="button" :disabled="action.label === '下载' && downloading" @click="mobileSelectionAction(action.label)"><component :is="action.icon" :size="25" :stroke-width="1.9" /><span>{{ action.label }}</span></button></div></section>
+      <section v-if="checked.length && mode !== 'trash'" class="m-selection-sheet" aria-label="已选文件操作"><div class="m-selection-actions"><button v-for="action in selectionActions" :key="action.label" type="button" :disabled="(action.label === '下载' && downloading) || (action.label === '重命名' && checked.length !== 1)" @click="mobileSelectionAction(action.label)"><component :is="action.icon" :size="25" :stroke-width="1.9" /><span>{{ action.label }}</span></button></div></section>
       <button v-if="mode !== 'trash' && !checked.length" class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
     </template>
     <template v-else-if="mobileTab === 'profile'">
