@@ -33,4 +33,19 @@ class CorsSecurityTest {
                 .andExpect(status().isForbidden())
                 .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
+    @Test void allowedOriginCanPreflightFileMutation() throws Exception {
+        mvc.perform(options("/api/files/1/move").header("Origin", "https://app.example")
+                        .header("Access-Control-Request-Method", "PUT")
+                        .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://app.example"));
+    }
+
+    @Test void allowedOriginCanPreflightEmptyTrash() throws Exception {
+        mvc.perform(options("/api/files/trash").header("Origin", "https://app.example")
+                        .header("Access-Control-Request-Method", "DELETE")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://app.example"));
+    }
 }
