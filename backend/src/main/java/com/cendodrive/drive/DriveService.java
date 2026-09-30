@@ -3,12 +3,14 @@ package com.cendodrive.drive;
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
+import com.cendodrive.storage.FileStorage;
+import java.io.IOException;
+import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +19,31 @@ import org.springframework.transaction.annotation.Transactional;
 public class DriveService {
     private final DriveFileRepository files;
     private final Path storageRoot;
-    public DriveService(DriveFileRepository files, @Value("${cendo.storage.root:./storage}") String storageRoot) {
+    private final FileStorage fastDfs;
+    public DriveService(DriveFileRepository files, FileStorage fastDfs,
+                        @Value("${cendo.storage.root:./storage}") String storageRoot) {
         this.files = files;
+        this.fastDfs = fastDfs;
         this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
+    }
+
+    public FileResponse upload(User user, MultipartFile content, Long parentId) throws IOException {
+        if (content == null || content.isEmpty()) fail(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "File is empty");
+        String name = validName(Objects.requireNonNullElse(content.getOriginalFilename(), ""));
+        if (parentId != null) requireFolder(user, parentId);
+        requireAvailableName(user.getId(), parentId, name, null);
+        String extension = name.lastIndexOf('.') < 0 ? "" : name.substring(name.lastIndexOf('.') + 1);
+        if (!extension.matches("[A-Za-z0-9]{0,16}")) extension = "";
+        String key;
+        try (var input = content.getInputStream()) {
+            key = fastDfs.upload(input, content.getSize(), extension);
+        }
+        try {
+            return FileResponse.from(files.saveAndFlush(DriveFile.uploaded(user.getId(), parentId, name, content.getSize(), key)));
+        } catch (RuntimeException ex) {
+            try { fastDfs.delete(key); } catch (IOException cleanup) { ex.addSuppressed(cleanup); }
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -67,9 +91,14 @@ public class DriveService {
         DriveFile file = requireOwned(user, id);
         if (file.isFolder()) fail(HttpStatus.BAD_REQUEST, "FOLDER_NOT_DOWNLOADABLE", "Folders cannot be downloaded");
         if (file.getStorageKey() == null || file.getStorageKey().isBlank()) fail(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "File content not found");
+        if ("fastdfs".equals(file.getStorageBackend())) {
+            String key = file.getStorageKey();
+            return new Download(file.getName(), output -> fastDfs.download(key, output), file.getSize());
+        }
+        if (!"local".equals(file.getStorageBackend())) fail(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "Unknown storage backend");
         Path path = storageRoot.resolve(file.getStorageKey()).normalize();
         if (!path.startsWith(storageRoot) || !Files.isRegularFile(path)) fail(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "File content not found");
-        return new Download(file.getName(), new FileSystemResource(path));
+        return new Download(file.getName(), output -> Files.copy(path, output), file.getSize());
     }
 
     private DriveFile requireOwned(User user, Long id) {
@@ -102,5 +131,5 @@ public class DriveService {
         return value;
     }
     private static void fail(HttpStatus status, String code, String message) { throw new DriveFailure(status, code, message); }
-    public record Download(String name, FileSystemResource resource) {}
+    public record Download(String name, org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody body, long size) {}
 }

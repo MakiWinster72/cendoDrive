@@ -3,6 +3,8 @@ package com.cendodrive.drive;
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
+import com.cendodrive.storage.FileStorage;
+import org.springframework.mock.web.MockMultipartFile;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,12 +18,29 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class DriveServiceTest {
     @Mock DriveFileRepository files;
+    @Mock FileStorage storage;
     @Mock User user;
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, "/tmp/cendodrive-test-storage");
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage");
         lenient().when(user.getId()).thenReturn(7L);
+    }
+
+    @Test void uploadsAndPersistsFastDfsFileId() throws Exception {
+        var upload = new MockMultipartFile("file", "hello.txt", "text/plain", "hello".getBytes());
+        when(storage.upload(any(), eq(5L), eq("txt"))).thenReturn("group1/M00/hello.txt");
+        when(files.saveAndFlush(any())).thenAnswer(invocation -> {
+            DriveFile file = invocation.getArgument(0);
+            assertEquals("fastdfs", file.getStorageBackend());
+            assertEquals("group1/M00/hello.txt", file.getStorageKey());
+            assertEquals(5, file.getSize());
+            org.springframework.test.util.ReflectionTestUtils.setField(file, "id", 12L);
+            org.springframework.test.util.ReflectionTestUtils.setField(file, "updatedAt", java.time.LocalDateTime.now());
+            return file;
+        });
+        assertEquals("12", service.upload(user, upload, null).id());
+        verify(storage).upload(any(), eq(5L), eq("txt"));
     }
 
     @Test void listsOnlyTheAuthenticatedUsersRoot() {
