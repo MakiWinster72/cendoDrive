@@ -79,6 +79,6 @@ async function submit() {
       </div>
     </section>
 
-    <footer>© 2026 CendoDrive</footer>
+    <footer class="login-footer"><span>© 2026 CendoDrive</span><span>开发团队 MIND</span></footer>
   </main>
 </template>
