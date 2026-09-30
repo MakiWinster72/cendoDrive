@@ -11,7 +11,7 @@ type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | '
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
-const sortBy = ref<'name' | 'time' | 'size'>('time'), fileInput = ref<HTMLInputElement>(), notice = ref('')
+const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref('')
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('files')
 const displayName = computed(() => auth.user.value?.nickname || auth.user.value?.username || 'CendoDrive 用户')
 const modeNames: Record<Mode, string> = { all: '全部文件', recent: '最近', image: '图片', video: '视频', doc: '文档', audio: '音频', other: '其他', shares: '我的分享', trash: '回收站' }
@@ -40,8 +40,7 @@ function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !=
 function goRoot() { currentFolder.value = null; checked.value = [] }
 function createFolder() { const name = prompt('请输入文件夹名称'); if (!name) return; try { drive.createFolder(name, currentFolder.value); flash('文件夹创建成功') } catch (e) { alert(e instanceof Error ? e.message : '创建失败') } }
 function chooseFiles() { uploadPanelOpen.value = true }
-function handleUpload(_files: File[], _folderId: string | null) { flash('上传接口待接入，文件暂未上传') }
-function uploadFiles(event: Event) { const files = [...((event.target as HTMLInputElement).files || [])]; if (!files.length) return; drive.upload(files, currentFolder.value); flash(`已上传 ${files.length} 个文件`); (event.target as HTMLInputElement).value = '' }
+function handleUploaded(item: DriveItem) { drive.addUploaded(item); flash(`已上传：${item.name}`) }
 function renameItem(item: DriveItem) { const name = prompt('请输入新名称', item.name); if (name) { drive.rename(item.id, name); flash('重命名成功') } }
 function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); drive.move(item.id, target || null); checked.value = []; flash('移动成功') }
 function itemMenu(item: DriveItem) { if (mode.value === 'shares') { if (confirm('确定取消该分享吗？')) { const share = drive.state.shares.find((record) => record.itemId === item.id && !record.cancelled); if (share) drive.cancelShare(share.id); flash('分享已取消') } return } const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
@@ -55,7 +54,7 @@ async function logout() { const revoked = await auth.logout(); await router.repl
 </script>
 
 <template>
-  <UploadPanel :open="uploadPanelOpen" :folder-options="uploadFolders" :initial-folder-id="currentFolder" @close="uploadPanelOpen = false" @upload="handleUpload" />
+  <UploadPanel :open="uploadPanelOpen" :folder-options="uploadFolders" :initial-folder-id="currentFolder" @close="uploadPanelOpen = false" @uploaded="handleUploaded" />
 
   <div class="mobile-app">
     <template v-if="mobileTab === 'home'">
@@ -75,7 +74,6 @@ async function logout() { const revoked = await auth.logout(); await router.repl
     </template>
     <template v-else><section class="m-placeholder"><component :is="mobileTab === 'share' ? Share2 : CircleUserRound" :size="58" /><h2>{{ mobileTab === 'share' ? '我的分享' : '个人中心' }}</h2><p>{{ mobileTab === 'share' ? '已创建的分享可在 PC 端管理' : displayName }}</p></section></template>
     <nav class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow"><i><Sparkles /></i><span>GenFlow</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>25</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
-    <input ref="fileInput" type="file" multiple hidden @change="uploadFiles" />
   </div>
 
   <div class="drive-shell desktop-drive">
@@ -91,7 +89,6 @@ async function logout() { const revoked = await auth.logout(); await router.repl
         <div class="content-title"><div><h1>{{ title }}</h1><p>共 {{ filteredFiles.length }} 个项目</p></div><select v-model="sortBy" class="sort-select"><option value="time">按时间排序</option><option value="name">按名称排序</option><option value="size">按大小排序</option></select></div>
         <div v-if="currentFolder" class="breadcrumb"><button @click="goRoot">全部文件</button><ChevronRight :size="14" /><span>{{ title }}</span></div>
         <div class="toolbar"><div v-if="mode !== 'trash'" class="tool-left"><button @click="chooseFiles"><Upload :size="17" />上传</button><button @click="createFolder"><Folder :size="17" />新建文件夹</button><span></span><button :disabled="!checked.length" @click="downloadSelected"><Download :size="17" />下载</button><button :disabled="!checked.length" @click="shareSelected"><Share2 :size="17" />分享</button><button :disabled="!checked.length" @click="removeSelected()"><Trash2 :size="17" />删除</button></div><div v-else class="tool-left"><button :disabled="!checked.length" @click="restoreSelected"><RotateCcw :size="17" />恢复</button><button :disabled="!checked.length" @click="permanentDelete"><Trash2 :size="17" />永久删除</button><button @click="clearTrash">清空回收站</button></div><div class="view-switch"><button :class="{ active: view === 'list' }" @click="view = 'list'"><List :size="18" /></button><button :class="{ active: view === 'grid' }" @click="view = 'grid'"><LayoutGrid :size="18" /></button></div></div>
-        <input ref="fileInput" type="file" multiple hidden @change="uploadFiles" />
         <div v-if="view === 'list'" class="file-table"><div class="table-head"><label></label><div>文件名</div><div>大小</div><div>修改日期</div><div></div></div><div v-for="item in filteredFiles" :key="item.id" class="file-row" @dblclick="openItem(item)"><label><input v-model="checked" type="checkbox" :value="item.id" /><span><CheckSquare :size="13" /></span></label><div class="file-name" @click="openItem(item)"><component :is="iconFor(item.kind)" :class="item.kind" :size="31" fill="currentColor" /><b>{{ item.name }}</b></div><div>{{ formatSize(item.size) }}</div><div>{{ dateText(item.updatedAt) }}</div><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="18" /></button></div><div v-if="!filteredFiles.length" class="empty">这里还没有文件</div></div>
         <div v-else class="file-grid"><article v-for="item in filteredFiles" :key="item.id" @dblclick="openItem(item)"><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="17" /></button><component :is="iconFor(item.kind)" :class="item.kind" :size="58" fill="currentColor" @click="openItem(item)" /><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt).slice(0, 10) }}</small><input v-model="checked" type="checkbox" :value="item.id" /></article></div>
       </section>

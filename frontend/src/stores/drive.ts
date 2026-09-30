@@ -42,16 +42,6 @@ const save = () => {
   localStorage.setItem(SHARE_KEY, JSON.stringify(state.shares))
 }
 
-function kindFromName(name: string): FileKind {
-  const ext = name.split('.').pop()?.toLowerCase()
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'image'
-  if (['mp4', 'mov', 'mkv'].includes(ext || '')) return 'video'
-  if (['mp3', 'wav', 'flac'].includes(ext || '')) return 'audio'
-  if (ext === 'pdf') return 'pdf'
-  if (['doc', 'docx', 'txt', 'md', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) return 'doc'
-  return 'other'
-}
-
 export function useDrive() {
   const list = (parentId: string | null, deleted = false) => computed(() => state.files.filter((item) => deleted ? Boolean(item.deletedAt) : !item.deletedAt && item.parentId === parentId))
   const get = (itemId: string) => state.files.find((item) => item.id === itemId)
@@ -60,8 +50,10 @@ export function useDrive() {
     if (state.files.some((item) => !item.deletedAt && item.parentId === parentId && item.name === name.trim())) throw new Error('同名文件夹已存在')
     state.files.push({ id: id(), name: name.trim(), kind: 'folder', size: 0, parentId, updatedAt: now() }); save()
   }
-  const upload = (files: File[], parentId: string | null) => {
-    files.forEach((file) => state.files.push({ id: id(), name: file.name, kind: kindFromName(file.name), size: file.size, parentId, updatedAt: now() }))
+  const addUploaded = (item: DriveItem) => {
+    const existing = state.files.findIndex((file) => file.id === item.id)
+    if (existing >= 0) state.files.splice(existing, 1, item)
+    else state.files.push(item)
     save()
   }
   const rename = (itemId: string, name: string) => {
@@ -91,7 +83,7 @@ export function useDrive() {
   }
   const cancelShare = (shareId: string) => { const item = state.shares.find((share) => share.id === shareId); if (item) item.cancelled = true; save() }
 
-  return { state, list, get, createFolder, upload, rename, move, trash, restore, removeForever, emptyTrash, share, cancelShare }
+  return { state, list, get, createFolder, addUploaded, rename, move, trash, restore, removeForever, emptyTrash, share, cancelShare }
 }
 
 export function formatSize(size: number) {
