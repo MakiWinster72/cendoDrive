@@ -3,27 +3,35 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Archive, Bell, CalendarDays, CheckSquare, Clock3, ClipboardCheck, CloudUpload, Coins, Crown, Gift, MonitorSmartphone, LogOut, PackageOpen, ScanLine, TicketPercent, Wallet, ChevronDown, ChevronRight, CircleUserRound, Cloud, Copy, Download, Eye, EyeOff, File, FileText, Folder, HardDrive, House, Image, LayoutGrid, List, Menu, MessageCircle, MoreHorizontal, Music2, Plus, Printer, RotateCcw, Search, Settings, Share2, SlidersHorizontal, Sparkles, Star, Trash2, Upload, UserRound, Video, WandSparkles, X, Info, LockKeyhole, Pencil, FolderInput } from 'lucide-vue-next'
 import BrandLogo from '../components/BrandLogo.vue'
-import { iconForFile } from '../components/fileIcon'
+import { fileCategory, iconForFile } from '../components/fileIcon'
 import HomeToolIcon from '../components/HomeToolIcon.vue'
 import UploadPanel from '../components/UploadPanel.vue'
+import ShareList from '../components/ShareList.vue'
+import ShareLinkDialog from '../components/ShareLinkDialog.vue'
+import MobileMyShares from '../components/MobileMyShares.vue'
 import '../styles/profile.css'
 import '../styles/home.css'
 import '../styles/selection.css'
 import '../styles/file-list.css'
 import '../styles/rename.css'
+import '../styles/share.css'
 import { useAuth } from '../stores/auth'
 import { formatSize, useDrive, type DriveItem } from '../stores/drive'
+import { shareErrorMessage, type ShareRecord } from '../api/shares'
 
 type Mode = 'all' | 'recent' | 'image' | 'video' | 'doc' | 'audio' | 'other' | 'shares' | 'trash'
 const router = useRouter(), auth = useAuth(), drive = useDrive()
 const view = ref<'list' | 'grid'>('list'), mode = ref<Mode>('all'), currentFolder = ref<string | null>(null)
 const keyword = ref(''), checked = ref<string[]>([]), menuOpen = ref(false), mobileNavOpen = ref(false), uploadPanelOpen = ref(false)
+const createdShare = ref<ShareRecord | null>(null)
 const renameTarget = ref<DriveItem | null>(null), renameName = ref(''), renaming = ref(false), renameError = ref('')
 const sortBy = ref<'name' | 'time' | 'size'>('time'), notice = ref(''), loggingOut = ref(false), downloading = ref(false)
 const mobileTab = ref<'home' | 'files' | 'share' | 'profile'>('home')
+const showMyShares = ref(false)
+const mySharesError = ref('')
 const recentVisible = ref(true)
 const recentItems = computed(() => [...drive.state.files].filter(item => !item.deletedAt && item.kind !== 'folder').sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)).slice(0, 3))
-const savedItems = computed(() => drive.state.files.filter(item => !item.deletedAt && drive.state.shares.some(share => share.itemId === item.id && !share.cancelled)).slice(0, 3))
+const savedItems = computed(() => drive.state.files.filter(item => !item.deletedAt && drive.state.shares.some(share => share.fileId === item.id && share.status === 'ACTIVE' && new Date(share.expiresAt) > new Date())).slice(0, 3))
 function openHomeCategory(next: Mode) { mobileTab.value = 'files'; void changeMode(next) }
 const profileShortcuts = [
   { label: '我的收藏', icon: Sparkles }, { label: '我的分享', icon: Share2 },
@@ -48,12 +56,11 @@ const filteredFiles = computed(() => {
   let items: DriveItem[]
   if (mode.value === 'trash') items = drive.state.files.filter((item) => Boolean(item.deletedAt))
   else if (mode.value === 'shares') {
-    const ids = new Set(drive.state.shares.filter((share) => !share.cancelled && new Date(share.expiresAt) > new Date()).map((share) => share.itemId))
+    const ids = new Set(drive.state.shares.filter((share) => share.status === 'ACTIVE' && new Date(share.expiresAt) > new Date()).map((share) => share.fileId))
     items = drive.state.files.filter((item) => ids.has(item.id) && !item.deletedAt)
   } else if (mode.value === 'all') items = drive.state.files.filter((item) => !item.deletedAt && item.parentId === currentFolder.value)
   else {
-    const kinds: Partial<Record<Mode, string[]>> = { image: ['image'], video: ['video'], doc: ['doc', 'pdf'], audio: ['audio'], other: ['other'] }
-    items = drive.state.files.filter((item) => !item.deletedAt && item.kind !== 'folder' && (mode.value === 'recent' || kinds[mode.value]?.includes(item.kind)))
+    items = drive.state.files.filter((item) => !item.deletedAt && item.kind !== 'folder' && (mode.value === 'recent' || fileCategory(item) === mode.value))
   }
   items = items.filter((item) => item.name.toLowerCase().includes(keyword.value.toLowerCase()))
   return [...items].sort((a, b) => sortBy.value === 'name' ? a.name.localeCompare(b.name, 'zh-CN') : sortBy.value === 'size' ? b.size - a.size : +new Date(mode.value === 'trash' ? b.deletedAt! : b.updatedAt) - +new Date(mode.value === 'trash' ? a.deletedAt! : a.updatedAt))
@@ -69,7 +76,14 @@ async function changeMode(next: Mode) {
   try {
     if (next === 'all') await drive.load(null)
     else if (next === 'trash') await drive.loadTrash()
+    else if (next === 'shares') await drive.loadShares()
   } catch { alert(drive.state.error) }
+}
+async function openMyShares() {
+  showMyShares.value = true
+  mySharesError.value = ''
+  try { await drive.loadShares() }
+  catch (error) { mySharesError.value = shareErrorMessage(error, '分享列表加载失败') }
 }
 async function loadFolder(parentId: string | null) { try { await drive.load(parentId); currentFolder.value = parentId } catch { alert(drive.state.error) } }
 async function openItem(item: DriveItem) { if (item.kind === 'folder' && mode.value !== 'trash') { mode.value = 'all'; checked.value = []; await loadFolder(item.id) } }
@@ -110,13 +124,52 @@ async function submitMobileRename() {
   finally { renaming.value = false }
 }
 async function moveItem(item: DriveItem) { const hint = ['根目录', ...folders.value.filter((folder) => folder.id !== item.id).map((folder) => folder.name)].join('、'); const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, '根目录'); if (!name) return; const target = name === '根目录' ? null : folders.value.find((folder) => folder.name === name)?.id; if (name !== '根目录' && !target) return alert('未找到目标文件夹'); try { await drive.move(item.id, target || null); checked.value = []; flash('移动成功') } catch { alert(drive.state.error) } }
-function itemMenu(item: DriveItem) { if (mode.value === 'shares') { if (confirm('确定取消该分享吗？')) { const share = drive.state.shares.find((record) => record.itemId === item.id && !record.cancelled); if (share) drive.cancelShare(share.id); flash('分享已取消') } return } const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
+function itemMenu(item: DriveItem) { const action = prompt('输入操作：重命名 / 移动 / 删除', '重命名'); if (action === '重命名') renameItem(item); else if (action === '移动') moveItem(item); else if (action === '删除') removeSelected([item.id]) }
 async function removeSelected(ids = checked.value) { if (!ids.length || !confirm('确定移入回收站吗？')) return; try { await drive.trash(ids); checked.value = []; flash('已移入回收站') } catch { alert(drive.state.error) } }
 async function restoreSelected(ids = checked.value) { if (!ids.length) return; try { await drive.restore(ids); checked.value = checked.value.filter((id) => !ids.includes(id)); flash(ids.length > 1 ? `已恢复 ${ids.length} 个项目` : '文件已恢复') } catch { alert(drive.state.error) } }
 async function permanentDelete(ids = checked.value) { if (!ids.length || !confirm(`永久删除 ${ids.length} 个项目后无法恢复，是否继续？`)) return; try { await drive.removeForever(ids); checked.value = checked.value.filter((id) => !ids.includes(id)); flash(ids.length > 1 ? `已永久删除 ${ids.length} 个项目` : '已永久删除') } catch { alert(drive.state.error) } }
 async function clearTrash() { if (!trashCount.value || !confirm(`将永久删除回收站中的 ${trashCount.value} 个项目，是否继续？`)) return; try { await drive.emptyTrash(); checked.value = []; flash('回收站已清空') } catch { alert(drive.state.error) } }
-async function shareSelected() { if (!checked.value.length) return; const days = Number(prompt('分享有效天数', '7') || 7); try { const record = drive.share(checked.value[0], days); const link = `${location.origin}/share/${record.id}`; await navigator.clipboard?.writeText(`${link} 提取码：${record.code}`).catch(() => {}); alert(`分享链接：${link}\n提取码：${record.code}\n有效期：${days} 天\n已尝试复制到剪贴板`) } catch (error) { alert(error instanceof Error ? error.message : '分享失败') } }
-async function openProfileShortcut(label: string) { if (label === '回收站') { mobileTab.value = 'files'; await changeMode('trash') } else if (label === '我的分享') { mobileTab.value = 'share' } }
+async function shareSelected() {
+  if (checked.value.length !== 1) return alert('请选择一个文件进行分享')
+  const item = drive.get(checked.value[0]!)
+  if (!item || item.kind === 'folder') return alert('目前只支持分享单个文件')
+  const daysInput = prompt('分享有效天数（1、7 或 30）', '7')
+  if (daysInput === null) return
+  const days = Number(daysInput)
+  if (![1, 7, 30].includes(days)) return alert('有效天数请选择 1、7 或 30')
+  try {
+    createdShare.value = await drive.share(item.id, days * 86400)
+    flash('分享链接已创建')
+  } catch (error) { alert(shareErrorMessage(error, '分享创建失败')) }
+}
+async function copyShareLink(share: ShareRecord) {
+  const link = `${location.origin}/share/${encodeURIComponent(share.token)}`
+  try { await navigator.clipboard.writeText(link); flash('分享链接已复制') }
+  catch { window.prompt('复制分享链接', link) }
+}
+async function copyShareLinks(shares: ShareRecord[]) {
+  const links = shares.map((share) => `${location.origin}/share/${encodeURIComponent(share.token)}`).join('\n')
+  try { await navigator.clipboard.writeText(links); flash(shares.length === 1 ? '分享链接已复制' : `已复制 ${shares.length} 条分享链接`) }
+  catch { window.prompt('复制分享链接', links) }
+}
+async function cancelShareRecord(share: ShareRecord) {
+  if (!confirm(`确定取消“${share.fileName}”的分享吗？取消后链接立即失效。`)) return
+  try { await drive.cancelShare(share.id); flash('分享已取消') }
+  catch (error) { alert(shareErrorMessage(error, '取消分享失败')) }
+}
+async function cancelShareRecords(shares: ShareRecord[]) {
+  if (!confirm(`确定取消选中的 ${shares.length} 个分享吗？取消后链接立即失效。`)) return
+  let completed = 0
+  for (const share of shares) {
+    try { await drive.cancelShare(share.id); completed += 1 }
+    catch (error) {
+      alert(`${completed ? `已取消 ${completed} 个分享；` : ''}${shareErrorMessage(error, '取消分享失败，请重试')}`)
+      return
+    }
+  }
+  flash(`已取消 ${completed} 个分享`)
+}
+async function openProfileShortcut(label: string) { if (label === '回收站') { mobileTab.value = 'files'; await changeMode('trash') } else if (label === '我的分享') await openMyShares() }
 async function downloadSelected() {
   if (downloading.value) return
   const files = checked.value.filter(id => drive.get(id)?.kind !== 'folder')
@@ -136,6 +189,7 @@ const selectionActions = [
 ]
 function mobileSelectionAction(label: string) {
   if (label === '下载') void downloadSelected()
+  else if (label === '分享') void shareSelected()
   else if (label === '重命名') startMobileRename()
   else flash(`${label}功能即将上线`)
 }
@@ -157,6 +211,7 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
 
 <template>
   <UploadPanel :open="uploadPanelOpen" :folder-options="uploadFolders" :initial-folder-id="currentFolder" @close="uploadPanelOpen = false" @uploaded="handleUploaded" />
+  <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
   <div v-if="renameTarget" class="rename-backdrop" @click.self="!renaming && (renameTarget = null)">
     <form class="rename-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title" @submit.prevent="submitMobileRename">
       <h2 id="rename-title">重命名文件</h2>
@@ -168,7 +223,8 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
   </div>
 
   <div class="mobile-app">
-    <template v-if="mobileTab === 'home'">
+    <MobileMyShares v-if="showMyShares" :shares="drive.state.shares" :loading="drive.state.loading" :error="mySharesError" @back="showMyShares = false" @refresh="openMyShares" @open="createdShare = $event" @copy="copyShareLinks" @cancel="cancelShareRecords" />
+    <template v-else-if="mobileTab === 'home'">
       <div class="m-home-top">
         <header class="m-home-head"><div class="m-vip"><span class="m-vip-envelope">领</span><span>会员免费领<small>新用户福利 ❯</small></span></div><div class="m-head-actions"><button aria-label="签到" @click="flash('签到功能即将上线')"><CalendarDays /></button><button aria-label="存储空间" @click="mobileTab='files'"><HardDrive /></button><button aria-label="上传文件" @click="chooseFiles"><Plus /></button></div></header>
         <button class="m-profile-search" @click="mobileTab='profile'"><span class="m-search-prompt-window"><Transition name="m-prompt-slide"><span :key="searchPromptIndex" class="m-search-prompt">{{ searchPrompts[searchPromptIndex] }}</span></Transition></span><WandSparkles :size="23" /></button>
@@ -176,7 +232,7 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
         <div class="m-tools-indicator"><i></i><i></i></div>
       </div>
       <section class="m-panel"><div class="m-panel-title"><h2>最近</h2><div class="m-panel-actions"><button type="button" :aria-label="recentVisible ? '隐藏最近文件' : '显示最近文件'" :aria-pressed="!recentVisible" @click="recentVisible = !recentVisible"><Eye v-if="recentVisible" :size="20" /><EyeOff v-else :size="20" /></button><button type="button" aria-label="查看最近文件" @click="openHomeCategory('recent')"><ChevronRight :size="20" /></button></div></div><template v-if="recentVisible"><div v-for="item in recentItems" :key="item.id" class="m-recent" @click="openHomeCategory('recent')"><span class="m-item-icon"><component :is="iconForFile(item)" /></span><div><b>{{ item.name }}</b><small>{{ dateText(item.updatedAt) }} · 我的资源</small></div></div><p v-if="!recentItems.length" class="m-home-empty">还没有文件，点击右上角 ＋ 上传第一份文件</p></template></section>
-      <section class="m-banner"><div class="m-panel-title"><h2>转存 <span>订阅</span></h2><button aria-label="查看分享" @click="mobileTab='share'"><Eye :size="20" /><ChevronRight :size="20" /></button></div><div v-if="savedItems.length" class="m-saved-scroll"><button v-for="item in savedItems" :key="item.id" @click="openHomeCategory('shares')"><span class="m-item-icon"><component :is="iconForFile(item)" /></span><span><b>{{ item.name }}</b><small>位置：我的资源 ❯</small></span></button></div><p v-else class="m-home-empty">分享的文件会显示在这里</p></section>
+      <section class="m-banner"><div class="m-panel-title"><h2>转存 <span>订阅</span></h2><button aria-label="查看分享" @click="mobileTab = 'share'"><Eye :size="20" /><ChevronRight :size="20" /></button></div><div v-if="savedItems.length" class="m-saved-scroll"><button v-for="item in savedItems" :key="item.id" @click="openMyShares"><span class="m-item-icon"><component :is="iconForFile(item)" /></span><span><b>{{ item.name }}</b><small>位置：我的资源 ❯</small></span></button></div><p v-else class="m-home-empty">分享的文件会显示在这里</p></section>
       <section class="m-memory"><div class="m-panel-title"><h2>推荐 <span>创意</span></h2><button aria-label="更多推荐" @click="flash('更多内容即将上线')"><MoreHorizontal :size="22" /></button></div><div class="m-discover"><button @click="openHomeCategory('image')"><span class="m-discover-art photo"><Image :size="38" /></span><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button><button @click="openHomeCategory('video')"><span class="m-discover-art film"><Video :size="38" /></span><b>收藏精彩视频</b><small>你的回忆都在这里</small></button></div></section>
     </template>
     <template v-else-if="mobileTab === 'files'">
@@ -185,7 +241,7 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
       <div v-if="mode === 'trash'" class="m-trash-actions"><button :disabled="!filteredFiles.length || drive.state.loading" @click="allVisibleSelected = !allVisibleSelected">{{ allVisibleSelected ? '取消全选' : '全选' }}</button><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected()"><RotateCcw :size="16" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete()"><Trash2 :size="16" />删除</button><button :disabled="!trashCount || drive.state.loading" @click="clearTrash">清空</button></div>
       <div class="m-filter"><button>智能排序 <SlidersHorizontal :size="15" /></button><button class="active">全部</button><button>我的资源</button><button>我创建的</button><button>我加工的</button></div>
       <div class="m-file-list"><div v-for="item in filteredFiles" :key="item.id" class="m-file-row" :class="{ selected: checked.includes(item.id) }" @click="checked.length && mode !== 'trash' ? (checked = checked.includes(item.id) ? checked.filter(id => id !== item.id) : [...checked, item.id]) : openItem(item)"><span class="m-folder"><component :is="iconForFile(item)" /></span><div><b>{{ item.name }}</b><small>{{ item.kind === 'folder' ? '' : formatSize(item.size) + '　' }}{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0,16) }}</small></div><input v-model="checked" type="checkbox" :value="item.id" @click.stop /></div><p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p></div>
-      <section v-if="checked.length && mode !== 'trash'" class="m-selection-sheet" aria-label="已选文件操作"><div class="m-selection-actions"><button v-for="action in selectionActions" :key="action.label" type="button" :disabled="(action.label === '下载' && downloading) || (action.label === '重命名' && checked.length !== 1)" @click="mobileSelectionAction(action.label)"><component :is="action.icon" :size="25" :stroke-width="1.9" /><span>{{ action.label }}</span></button></div></section>
+       <section v-if="checked.length && mode !== 'trash'" class="m-selection-sheet" aria-label="已选文件操作"><div class="m-selection-actions"><button v-for="action in selectionActions" :key="action.label" type="button" :disabled="(action.label === '下载' && downloading) || (action.label === '重命名' && checked.length !== 1) || (action.label === '分享' && checked.length !== 1)" @click="mobileSelectionAction(action.label)"><component :is="action.icon" :size="25" :stroke-width="1.9" /><span>{{ action.label }}</span></button></div></section>
       <button v-if="mode !== 'trash' && !checked.length" class="m-fab" aria-label="上传" @click="chooseFiles"><Plus :size="30" /></button>
     </template>
     <template v-else-if="mobileTab === 'profile'">
@@ -210,8 +266,8 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
         <button class="profile-logout" type="button" :disabled="loggingOut" @click="logout"><LogOut :size="19" /><span>{{ loggingOut ? '正在退出…' : '退出登录' }}</span><ChevronRight :size="18" /></button>
       </main>
     </template>
-    <template v-else><section class="m-placeholder"><Share2 :size="58" /><h2>我的分享</h2><p>已创建的分享可在 PC 端管理</p></section></template>
-    <nav v-if="!(mobileTab === 'files' && checked.length && mode !== 'trash')" class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button" @click="flash('库库 AI 即将上线')"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab='share'"><Share2 /><em>99</em><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
+    <template v-else><main class="mobile-share-hub"><h1>共享</h1><div class="mobile-share-hub-tabs"><span>消息</span><span>聊天文件</span><span>文件共享</span></div><div class="mobile-share-hub-empty"><MessageCircle :size="38" /><p>暂无消息</p></div></main></template>
+    <nav v-if="!showMyShares && !(mobileTab === 'files' && checked.length && mode !== 'trash')" class="m-bottom-nav"><button :class="{active:mobileTab==='home'}" @click="mobileTab='home'"><House /><span>首页</span></button><button :class="{active:mobileTab==='files'}" @click="mobileTab='files';changeMode('all')"><Folder /><span>文件</span></button><button class="genflow" type="button" @click="flash('库库 AI 即将上线')"><i><Sparkles /></i><span>库库 AI</span></button><button :class="{active:mobileTab==='share'}" @click="mobileTab = 'share'"><Share2 /><span>共享</span></button><button :class="{active:mobileTab==='profile'}" @click="mobileTab='profile'"><UserRound /><span>我的</span></button></nav>
   </div>
 
   <div class="drive-shell desktop-drive">
@@ -226,9 +282,12 @@ onUnmounted(() => { if (searchPromptTimer) clearInterval(searchPromptTimer) })
       <section class="content">
         <div class="content-title"><div><h1>{{ title }}</h1><p>共 {{ filteredFiles.length }} 个项目</p></div><select v-model="sortBy" class="sort-select"><option value="time">按时间排序</option><option value="name">按名称排序</option><option value="size">按大小排序</option></select></div>
         <div v-if="currentFolder" class="breadcrumb"><button @click="goRoot">全部文件</button><ChevronRight :size="14" /><span>{{ title }}</span></div>
-        <div class="toolbar"><div v-if="mode !== 'trash'" class="tool-left"><button @click="chooseFiles"><Upload :size="17" />上传</button><button @click="createFolder"><Folder :size="17" />新建文件夹</button><span></span><button :disabled="!checked.length" @click="downloadSelected"><Download :size="17" />下载</button><button :disabled="!checked.length" @click="shareSelected"><Share2 :size="17" />分享</button><button :disabled="!checked.length" @click="removeSelected()"><Trash2 :size="17" />删除</button></div><div v-else class="tool-left"><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected()"><RotateCcw :size="17" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete()"><Trash2 :size="17" />永久删除</button><button :disabled="!trashCount || drive.state.loading" @click="clearTrash">清空回收站</button></div><div class="view-switch"><button :class="{ active: view === 'list' }" @click="view = 'list'"><List :size="18" /></button><button :class="{ active: view === 'grid' }" @click="view = 'grid'"><LayoutGrid :size="18" /></button></div></div>
-        <div v-if="view === 'list'" class="file-table"><div class="table-head"><label><input v-model="allVisibleSelected" type="checkbox" /><span><CheckSquare :size="13" /></span></label><div>文件名</div><div>大小</div><div>{{ mode === 'trash' ? '删除时间' : '修改日期' }}</div><div></div></div><div v-for="item in filteredFiles" :key="item.id" class="file-row" @dblclick="openItem(item)"><label><input v-model="checked" type="checkbox" :value="item.id" /><span><CheckSquare :size="13" /></span></label><div class="file-name" @click="openItem(item)"><component :is="iconForFile(item)" :class="item.kind" :size="31" /><b>{{ item.name }}</b></div><div>{{ formatSize(item.size) }}</div><div>{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt) }}</div><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="18" /></button><div v-else class="trash-row-actions"><button :disabled="drive.state.loading" title="恢复" @click.stop="restoreSelected([item.id])"><RotateCcw :size="16" /></button><button :disabled="drive.state.loading" title="永久删除" @click.stop="permanentDelete([item.id])"><Trash2 :size="16" /></button></div></div><div v-if="!filteredFiles.length" class="empty">这里还没有文件</div></div>
-        <div v-else class="file-grid"><article v-for="item in filteredFiles" :key="item.id" @dblclick="openItem(item)"><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="17" /></button><div v-else class="trash-grid-actions"><button :disabled="drive.state.loading" title="恢复" @click.stop="restoreSelected([item.id])"><RotateCcw :size="15" /></button><button :disabled="drive.state.loading" title="永久删除" @click.stop="permanentDelete([item.id])"><Trash2 :size="15" /></button></div><component :is="iconForFile(item)" :class="item.kind" :size="58" @click="openItem(item)" /><b>{{ item.name }}</b><small>{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0, 10) }}</small><input v-model="checked" type="checkbox" :value="item.id" /></article></div>
+        <ShareList v-if="mode === 'shares'" :shares="drive.state.shares" :loading="drive.state.loading" @copy="copyShareLink" @cancel="cancelShareRecord" />
+        <template v-else>
+          <div class="toolbar"><div v-if="mode !== 'trash'" class="tool-left"><button @click="chooseFiles"><Upload :size="17" />上传</button><button @click="createFolder"><Folder :size="17" />新建文件夹</button><span></span><button :disabled="!checked.length" @click="downloadSelected"><Download :size="17" />下载</button><button :disabled="!checked.length || checked.length !== 1" @click="shareSelected"><Share2 :size="17" />分享</button><button :disabled="!checked.length" @click="removeSelected()"><Trash2 :size="17" />删除</button></div><div v-else class="tool-left"><button :disabled="!checked.length || drive.state.loading" @click="restoreSelected()"><RotateCcw :size="17" />恢复</button><button :disabled="!checked.length || drive.state.loading" @click="permanentDelete()"><Trash2 :size="17" />永久删除</button><button :disabled="!trashCount || drive.state.loading" @click="clearTrash">清空回收站</button></div><div class="view-switch"><button :class="{ active: view === 'list' }" @click="view = 'list'"><List :size="18" /></button><button :class="{ active: view === 'grid' }" @click="view = 'grid'"><LayoutGrid :size="18" /></button></div></div>
+          <div v-if="view === 'list'" class="file-table"><div class="table-head"><label><input v-model="allVisibleSelected" type="checkbox" /><span><CheckSquare :size="13" /></span></label><div>文件名</div><div>大小</div><div>{{ mode === 'trash' ? '删除时间' : '修改日期' }}</div><div></div></div><div v-for="item in filteredFiles" :key="item.id" class="file-row" @dblclick="openItem(item)"><label><input v-model="checked" type="checkbox" :value="item.id" /><span><CheckSquare :size="13" /></span></label><div class="file-name" @click="openItem(item)"><component :is="iconForFile(item)" :class="item.kind" :size="31" /><b>{{ item.name }}</b></div><div>{{ formatSize(item.size) }}</div><div>{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt) }}</div><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="18" /></button><div v-else class="trash-row-actions"><button :disabled="drive.state.loading" title="恢复" @click.stop="restoreSelected([item.id])"><RotateCcw :size="16" /></button><button :disabled="drive.state.loading" title="永久删除" @click.stop="permanentDelete([item.id])"><Trash2 :size="16" /></button></div></div><div v-if="!filteredFiles.length" class="empty">这里还没有文件</div></div>
+          <div v-else class="file-grid"><article v-for="item in filteredFiles" :key="item.id" @dblclick="openItem(item)"><button v-if="mode !== 'trash'" @click.stop="itemMenu(item)"><MoreHorizontal :size="17" /></button><div v-else class="trash-grid-actions"><button :disabled="drive.state.loading" title="恢复" @click.stop="restoreSelected([item.id])"><RotateCcw :size="15" /></button><button :disabled="drive.state.loading" title="永久删除" @click.stop="permanentDelete([item.id])"><Trash2 :size="15" /></button></div><component :is="iconForFile(item)" :class="item.kind" :size="58" @click="openItem(item)" /><b>{{ item.name }}</b><small>{{ dateText(mode === 'trash' ? item.deletedAt! : item.updatedAt).slice(0, 10) }}</small><input v-model="checked" type="checkbox" :value="item.id" /></article></div>
+        </template>
       </section>
     </main><div v-if="notice" class="toast">{{ notice }}</div>
   </div>

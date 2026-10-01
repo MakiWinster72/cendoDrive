@@ -1,16 +1,11 @@
 import { computed, reactive } from 'vue'
 import * as api from '../api/drive'
+import * as shareApi from '../api/shares'
 
 export type FileKind = api.FileKind
 export interface DriveItem extends api.DriveItemResponse {
 }
-export interface ShareRecord {
-  id: string
-  itemId: string
-  code: string
-  expiresAt: string
-  cancelled: boolean
-}
+export type ShareRecord = shareApi.ShareRecord
 
 const state = reactive({ files: [] as DriveItem[], shares: [] as ShareRecord[], loading: false, error: '' })
 
@@ -43,6 +38,10 @@ export function useDrive() {
     items.forEach(upsert)
     return items
   })
+  const loadShares = () => run(async () => {
+    state.shares = await shareApi.listShares()
+    return state.shares
+  })
   const createFolder = (name: string, parentId: string | null) => run(async () => {
     const item = await api.createFolder(name, parentId); upsert(item); return item
   })
@@ -72,9 +71,17 @@ export function useDrive() {
     await api.emptyTrash()
     state.files = state.files.filter((item) => !item.deletedAt)
   })
-  const share = (_itemId: string, _days: number): ShareRecord => { throw new Error('文件分享接口暂未开放') }
-  const cancelShare = (_shareId: string) => undefined
-  return { state, list, get, load, loadTrash, createFolder, addUploaded, rename, move, download, trash, restore, removeForever, emptyTrash, share, cancelShare }
+  const share = (itemId: string, expiresInSeconds: number) => run(async () => {
+    const record = await shareApi.createShare(itemId, expiresInSeconds)
+    state.shares.unshift(record)
+    return record
+  })
+  const cancelShare = (shareId: string) => run(async () => {
+    await shareApi.cancelShare(shareId)
+    const share = state.shares.find((record) => record.id === shareId)
+    if (share) share.status = 'CANCELLED'
+  })
+  return { state, list, get, load, loadTrash, loadShares, createFolder, addUploaded, rename, move, download, trash, restore, removeForever, emptyTrash, share, cancelShare }
 }
 
 export function formatSize(size: number) {

@@ -16,7 +16,7 @@ describe('chunked upload API contract', () => {
     const onPhase = vi.fn()
     const onProgress = vi.fn()
     const uploadedItem = {
-      id: '42', name: file.name, kind: 'other', size: file.size,
+      id: '42', name: file.name, kind: 'file', size: file.size,
       parentId: '7', updatedAt: '2026-09-30T00:00:00Z', deletedAt: null,
     } satisfies DriveItem
 
