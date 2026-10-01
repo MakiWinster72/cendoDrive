@@ -1,8 +1,7 @@
 import axios from "axios";
 import http from "./http";
 
-export type FileKind =
-  "folder" | "image" | "video" | "audio" | "pdf" | "doc" | "other";
+export type FileKind = "folder" | "file";
 export interface DriveItemResponse {
   id: string;
   name: string;

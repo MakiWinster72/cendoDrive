@@ -163,6 +163,8 @@ GET  /api/shares/{token}
 DELETE /api/shares/{id}
 ```
 
+分享请求、列表、匿名访问与下载的字段和响应契约见 [`分享接口协议.md`](./分享接口协议.md)。
+
 Redis：
 
 ```Plain Text
