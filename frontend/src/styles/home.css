@@ -21,24 +21,24 @@
     display: grid;
     place-items: center;
     flex: none;
-    width: 60px;
-    height: 49px;
+    width: 40px;
+    height: 50px;
     border-radius: 7px;
     background: linear-gradient(145deg, #a81e19, #ee3a29 55%, #9e1615);
     color: #ffe0a2;
-    font-size: 21px;
+    font-size: 18px;
     font-weight: 800;
     box-shadow: 0 4px 12px #b8322630;
     transform: rotate(-4deg);
   }
   .m-vip > span:last-child {
     white-space: nowrap;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 750;
     letter-spacing: -0.03em;
   }
   .m-vip small {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: #ec7129;
   }
@@ -347,7 +347,7 @@
 }
 @media (max-width: 360px) {
   .m-vip-envelope {
-    width: 43px;
+    width: 40px;
   }
   .m-vip > span:last-child {
     font-size: 13px;
