@@ -17,12 +17,15 @@ public final class DriveDtos {
       @Schema(description = "字节数；文件夹为 0", example = "0") long size,
       @Schema(description = "根目录时为 null", example = "10") String parentId,
       @Schema(description = "UTC ISO-8601 时间", example = "2026-09-29T06:30:00Z") String updatedAt,
-      @Schema(description = "移入回收站的 UTC 时间；未删除时为 null") String deletedAt) {
-    static FileResponse from(DriveFile file) {
+      @Schema(description = "移入回收站的 UTC 时间；未删除时为 null") String deletedAt, boolean favorite, boolean hidden) {
+    public FileResponse(String id, String name, String kind, long size, String parentId, String updatedAt, String deletedAt) {
+      this(id, name, kind, size, parentId, updatedAt, deletedAt, false, false);
+    }
+    public static FileResponse from(DriveFile file) {
       return new FileResponse(file.getId().toString(), file.getName(), file.getKind(), file.getSize(),
           file.getParentId() == null ? null : file.getParentId().toString(),
           file.getUpdatedAt().atOffset(ZoneOffset.UTC).toInstant().toString(),
-          file.getDeletedAt() == null ? null : file.getDeletedAt().atOffset(ZoneOffset.UTC).toInstant().toString());
+          file.getDeletedAt() == null ? null : file.getDeletedAt().atOffset(ZoneOffset.UTC).toInstant().toString(), file.isFavorite(), file.isHidden());
     }
   }
 

@@ -23,10 +23,10 @@ public class FileQuotaService {
         new DriveFailure(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User not found"));
   }
   @Transactional(propagation=Propagation.MANDATORY)
-  public User check(User user, long additionalBytes, long ownReservation) {
+  public User check(User user, long additionalBytes, String uploadId) {
     User locked=lock(user);
     long used=files.usedBytes(user.getId());
-    long pending=Math.max(0, uploads.reserved(user.getId(), now())-ownReservation);
+    long pending=uploads.reservedExcluding(user.getId(), now(), uploadId);
     long available=Math.max(0, locked.getStorageLimit()-used-pending);
     if (additionalBytes<0 || additionalBytes>available)
       throw new DriveFailure(HttpStatus.INSUFFICIENT_STORAGE,"QUOTA_EXCEEDED","Storage quota exceeded");
