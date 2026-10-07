@@ -63,6 +63,8 @@ import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import FilePreview from "../components/FilePreview.vue";
+import FileTools from "../components/FileTools.vue";
+import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
@@ -73,7 +75,7 @@ import "../styles/file-list.css";
 import "../styles/rename.css";
 import "../styles/share.css";
 import { useAuth } from "../stores/auth";
-import { formatSize, useDrive, type DriveItem } from "../stores/drive";
+import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
 import { shareErrorMessage, type ShareRecord } from "../api/shares";
 
 type Mode =
@@ -85,7 +87,9 @@ type Mode =
   | "audio"
   | "other"
   | "shares"
-  | "trash";
+  | "trash"
+  | "favorites"
+  | "hidden";
 const router = useRouter(),
   auth = useAuth(),
   drive = useDrive();
@@ -99,6 +103,18 @@ const keyword = ref(""),
   uploadPanelOpen = ref(false);
 const createdShare = ref<ShareRecord | null>(null);
 const previewTarget = ref<DriveItem | null>(null);
+const toolsTarget = ref<{ action: ToolAction; items: DriveItem[] } | null>(null);
+function openTools(action: ToolAction, items = checked.value.map(id => drive.get(id)).filter((item): item is DriveItem => !!item)) {
+  if (!items.length) return;
+  checked.value = items.map(item => item.id);
+  toolsTarget.value = { action, items };
+}
+async function toolsChanged(message: string) {
+  checked.value = [];
+  flash(message);
+  if (mode.value === "all") await loadFolder(currentFolder.value);
+  else await changeMode(mode.value);
+}
 const renameTarget = ref<DriveItem | null>(null),
   renameName = ref(""),
   renaming = ref(false),
@@ -113,7 +129,7 @@ const mySharesError = ref("");
 const recentVisible = ref(true);
 const recentItems = computed(() =>
   [...drive.state.files]
-    .filter((item) => !item.deletedAt && item.kind !== "folder")
+    .filter((item) => !drive.isDeleted(item) && !drive.isHidden(item) && item.kind !== "folder")
     .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
     .slice(0, 3),
 );
@@ -121,7 +137,7 @@ const savedItems = computed(() =>
   drive.state.files
     .filter(
       (item) =>
-        !item.deletedAt &&
+        !drive.isDeleted(item) && !drive.isHidden(item) &&
         drive.state.shares.some(
           (share) =>
             share.fileId === item.id &&
@@ -137,6 +153,7 @@ function openHomeCategory(next: Mode) {
 }
 const profileShortcuts = [
   { label: "我的收藏", icon: Sparkles },
+  { label: "隐藏空间", icon: LockKeyhole },
   { label: "我的分享", icon: Share2 },
   { label: "回收站", icon: Trash2 },
   { label: "设备管理", icon: MonitorSmartphone },
@@ -174,6 +191,8 @@ const modeNames: Record<Mode, string> = {
   other: "其他",
   shares: "我的分享",
   trash: "回收站",
+  favorites: "我的收藏",
+  hidden: "隐藏空间",
 };
 const title = computed(() =>
   currentFolder.value
@@ -194,6 +213,8 @@ const filteredFiles = computed(() => {
   let items: DriveItem[];
   if (mode.value === "trash")
     items = drive.state.files.filter((item) => Boolean(item.deletedAt));
+  else if (mode.value === "favorites") items = drive.state.favorites;
+  else if (mode.value === "hidden") items = drive.state.hidden;
   else if (mode.value === "shares") {
     const ids = new Set(
       drive.state.shares
@@ -219,7 +240,10 @@ const filteredFiles = computed(() => {
     );
   }
   items = items.filter((item) =>
-    item.name.toLowerCase().includes(keyword.value.toLowerCase()),
+    item.name.toLowerCase().includes(keyword.value.toLowerCase()) &&
+    (mode.value === "trash" || !drive.isDeleted(item)) &&
+    (mode.value === "trash" || mode.value === "hidden" ||
+      (mode.value === "all" && currentFolder.value && drive.get(currentFolder.value) && drive.isHidden(drive.get(currentFolder.value)!)) || !drive.isHidden(item)),
   );
   return [...items].sort((a, b) =>
     sortBy.value === "name"
@@ -254,6 +278,8 @@ async function changeMode(next: Mode) {
   try {
     if (next === "all") await drive.load(null);
     else if (next === "trash") await drive.loadTrash();
+    else if (next === "favorites") await drive.loadFavorites();
+    else if (next === "hidden") await drive.loadHidden();
     else if (next === "shares") await drive.loadShares();
   } catch {
     alert(drive.state.error);
@@ -287,6 +313,7 @@ async function openItem(item: DriveItem) {
   }
 }
 async function goRoot() {
+  mode.value = "all";
   checked.value = [];
   await loadFolder(null);
 }
@@ -349,34 +376,7 @@ async function submitMobileRename() {
     renaming.value = false;
   }
 }
-async function moveItem(item: DriveItem) {
-  const hint = [
-    "根目录",
-    ...folders.value
-      .filter((folder) => folder.id !== item.id)
-      .map((folder) => folder.name),
-  ].join("、");
-  const name = prompt(`移动到哪个文件夹？\n可选：${hint}`, "根目录");
-  if (!name) return;
-  const target =
-    name === "根目录"
-      ? null
-      : folders.value.find((folder) => folder.name === name)?.id;
-  if (name !== "根目录" && !target) return alert("未找到目标文件夹");
-  try {
-    await drive.move(item.id, target || null);
-    checked.value = [];
-    flash("移动成功");
-  } catch {
-    alert(drive.state.error);
-  }
-}
-function itemMenu(item: DriveItem) {
-  const action = prompt("输入操作：重命名 / 移动 / 删除", "重命名");
-  if (action === "重命名") renameItem(item);
-  else if (action === "移动") moveItem(item);
-  else if (action === "删除") removeSelected([item.id]);
-}
+function itemMenu(item: DriveItem) { openTools("menu", [item]); }
 async function removeSelected(ids = checked.value) {
   if (!ids.length || !confirm("确定移入回收站吗？")) return;
   try {
@@ -499,7 +499,8 @@ async function openProfileShortcut(label: string) {
   if (label === "回收站") {
     mobileTab.value = "files";
     await changeMode("trash");
-  } else if (label === "我的分享") await openMyShares();
+  } else if (label === "我的收藏" || label === "隐藏空间") openHomeCategory(label === "我的收藏" ? "favorites" : "hidden");
+  else if (label === "我的分享") await openMyShares();
 }
 async function downloadSelected() {
   if (downloading.value) return;
@@ -532,13 +533,18 @@ function mobileSelectionAction(label: string) {
   if (label === "下载") void downloadSelected();
   else if (label === "分享") void shareSelected();
   else if (label === "重命名") startMobileRename();
-  else flash(`${label}功能即将上线`);
+  else if (label === "删除") void removeSelected();
+  else {
+    const actions: Record<string, ToolAction> = { "移动": "move", "复制": "copy", "收藏": "favorite", "移入隐藏空间": "hide", "智能整理": "organize", "文件详情": "details", "添加至": "menu" };
+    const action = actions[label]; if (action) openTools(action);
+  }
 }
 async function logout() {
   if (loggingOut.value) return;
   loggingOut.value = true;
   try {
     const revoked = await auth.logout();
+    drive.reset();
     await router.replace({
       name: "login",
       query: revoked ? {} : { logoutWarning: "1" },
@@ -548,6 +554,8 @@ async function logout() {
   }
 }
 onMounted(async () => {
+  drive.reset();
+  void drive.loadUsage();
   searchPromptTimer = window.setInterval(() => {
     searchPromptIndex.value =
       (searchPromptIndex.value + 1) % searchPrompts.value.length;
@@ -565,6 +573,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
     :open="uploadPanelOpen"
@@ -777,7 +786,7 @@ onUnmounted(() => {
             {{ allVisibleSelected ? "取消全选" : "全选" }}
           </button></template
         ><template v-else
-          ><h1>文件</h1>
+          ><h1>{{ title }}</h1>
           <div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div
         ></template>
       </header>
@@ -812,9 +821,10 @@ onUnmounted(() => {
       </div>
       <div class="m-filter">
         <button>智能排序 <SlidersHorizontal :size="15" /></button
-        ><button class="active">全部</button><button>我的资源</button
-        ><button>我创建的</button><button>我加工的</button>
+        ><button :class="{ active: mode === 'all' }" @click="goRoot">全部</button><button :class="{ active: mode === 'favorites' }" @click="openHomeCategory('favorites')">我的收藏</button><button :class="{ active: mode === 'hidden' }" @click="openHomeCategory('hidden')">隐藏空间</button>
       </div>
+      <p v-if="drive.state.usage" class="m-capacity">已用 {{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }} · 可用 {{ formatBytes(drive.state.usage.availableBytes) }}</p>
+      <p v-if="drive.state.usageError" class="m-capacity" role="alert">{{ drive.state.usageError }} <button @click="drive.loadUsage">重试</button></p>
       <div class="m-file-list">
         <div
           v-for="item in filteredFiles"
@@ -861,6 +871,8 @@ onUnmounted(() => {
             :key="action.label"
             type="button"
             :disabled="
+              drive.state.loading ||
+              (action.label === '文件详情' && checked.length !== 1) ||
               (action.label === '下载' && downloading) ||
               (action.label === '重命名' && checked.length !== 1) ||
               (action.label === '分享' && checked.length !== 1)
@@ -1067,7 +1079,9 @@ onUnmounted(() => {
         ><a :class="{ active: mode === 'other' }" @click="changeMode('other')"
           ><Archive />其他</a
         ><i></i
-        ><a :class="{ active: mode === 'shares' }" @click="changeMode('shares')"
+        ><a :class="{ active: mode === 'favorites' }" @click="changeMode('favorites')"><Star />我的收藏</a>
+        <a :class="{ active: mode === 'hidden' }" @click="changeMode('hidden')"><LockKeyhole />隐藏空间</a>
+        <a :class="{ active: mode === 'shares' }" @click="changeMode('shares')"
           ><Share2 />我的分享</a
         ><a :class="{ active: mode === 'trash' }" @click="changeMode('trash')"
           ><Trash2 />回收站<em v-if="trashCount" class="nav-count">{{
@@ -1076,9 +1090,8 @@ onUnmounted(() => {
         >
       </nav>
       <div class="storage">
-        <div><span>Mock 已用 18.6 GB</span><b>1 TB</b></div>
-        <progress value="18.6" max="1000"></progress
-        ><button>扩容至 5 TB</button>
+        <template v-if="drive.state.usage"><div><span>已用 {{ formatBytes(drive.state.usage.usedBytes) }}</span><b>{{ formatBytes(drive.state.usage.limitBytes) }}</b></div><progress aria-label="存储空间（含上传预留）" :value="drive.state.usage.usedBytes + drive.state.usage.reservedBytes" :max="drive.state.usage.limitBytes || 1"></progress><small>回收站 {{ formatBytes(drive.state.usage.trashBytes) }} · 上传预留 {{ formatBytes(drive.state.usage.reservedBytes) }}</small></template>
+        <p v-else>容量加载中…</p><p v-if="drive.state.usageError" role="alert">{{ drive.state.usageError }}</p><button @click="drive.loadUsage">刷新容量</button>
       </div>
     </aside>
     <button
@@ -1158,7 +1171,7 @@ onUnmounted(() => {
                 <Share2 :size="17" />分享</button
               ><button :disabled="!checked.length" @click="removeSelected()">
                 <Trash2 :size="17" />删除
-              </button>
+              </button><button :disabled="!checked.length || drive.state.loading" @click="openTools('menu')"><MoreHorizontal :size="17" />更多操作</button>
             </div>
             <div v-else class="tool-left">
               <button
@@ -1228,7 +1241,7 @@ onUnmounted(() => {
                   dateText(mode === "trash" ? item.deletedAt! : item.updatedAt)
                 }}
               </div>
-              <button v-if="mode !== 'trash'" @click.stop="itemMenu(item)">
+              <button v-if="mode !== 'trash'" aria-label="文件操作" @click.stop="itemMenu(item)">
                 <MoreHorizontal :size="18" />
               </button>
               <div v-else class="trash-row-actions">
@@ -1255,7 +1268,7 @@ onUnmounted(() => {
               :key="item.id"
               @dblclick="openItem(item)"
             >
-              <button v-if="mode !== 'trash'" @click.stop="itemMenu(item)">
+              <button v-if="mode !== 'trash'" aria-label="文件操作" @click.stop="itemMenu(item)">
                 <MoreHorizontal :size="17" />
               </button>
               <div v-else class="trash-grid-actions">
