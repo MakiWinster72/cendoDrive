@@ -62,6 +62,7 @@ import BrandLogo from "../components/BrandLogo.vue";
 import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
+import TransferPage from "../components/TransferPage.vue";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
@@ -106,6 +107,7 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+const showTransfers = ref(false);
 const showMyShares = ref(false);
 const mySharesError = ref("");
 const recentVisible = ref(true);
@@ -495,6 +497,7 @@ async function openProfileShortcut(label: string) {
     mobileTab.value = "files";
     await changeMode("trash");
   } else if (label === "我的分享") await openMyShares();
+  else if (label === "转存与下载") showTransfers.value = true;
 }
 async function downloadSelected() {
   if (downloading.value) return;
@@ -502,7 +505,8 @@ async function downloadSelected() {
   if (!files.length) return flash("文件夹暂不支持下载");
   downloading.value = true;
   try {
-    for (const id of files) await drive.download(id);
+    const results = await Promise.allSettled(files.map(id => drive.download(id)));
+    if (results.some(result => result.status === "rejected")) throw new Error("部分下载失败");
     flash(`已下载 ${files.length} 个文件`);
   } catch {
     alert(drive.state.error || "下载失败");
@@ -560,6 +564,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <TransferPage v-if="showTransfers" @back="showTransfers = false" />
   <UploadPanel
     :open="uploadPanelOpen"
     :folder-options="uploadFolders"
@@ -624,6 +629,7 @@ onUnmounted(() => {
             ><span>会员免费领<small>新用户福利 ❯</small></span>
           </div>
           <div class="m-head-actions">
+            <button aria-label="传输列表" @click="showTransfers = true"><Download /></button>
             <button aria-label="签到" @click="flash('签到功能即将上线')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">
@@ -1035,7 +1041,7 @@ onUnmounted(() => {
   <div class="drive-shell desktop-drive">
     <nav class="desktop-rail">
       <BrandLogo /><button class="active"><Cloud /><span>首页</span></button
-      ><button><Upload /><span>传输</span></button
+      ><button @click="showTransfers = true"><Upload /><span>传输</span></button
       ><button><UserRound /><span>好友</span></button><i></i
       ><button><Share2 /><span>同步空间</span></button
       ><button><HardDrive /><span>APP下载</span></button
