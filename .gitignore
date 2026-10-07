@@ -19,3 +19,6 @@ backend/.settings/
 
 # NOTE: AI
 AGENTS.md
+.pi/
+.codex/
+.claude/
