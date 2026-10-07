@@ -1,6 +1,6 @@
-/* 移动端首页专属样式；与 main.css 的双端切换统一使用 700px。
+/* 移动端首页专属样式；与 main.css 的双端切换统一使用 < 768px。
    main.css 负责全局、文件页和共用导航，首页布局不依赖其中的覆盖规则。 */
-@media (max-width: 700px) {
+@media (width < 768px) {
   .mobile-app:has(.m-home-top) {
     background: #f2f4f9;
     color: #090e1c;

@@ -1,5 +1,5 @@
 /* 移动端个人中心：取参考图的卡片节奏，沿用 CendoDrive 的蓝色系。 */
-@media (max-width: 700px) {
+@media (width < 768px) {
   .mobile-app:has(.profile-page) {
     background: #f0f2f8;
   }

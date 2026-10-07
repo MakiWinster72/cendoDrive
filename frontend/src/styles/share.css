@@ -1,4 +1,4 @@
-@media (max-width: 700px) {
+@media (width < 768px) {
   .my-shares-mobile {
     min-height: 100dvh;
     padding-bottom: 80px;

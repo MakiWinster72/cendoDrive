@@ -380,7 +380,7 @@ a {
   padding: 12px 22px;
   text-align: center;
 }
-@media (max-width: 600px) {
+@media (width < 640px) {
   .login-page .login-footer {
     flex-direction: column;
     gap: 4px;
@@ -870,7 +870,7 @@ a {
   margin-top: 5px;
 }
 
-@media (max-width: 900px) {
+@media (width < 1024px) {
   .login-header nav {
     display: none;
   }
@@ -921,7 +921,7 @@ a {
     display: none;
   }
 }
-@media (max-width: 600px) {
+@media (width < 640px) {
   .login-header {
     height: 62px;
     padding: 0 22px;
@@ -974,7 +974,7 @@ a {
 .nav-backdrop {
   display: none;
 }
-@media (max-width: 700px) {
+@media (width < 768px) {
   .drive-shell {
     min-height: 100dvh;
   }
@@ -1283,7 +1283,7 @@ a {
   right: 7px;
   top: 7px;
 }
-@media (max-width: 700px) {
+@media (width < 768px) {
   .sort-select {
     height: 32px;
     max-width: 118px;
@@ -1391,7 +1391,15 @@ a {
   border-radius: 3px;
 }
 
-@media (max-width: 700px) {
+/* Tablet：保留桌面布局，为文件内容收紧侧栏。 */
+@media (768px <= width < 1024px) {
+  .desktop-drive > .sidebar {
+    width: 128px;
+    flex-basis: 128px;
+  }
+}
+
+@media (width < 768px) {
   body {
     background: #f4f6fa;
   }
@@ -1655,7 +1663,7 @@ a {
     font-size: 13px;
   }
 }
-@media (max-width: 700px) {
+@media (width < 768px) {
   .m-upload-trigger {
     display: grid;
     place-items: center;

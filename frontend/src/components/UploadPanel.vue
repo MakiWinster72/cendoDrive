@@ -889,7 +889,7 @@ function statusText(task: UploadTask) {
   border-color: #50afe8 !important;
   background: #68c0f1 !important;
 }
-@media (max-width: 700px) {
+@media (width < 768px) {
   .upload-overlay {
     align-items: end;
     padding: 0;
