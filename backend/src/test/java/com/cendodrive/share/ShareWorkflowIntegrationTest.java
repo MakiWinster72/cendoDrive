@@ -16,6 +16,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.*;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -83,7 +85,7 @@ class ShareWorkflowIntegrationTest {
   String download(String url, String bearer) throws Exception {
     var request = get(url);
     if (bearer != null) request.header("Authorization", "Bearer " + bearer);
-    MvcResult result = mvc.perform(request).andExpect(request().asyncStarted()).andReturn();
+    MvcResult result = mvc.perform(request).andExpect(MockMvcResultMatchers.request().asyncStarted()).andReturn();
     return mvc.perform(asyncDispatch(result)).andExpect(status().isOk())
         .andReturn().getResponse().getContentAsString();
   }
