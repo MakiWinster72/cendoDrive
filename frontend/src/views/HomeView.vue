@@ -710,9 +710,14 @@ onUnmounted(() => {
       <section class="m-banner">
         <div class="m-panel-title">
           <h2>转存 <span>订阅</span></h2>
-          <button aria-label="查看分享" @click="mobileTab = 'share'">
-            <Eye :size="20" /><ChevronRight :size="20" />
-          </button>
+          <div class="m-panel-actions">
+            <button type="button" aria-label="查看转存与订阅" @click="mobileTab = 'share'">
+              <Eye :size="20" />
+            </button>
+            <button type="button" aria-label="查看分享" @click="mobileTab = 'share'">
+              <ChevronRight :size="20" />
+            </button>
+          </div>
         </div>
         <div v-if="savedItems.length" class="m-saved-scroll">
           <button

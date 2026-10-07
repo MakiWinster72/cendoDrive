@@ -117,18 +117,17 @@
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     gap: 0;
-    padding: 2px 8px 8px;
+    padding: 0;
     background: transparent;
   }
   .m-tools::-webkit-scrollbar {
     display: none;
   }
   .m-tools button {
-    flex: 0 0 19%;
-    min-width: 67px;
+    flex: 0 0 18%;
     gap: 3px;
     scroll-snap-align: start;
-    font-size: 14px;
+    font-size: 12px;
     color: #09111e;
   }
   .m-tools .m-tool-icon {
@@ -167,7 +166,7 @@
   .mobile-app:has(.m-home-top) .m-banner,
   .mobile-app:has(.m-home-top) .m-memory {
     margin: 5px 0 0;
-    padding: 16px 18px;
+    padding: 4px 18px;
     border-radius: 19px;
     background: #fff;
     height: auto;
@@ -177,7 +176,7 @@
     margin-bottom: 10px;
   }
   .m-panel-title h2 {
-    font-size: 21px;
+    font-size: 16px;
     margin: 0;
     font-weight: 750;
   }
@@ -193,6 +192,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
   .m-panel-actions button {
     border: 0;
