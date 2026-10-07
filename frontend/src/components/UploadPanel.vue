@@ -329,7 +329,7 @@ function statusText(task: UploadTask) {
             <span class="action-art"><UploadActionIcon :kind="action.kind" /></span><span>{{ action.label }}</span>
           </button>
         </div>
-        <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>百度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
+        <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>千度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
       </div>
 
       <div v-if="uploadTasks.length" class="selected-files">
