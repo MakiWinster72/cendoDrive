@@ -1,0 +1,59 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useTransfers, isActive } from './transfers';
+const store = useTransfers();
+beforeEach(() => { store.tasks.splice(0); store.setDownloadLimit(2); });
+describe('transfer queue', () => {
+  it('synchronizes upload progress and retry without duplicate tasks', () => {
+    const task = { id: 'u', name: 'test.zip', size: 1024, status: 'waiting' as const, progress: 0 };
+    store.syncUpload(task);
+    store.syncUpload({ ...task, status: 'uploading', progress: 45 });
+    expect(store.tasks).toHaveLength(1);
+    expect(store.activeCount.value).toBe(1);
+    store.clearFinished('upload');
+    expect(store.tasks).toHaveLength(1);
+    store.syncUpload({ ...task, status: 'failed', error: 'network' });
+    store.syncUpload({ ...task, status: 'success', progress: 100 });
+    expect(isActive(store.tasks[0]!)).toBe(false);
+    store.clearFinished('upload');
+    expect(store.tasks).toHaveLength(0);
+  });
+  it('does not resurrect cleared upload records but shows deliberate retries', () => {
+    const task = { id: 'cleared', name: 'retry.zip', size: 1, status: 'failed' as const, progress: 0 };
+    store.syncUpload(task);
+    store.clearFinished('upload');
+    store.syncUpload(task);
+    expect(store.tasks).toHaveLength(0);
+    store.syncUpload({ ...task, status: 'preparing' });
+    expect(store.tasks).toHaveLength(1);
+    store.removeUpload(task.id);
+    expect(store.tasks).toHaveLength(1);
+  });
+  it('limits downloads, reports progress, and starts waiting work after completion', async () => {
+    store.setDownloadLimit(1);
+    let finish!: () => void;
+    const first = store.enqueueDownload('one.zip', 5, async progress => { progress(35); await new Promise<void>(resolve => { finish = resolve; }); });
+    const secondRun = vi.fn(async () => {});
+    const second = store.enqueueDownload('two.zip', 10, secondRun);
+    await Promise.resolve();
+    expect(store.tasks.map(task => task.status)).toEqual(['downloading', 'waiting']);
+    expect(store.tasks[0]!.progress).toBe(35);
+    store.clearFinished('download');
+    expect(store.tasks).toHaveLength(2);
+    expect(secondRun).not.toHaveBeenCalled();
+    finish();
+    await Promise.all([first, second]);
+    expect(secondRun).toHaveBeenCalledOnce();
+    expect(store.tasks.every(task => task.status === 'success' && task.progress === 100)).toBe(true);
+  });
+  it('records failure and keeps the queue moving', async () => {
+    store.setDownloadLimit(1);
+    const failed = store.enqueueDownload('bad', 1, async () => { throw new Error('offline'); });
+    const outcome = expect(failed).rejects.toThrow('offline');
+    const success = store.enqueueDownload('good', 1, async () => {});
+    await Promise.all([outcome, success]);
+    expect(store.tasks[0]!.error).toBe('offline');
+    expect(store.tasks[1]!.status).toBe('success');
+    store.setDownloadLimit(100);
+    expect(store.settings.downloadLimit).toBe(1);
+  });
+});
