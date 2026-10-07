@@ -497,6 +497,7 @@ async function openProfileShortcut(label: string) {
     mobileTab.value = "files";
     await changeMode("trash");
   } else if (label === "我的分享") await openMyShares();
+  else if (label === "转存与下载") showTransfers.value = true;
 }
 async function downloadSelected() {
   if (downloading.value) return;
@@ -628,6 +629,7 @@ onUnmounted(() => {
             ><span>会员免费领<small>新用户福利 ❯</small></span>
           </div>
           <div class="m-head-actions">
+            <button aria-label="传输列表" @click="showTransfers = true"><Download /></button>
             <button aria-label="签到" @click="flash('签到功能即将上线')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">

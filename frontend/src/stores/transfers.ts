@@ -5,6 +5,7 @@ const tasks = reactive<TransferTask[]>([]);
 const settings = reactive({ downloadLimit: 2 });
 const pending: { task: TransferTask; operation: (progress: (value: number) => void) => Promise<void>; resolve: () => void; reject: (error: unknown) => void }[] = [];
 let active = 0;
+const clearedUploads = new Set<string>();
 export const isActive = (task: TransferTask) => ['waiting', 'preparing', 'uploading', 'downloading'].includes(task.status);
 function pump() {
   while (active < settings.downloadLimit && pending.length) {
@@ -19,6 +20,11 @@ function pump() {
 }
 export function useTransfers() {
   function syncUpload(task: Omit<TransferTask, 'direction' | 'createdAt'>) {
+    // The upload panel still retains completed rows after the queue clears them.
+    if (clearedUploads.has(task.id)) {
+      if (!['preparing', 'uploading'].includes(task.status)) return;
+      clearedUploads.delete(task.id);
+    }
     const existing = tasks.find(entry => entry.id === task.id && entry.direction === 'upload');
     if (existing) Object.assign(existing, task);
     else tasks.push({ ...task, direction: 'upload', createdAt: Date.now() });
@@ -29,7 +35,12 @@ export function useTransfers() {
     return new Promise<void>((resolve, reject) => { pending.push({ task, operation, resolve, reject }); pump(); });
   }
   function clearFinished(direction: TransferTask['direction']) {
-    for (let i = tasks.length - 1; i >= 0; i--) if (tasks[i]!.direction === direction && !isActive(tasks[i]!)) tasks.splice(i, 1);
+    for (let i = tasks.length - 1; i >= 0; i--) {
+      const task = tasks[i]!;
+      if (task.direction !== direction || isActive(task)) continue;
+      if (direction === 'upload') clearedUploads.add(task.id);
+      tasks.splice(i, 1);
+    }
   }
   function removeUpload(id: string) {
     const index = tasks.findIndex(task => task.id === id && task.direction === 'upload' && !['preparing', 'uploading'].includes(task.status));
