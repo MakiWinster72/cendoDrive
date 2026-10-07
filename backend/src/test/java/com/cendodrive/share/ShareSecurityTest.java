@@ -17,12 +17,13 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(ShareController.class)
+@WebMvcTest({ShareController.class, com.cendodrive.drive.DriveController.class})
 @Import({SecurityConfig.class, CorsConfig.class})
 class ShareSecurityTest {
   @Autowired MockMvc mvc;
   @MockBean AuthService auth;
   @MockBean ShareService shares;
+  @MockBean DriveService drive;
   static final String TOKEN = "a".repeat(32);
   static final FileResponse FILE = new FileResponse("42", "你好.txt", "file", 5, null,
       "2026-10-01T12:00:00Z", null);
@@ -62,6 +63,16 @@ class ShareSecurityTest {
     mvc.perform(get("/api/shares").header("Authorization", "Bearer owner-token"))
         .andExpect(status().isOk()).andExpect(content().json("[]"));
     verify(shares).list(owner);
+  }
+
+  @Test void authenticatedFileDownloadCompletesAsyncButAnonymousRequestIsDenied() throws Exception {
+    mvc.perform(get("/api/files/42/download")).andExpect(status().isUnauthorized());
+    User recipient = mock(User.class);
+    when(auth.authenticate("recipient-token")).thenReturn(recipient);
+    when(drive.download(recipient, 42L)).thenReturn(new DriveService.Download("hello.txt", out -> out.write("hello".getBytes()), 5));
+    var result = mvc.perform(get("/api/files/42/download").header("Authorization", "Bearer recipient-token"))
+        .andExpect(request().asyncStarted()).andReturn();
+    mvc.perform(asyncDispatch(result)).andExpect(status().isOk()).andExpect(content().string("hello"));
   }
 
   @Test void rejectsInvalidExpiryAndDestinationBeforeService() throws Exception {

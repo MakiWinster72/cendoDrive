@@ -1,6 +1,7 @@
 package com.cendodrive.config;
 
 import com.cendodrive.auth.AuthService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +39,8 @@ public class SecurityConfig {
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .formLogin(f -> f.disable()).httpBasic(b -> b.disable())
         .authorizeHttpRequests(a -> a
+            // Initial requests remain authenticated; allow completion of authorized streaming responses.
+            .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/shares/*", "/api/shares/*/download").permitAll()
             .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
