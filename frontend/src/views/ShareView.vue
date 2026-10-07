@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onUnmounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuth } from "../stores/auth";
 import {
   Download,
-  File,
-  Folder,
+  CloudDownload,
   LoaderCircle,
   ShieldCheck,
 } from "lucide-vue-next";
@@ -13,50 +13,87 @@ import { formatSize } from "../stores/drive";
 import {
   downloadPublicShare,
   getPublicShare,
+  saveSharedFile,
   shareErrorMessage,
   type ShareAccessResponse,
 } from "../api/shares";
 
 const route = useRoute();
+const router = useRouter();
+const auth = useAuth();
 const token = computed(() => String(route.params.token || ""));
 const access = ref<ShareAccessResponse | null>(null);
 const loading = ref(false);
 const downloading = ref(false);
+const saving = ref(false);
+const saved = ref(false);
+let loadVersion = 0;
+let loadController: AbortController | undefined;
 const error = ref("");
 const file = computed(() => access.value?.file ?? null);
 
 async function loadShare() {
-  if (!token.value) return;
+  const version = ++loadVersion;
+  loadController?.abort();
+  loadController = new AbortController();
   loading.value = true;
   error.value = "";
   access.value = null;
+  saved.value = false;
   try {
-    access.value = await getPublicShare(token.value);
+    const result = await getPublicShare(token.value, loadController.signal);
+    if (version === loadVersion) access.value = result;
   } catch (reason) {
-    error.value = shareErrorMessage(reason, "分享链接不存在、已过期或已取消");
+    if (version === loadVersion)
+      error.value = shareErrorMessage(reason, "分享链接不存在、已过期或已取消");
   } finally {
-    loading.value = false;
+    if (version === loadVersion) loading.value = false;
   }
 }
 
 async function download() {
   if (!file.value || file.value.kind === "folder" || downloading.value) return;
+  const requestedToken = token.value;
   downloading.value = true;
   error.value = "";
   try {
-    await downloadPublicShare(token.value, file.value.name);
+    await downloadPublicShare(requestedToken, file.value.name);
   } catch (reason) {
-    error.value = shareErrorMessage(reason, "下载失败，请稍后重试");
+    if (requestedToken === token.value)
+      error.value = shareErrorMessage(reason, "下载失败，请稍后重试");
   } finally {
     downloading.value = false;
   }
 }
 
-onMounted(() => {
-  void loadShare();
-});
-watch(token, () => {
-  void loadShare();
+async function save() {
+  if (!file.value || file.value.kind === "folder" || saving.value || saved.value) return;
+  const requestedToken = token.value;
+  saving.value = true;
+  error.value = "";
+  try {
+    if (!(await auth.ensureSession())) {
+      if (auth.verificationError.value) {
+        error.value = "暂时无法确认登录状态，请稍后重试";
+        return;
+      }
+      await router.push({ name: "login", query: { redirect: route.fullPath } });
+      return;
+    }
+    await saveSharedFile(requestedToken);
+    if (requestedToken === token.value) saved.value = true;
+  } catch (reason) {
+    if (requestedToken === token.value)
+      error.value = shareErrorMessage(reason, "转存失败，请稍后重试");
+  } finally {
+    saving.value = false;
+  }
+}
+
+watch(token, () => { void loadShare(); }, { immediate: true });
+onUnmounted(() => {
+  loadVersion++;
+  loadController?.abort();
 });
 </script>
 
@@ -87,7 +124,9 @@ watch(token, () => {
             })
           }}
         </p>
+        <div class="share-actions">
         <button
+          type="button"
           class="download"
           :disabled="file.kind === 'folder' || downloading"
           @click="download"
@@ -98,8 +137,21 @@ watch(token, () => {
               : downloading
                 ? "正在下载…"
                 : "下载文件"
-          }}</button
-        ><small v-if="error" class="share-error" role="alert">{{
+          }}</button>
+        <button
+          type="button"
+          class="save-share"
+          :disabled="file.kind === 'folder' || saving || saved"
+          @click="save"
+        >
+          <CloudDownload :size="18" />{{
+            saved ? "已转存" : saving ? "正在转存…" : auth.loggedIn.value ? "转存到我的网盘" : "登录后转存"
+          }}
+        </button>
+        </div>
+        <small v-if="saved" class="share-success" role="status">已保存到我的网盘根目录</small>
+        <RouterLink v-if="saved" class="open-drive" to="/">查看我的网盘</RouterLink>
+        <small v-if="error" class="share-error" role="alert">{{
           error
         }}</small></template
       >
@@ -172,7 +224,7 @@ watch(token, () => {
   font-size: 28px;
   font-weight: 700;
 }
-.download:disabled {
+.share-card button:disabled {
   opacity: 0.55;
 }
 .shared-file-name {
@@ -182,6 +234,30 @@ watch(token, () => {
 }
 .share-error {
   color: #de4f59;
+}
+.share-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+.share-card .save-share {
+  color: #316cff;
+  background: #eef4ff;
+  border: 1px solid #d8e5ff;
+}
+.share-card .share-success {
+  color: #16845b;
+}
+.share-card .open-drive {
+  margin-top: 12px;
+}
+@media (width < 768px) {
+  .share-card { padding: 34px 24px; margin-top: 5vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-icon { animation: none; }
 }
 .loading-icon {
   margin: 20px 0 0;
