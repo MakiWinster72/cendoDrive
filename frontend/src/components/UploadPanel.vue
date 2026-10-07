@@ -20,6 +20,7 @@ import {
 import UploadActionIcon from "./UploadActionIcon.vue";
 import { ChevronRight, ShieldCheck } from "lucide-vue-next";
 import type { DriveItem } from "../stores/drive";
+import { useTransfers } from "../stores/transfers";
 
 interface FolderOption {
   id: string | null;
@@ -83,6 +84,13 @@ function handleDialogKey(event: KeyboardEvent) {
 }
 const accept = ref("*/*");
 const uploadTasks = ref<UploadTask[]>([]);
+const transfers = useTransfers();
+watch(uploadTasks, (tasks) => {
+  for (const task of tasks) transfers.syncUpload({
+    id: task.id, name: task.file.name, size: task.file.size,
+    status: task.status, progress: task.progress, error: task.error,
+  });
+}, { deep: true, flush: "sync" });
 const selectedType = ref<UploadType | null>(null);
 const selectedFolderId = ref<string | null>(props.initialFolderId);
 const folderPickerOpen = ref(false);
@@ -169,6 +177,7 @@ function removeFile(fileId: string) {
   const task = uploadTasks.value.find(({ id }) => id === fileId);
   if (!task || task.status === "uploading" || task.status === "success") return;
   uploadTasks.value = uploadTasks.value.filter(({ id }) => id !== fileId);
+  transfers.removeUpload(fileId);
 }
 
 function formatSize(size: number) {

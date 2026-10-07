@@ -504,7 +504,8 @@ async function downloadSelected() {
   if (!files.length) return flash("文件夹暂不支持下载");
   downloading.value = true;
   try {
-    for (const id of files) await drive.download(id);
+    const results = await Promise.allSettled(files.map(id => drive.download(id)));
+    if (results.some(result => result.status === "rejected")) throw new Error("部分下载失败");
     flash(`已下载 ${files.length} 个文件`);
   } catch {
     alert(drive.state.error || "下载失败");

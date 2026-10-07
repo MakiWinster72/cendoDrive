@@ -1,6 +1,7 @@
 import { computed, reactive } from "vue";
 import * as api from "../api/drive";
 import * as shareApi from "../api/shares";
+import { useTransfers } from "./transfers";
 
 export type FileKind = api.FileKind;
 export interface DriveItem extends api.DriveItemResponse {}
@@ -81,7 +82,8 @@ export function useDrive() {
   const download = (itemId: string) => {
     const item = get(itemId);
     if (!item) return Promise.reject(new Error("文件不存在"));
-    return run(() => api.downloadFile(item.id, item.name));
+    return run(() => useTransfers().enqueueDownload(item.name, item.size,
+      progress => api.downloadFile(item.id, item.name, progress)));
   };
   const addUploaded = (item: DriveItem) => upsert(item);
   const trash = (itemIds: string[]) =>
