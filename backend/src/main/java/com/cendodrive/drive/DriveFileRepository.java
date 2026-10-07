@@ -13,6 +13,12 @@ public interface DriveFileRepository extends JpaRepository<DriveFile, Long> {
 
   Optional<DriveFile> findByIdAndOwnerId(Long id, Long ownerId);
 
+  List<DriveFile> findAllByOwnerId(Long ownerId);
+
+  @org.springframework.data.jpa.repository.Query("select coalesce(sum(f.size),0) from DriveFile f where f.ownerId=:owner and f.kind='file'")
+  long usedBytes(@org.springframework.data.repository.query.Param("owner") Long owner);
+
+
   boolean existsByOwnerIdAndParentIdIsNullAndDeletedAtIsNullAndNameIgnoreCase(Long ownerId, String name);
 
   boolean existsByOwnerIdAndParentIdAndDeletedAtIsNullAndNameIgnoreCase(Long ownerId, Long parentId, String name);
