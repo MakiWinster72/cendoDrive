@@ -10,7 +10,10 @@ const id = useId();
       <linearGradient :id="`${id}-blue`" x1="32" y1="8" x2="32" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#4b88ff"/><stop offset="1" stop-color="#65ddf4"/></linearGradient>
       <linearGradient :id="`${id}-pink`" x1="32" y1="8" x2="32" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#f2558c"/><stop offset="1" stop-color="#f39bd1"/></linearGradient>
     </defs>
-    <g v-if="kind === 'photo'">
+    <g v-if="kind === 'backup'">
+      <path d="m7 43 15-17q5-5 9 0l15 17q4 5-3 5H10q-7 0-3-5Z" fill="#4aaeff"/><circle cx="14" cy="19" r="4" fill="#4aaeff"/>
+    </g>
+    <g v-else-if="kind === 'photo'">
       <path d="M4 48 20 16Q24 8 29 16L48 49Q51 55 44 55H10Q1 55 4 48Z" :fill="`url(#${id}-blue)`"/>
       <path d="m34 49 11-21q4-7 8 0l11 21q3 6-4 6H39q-8 0-5-6Z" :fill="`url(#${id}-pink)`"/>
       <path d="m34 49 8-16 6 16q3 6-4 6h-5q-8 0-5-6Z" fill="#3478ff"/><circle cx="44" cy="15" r="4" fill="#4b88ff"/>

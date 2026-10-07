@@ -51,7 +51,36 @@ interface UploadTask {
   error?: string;
 }
 
+const panel = ref<HTMLElement>();
 const fileInput = ref<HTMLInputElement>();
+let previousFocus: HTMLElement | null = null;
+watch(() => props.open, async (open) => {
+  if (open) {
+    previousFocus = document.activeElement as HTMLElement | null;
+    await nextTick();
+    panel.value?.focus();
+  } else {
+    previousFocus?.focus();
+  }
+}, { immediate: true });
+
+function handleDialogKey(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    emit("close");
+  }
+  if (event.key !== "Tab") return;
+  const buttons = [...(panel.value?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") || [])];
+  const first = buttons[0];
+  const last = buttons.at(-1);
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.value)) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.value)) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
 const accept = ref("*/*");
 const uploadTasks = ref<UploadTask[]>([]);
 const selectedType = ref<UploadType | null>(null);
@@ -251,13 +280,16 @@ function statusText(task: UploadTask) {
     @click.self="emit('close')"
   >
     <section
+      ref="panel"
       class="upload-panel"
+      tabindex="-1"
+      @keydown="handleDialogKey"
       role="dialog"
       aria-modal="true"
       aria-labelledby="upload-title"
     >
       <div class="backup-banner">
-        <span class="backup-icon"><UploadActionIcon kind="photo" /></span>
+        <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
         <span>开启相册备份，节省手机空间</span>
         <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
       </div>
@@ -468,6 +500,7 @@ function statusText(task: UploadTask) {
   border-radius: 20px;
   background: radial-gradient(ellipse at 100% 65%, #f0f9ff, transparent 45%), linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
   color: #080f1e;
+  outline: none;
 }
 .upload-panel button { font: inherit; cursor: pointer; }
 .upload-panel button:focus-visible { outline: 2px solid #438aff; outline-offset: 4px; }
@@ -739,19 +772,19 @@ function statusText(task: UploadTask) {
 @media (width < 768px) {
   .upload-overlay { align-items: end; padding: 0; }
   .upload-panel { width: 100%; max-height: 100dvh; border-radius: 0; }
-  .backup-banner { padding: 11px 18px; gap: 7px; font-size: 12px; min-height: 49px; box-sizing: border-box; }
+  .backup-banner { padding: 9px 18px; gap: 7px; font-size: 12px; min-height: 49px; box-sizing: border-box; }
   .backup-icon { width: 24px; height: 24px; }
   .backup-icon svg { width: 16px; height: 16px; }
   .backup-banner button { padding: 7px 8px; border-radius: 7px; }
   .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
   .scan-entry { height: 48px; padding: 0 18px; gap: 10px; border-radius: 13px; font-size: 12px !important; }
   .scan-entry svg { width: 26px; height: 26px; }
-  .upload-content h2 { margin: 18px 6px 17px; font-size: 14px; }
-  .upload-options { row-gap: 12px; }
-  .upload-option { gap: 9px; padding-top: 7px; font-size: 12px !important; }
+  .upload-content h2 { margin: 18px 6px 14px; font-size: 14px; }
+  .upload-options { row-gap: 0; }
+  .upload-option { gap: 9px; padding-top: 0; font-size: 12px !important; line-height: 1.25; }
   .action-art { width: 36px; height: 36px; }
   .action-badge { top: -13px; left: 25px; padding: 1px 6px; font-size: 10px; }
-  .upload-content .ai-heading { margin-top: 25px; margin-bottom: 16px; }
+  .upload-content .ai-heading { margin-top: 25px; margin-bottom: 13px; }
   .ai-options .action-art { width: 34px; height: 34px; }
   .ai-options .upload-option { gap: 12px; }
   .security-caption { gap: 4px; margin-top: 16px; font-size: 12px; }
