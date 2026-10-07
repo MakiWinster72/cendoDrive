@@ -1409,7 +1409,6 @@ a {
   .mobile-app button {
     font-family: inherit;
   }
-  .m-home-head,
   .m-file-head {
     height: 76px;
     padding: 18px 22px 8px;
@@ -1418,49 +1417,14 @@ a {
     justify-content: space-between;
     background: #fff;
   }
-  .m-home-head {
-    background: linear-gradient(180deg, #cceeff, #eef8ff);
-  }
-  .m-home-head > div:last-child,
   .m-file-head > div {
     display: flex;
     gap: 20px;
     align-items: center;
   }
-  .m-vip {
-    display: flex;
-    align-items: center;
-  }
-  .m-vip > b {
-    font-size: 20px;
-    color: #f6a72c;
-    font-style: italic;
-    margin-right: 14px;
-  }
-  .m-vip span {
-    font-size: 13px;
-    font-weight: 700;
-  }
-  .m-vip small {
-    display: block;
-    color: #ff902c;
-    font-weight: 500;
-    margin-top: 2px;
-  }
   .m-file-head h1 {
     font-size: 23px;
     margin: 0;
-  }
-  .m-profile-search {
-    margin: 7px 20px 11px;
-    height: 53px;
-    padding: 0 13px;
-    border: 2px solid #17212f;
-    border-radius: 13px;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    gap: 10px;
   }
   .m-avatar {
     width: 31px;
@@ -1471,147 +1435,6 @@ a {
     background: linear-gradient(135deg, #36dce8, #a8f5ff);
     color: #fff;
     font-weight: 700;
-  }
-  .m-profile-search span {
-    flex: 1;
-    color: #8d96a5;
-    font-size: 15px;
-  }
-  .m-profile-search button {
-    border: 0;
-    background: transparent;
-    display: grid;
-    place-items: center;
-  }
-  .m-tools {
-    padding: 4px 21px 15px;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 14px 8px;
-    background: linear-gradient(180deg, #eef8ff, #f5f7fa);
-  }
-  .m-tools button {
-    border: 0;
-    background: transparent;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 7px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .m-tools svg {
-    width: 31px;
-    height: 31px;
-    padding: 5px;
-    border-radius: 7px;
-    color: #fff;
-    background: linear-gradient(135deg, #25a3ff, #44dbe9);
-    filter: drop-shadow(4px 3px 0 #ff75b1);
-  }
-  .m-panel,
-  .m-memory,
-  .m-banner {
-    margin: 8px;
-    border-radius: 17px;
-    background: #fff;
-    padding: 16px 20px;
-  }
-  .m-panel-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .m-panel-title h2,
-  .m-banner h2 {
-    font-size: 16px;
-    margin: 0 0 10px;
-  }
-  .m-panel-title button {
-    border: 0;
-    background: transparent;
-    color: #a1a9b5;
-    display: flex;
-    gap: 12px;
-  }
-  .m-recent {
-    height: 59px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .m-recent > span {
-    width: 44px;
-    height: 44px;
-    border-radius: 9px;
-    background: #f0edff;
-    color: #796fee;
-    display: grid;
-    place-items: center;
-  }
-  .m-recent > span svg {
-    width: 25px;
-  }
-  .m-recent > div {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .m-recent b {
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .m-recent small {
-    color: #a1a9b5;
-    font-size: 10px;
-  }
-  .m-banner {
-    height: 105px;
-    background: linear-gradient(135deg, #fff, #e9f7ff);
-    overflow: hidden;
-    position: relative;
-  }
-  .m-banner:after {
-    content: "";
-    position: absolute;
-    width: 170px;
-    height: 70px;
-    right: -10px;
-    bottom: -15px;
-    background: linear-gradient(160deg, #7dc9ff, #fff 45%, #9bd7ff);
-    transform: rotate(-8deg);
-  }
-  .m-banner h2 small {
-    color: #969eaa;
-    font-weight: 400;
-  }
-  .m-banner h2 i {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ff4c8b;
-  }
-  .m-banner p {
-    font-size: 12px;
-    color: #9aa2ae;
-  }
-  .m-memory {
-    height: 150px;
-  }
-  .memory-art {
-    height: 82px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #72c4e9, #f6e3d0 45%, #88c45e);
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-size: 13px;
-    text-shadow: 0 1px 4px #50626b;
   }
   .m-search {
     height: 55px;
