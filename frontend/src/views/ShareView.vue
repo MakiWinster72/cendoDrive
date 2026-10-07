@@ -256,12 +256,12 @@ onUnmounted(() => {
 @media (width < 768px) {
   .share-card { padding: 34px 24px; margin-top: 5vh; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .loading-icon { animation: none; }
-}
 .loading-icon {
   margin: 20px 0 0;
   animation: share-spin 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-icon { animation: none; }
 }
 @keyframes share-spin {
   to {

@@ -82,11 +82,18 @@ export async function downloadPublicShare(
 ): Promise<void> {
   const response = await publicHttp.get<Blob>(
     `/shares/${encodeURIComponent(token)}/download`,
-    {
-      responseType: "blob",
-      timeout: 0,
-    },
-  );
+    { responseType: "blob", timeout: 0 },
+  ).catch(async (error: unknown) => {
+    // Axios returns JSON error responses as Blob when responseType is blob.
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+      try {
+        const data: unknown = JSON.parse(await error.response.data.text());
+        if (typeof data === "object" && data !== null && "code" in data)
+          error.response.data = data;
+      } catch { /* Keep the original status and fallback message for non-JSON errors. */ }
+    }
+    throw error;
+  });
   const disposition = response.headers["content-disposition"] as
     string | undefined;
   const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
