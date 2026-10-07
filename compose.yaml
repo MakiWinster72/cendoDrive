@@ -64,6 +64,7 @@ services:
 
   tracker:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["tracker"]
     ports:
       - "127.0.0.1:22122:22122"
     volumes:
@@ -71,6 +72,7 @@ services:
 
   storage1:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: &storage-env
       TRACKER_SERVER: tracker:22122
     depends_on:
@@ -83,6 +85,7 @@ services:
 
   storage2:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: *storage-env
     depends_on:
       - tracker
@@ -94,6 +97,7 @@ services:
 
   storage3:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: *storage-env
     depends_on:
       - tracker
