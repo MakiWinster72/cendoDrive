@@ -273,6 +273,7 @@ function statusText(task: UploadTask) {
 </script>
 
 <template>
+  <Transition name="upload-sheet" appear>
   <div
     v-if="open"
     class="upload-overlay"
@@ -481,6 +482,7 @@ function statusText(task: UploadTask) {
       </footer>
     </section>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -793,7 +795,40 @@ function statusText(task: UploadTask) {
   .folder-picker { margin: 0 18px 16px; }
   .upload-footer { padding: 14px 18px max(14px, env(safe-area-inset-bottom)); }
 }
+.upload-sheet-enter-active,
+.upload-sheet-leave-active {
+  transition: opacity 280ms ease;
+}
+.upload-sheet-enter-active .upload-panel,
+.upload-sheet-leave-active .upload-panel {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.upload-sheet-leave-active {
+  pointer-events: none;
+  transition-duration: 220ms;
+}
+.upload-sheet-leave-active .upload-panel {
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+.upload-sheet-enter-from,
+.upload-sheet-leave-to {
+  opacity: 0;
+}
+.upload-sheet-enter-from .upload-panel,
+.upload-sheet-leave-to .upload-panel {
+  transform: translateY(100%);
+}
 @keyframes upload-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spin { animation: none; } .progress-track span { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+  .progress-track span,
+  .upload-sheet-enter-active,
+  .upload-sheet-leave-active,
+  .upload-sheet-enter-active .upload-panel,
+  .upload-sheet-leave-active .upload-panel { transition: none; }
+  .upload-sheet-enter-from .upload-panel,
+  .upload-sheet-leave-to .upload-panel { transform: none; }
+}
 
 </style>

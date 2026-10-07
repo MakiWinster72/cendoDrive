@@ -7,6 +7,19 @@ const { descriptor } = parse(source);
 const template = descriptor.template!.content;
 
 describe("reference upload panel", () => {
+  it("uses the 千度网盘 brand", () => {
+    expect(template).toContain("千度网盘保障你的数据安全");
+    expect(template).not.toContain("百度网盘");
+  });
+
+  it("keeps the sheet mounted for enter and leave transitions", () => {
+    expect(template).toContain('<Transition name="upload-sheet" appear>');
+    expect(template).toContain('v-if="open"');
+    expect(source).toContain(".upload-sheet-enter-from .upload-panel");
+    expect(source).toContain(".upload-sheet-leave-to .upload-panel");
+    expect(source).toContain("transform: translateY(100%)");
+    expect(source).toContain("@media (prefers-reduced-motion: reduce)");
+  });
   it("compiles the reference layout without template errors", () => {
     expect(compileTemplate({ source: template, filename: "UploadPanel.vue", id: "upload" }).errors).toEqual([]);
     expect(source).toContain("grid-template-columns: repeat(4, minmax(0, 1fr))");
