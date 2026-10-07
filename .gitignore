@@ -16,6 +16,8 @@ backend/.settings/
 # NOTE: 前端依赖
 **/node_modules/
 **/dist/
+# 由前端 predev/prebuild 从 pdfjs-dist 生成
+frontend/public/pdfjs/
 
 # NOTE: AI
 AGENTS.md
