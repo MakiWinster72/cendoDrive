@@ -62,6 +62,7 @@ import BrandLogo from "../components/BrandLogo.vue";
 import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
+import TransferPage from "../components/TransferPage.vue";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
@@ -106,6 +107,7 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+const showTransfers = ref(false);
 const showMyShares = ref(false);
 const mySharesError = ref("");
 const recentVisible = ref(true);
@@ -560,6 +562,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <TransferPage v-if="showTransfers" @back="showTransfers = false" />
   <UploadPanel
     :open="uploadPanelOpen"
     :folder-options="uploadFolders"
@@ -1035,7 +1038,7 @@ onUnmounted(() => {
   <div class="drive-shell desktop-drive">
     <nav class="desktop-rail">
       <BrandLogo /><button class="active"><Cloud /><span>首页</span></button
-      ><button><Upload /><span>传输</span></button
+      ><button @click="showTransfers = true"><Upload /><span>传输</span></button
       ><button><UserRound /><span>好友</span></button><i></i
       ><button><Share2 /><span>同步空间</span></button
       ><button><HardDrive /><span>APP下载</span></button
