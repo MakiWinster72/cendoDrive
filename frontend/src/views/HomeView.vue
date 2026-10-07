@@ -62,6 +62,7 @@ import BrandLogo from "../components/BrandLogo.vue";
 import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
+import FilePreview from "../components/FilePreview.vue";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
@@ -97,6 +98,7 @@ const keyword = ref(""),
   mobileNavOpen = ref(false),
   uploadPanelOpen = ref(false);
 const createdShare = ref<ShareRecord | null>(null);
+const previewTarget = ref<DriveItem | null>(null);
 const renameTarget = ref<DriveItem | null>(null),
   renameName = ref(""),
   renaming = ref(false),
@@ -275,10 +277,13 @@ async function loadFolder(parentId: string | null) {
   }
 }
 async function openItem(item: DriveItem) {
-  if (item.kind === "folder" && mode.value !== "trash") {
+  if (mode.value === "trash") return;
+  if (item.kind === "folder") {
     mode.value = "all";
     checked.value = [];
     await loadFolder(item.id);
+  } else {
+    previewTarget.value = item;
   }
 }
 async function goRoot() {
@@ -560,6 +565,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
     :open="uploadPanelOpen"
     :folder-options="uploadFolders"
@@ -692,7 +698,7 @@ onUnmounted(() => {
             v-for="item in recentItems"
             :key="item.id"
             class="m-recent"
-            @click="openHomeCategory('recent')"
+            @click="openItem(item)"
           >
             <span class="m-item-icon"
               ><component :is="iconForFile(item)"
