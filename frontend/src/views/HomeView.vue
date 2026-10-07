@@ -566,6 +566,7 @@ onUnmounted(() => {
     :initial-folder-id="currentFolder"
     @close="uploadPanelOpen = false"
     @uploaded="handleUploaded"
+    @create-folder="uploadPanelOpen = false; createFolder()"
   />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
   <div
