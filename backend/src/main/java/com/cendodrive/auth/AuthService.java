@@ -18,53 +18,68 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
-    public static final long SESSION_SECONDS = 86400;
-    private final UserRepository users;
-    private final PasswordEncoder encoder;
-    private final StringRedisTemplate redis;
-    private final LoginRateLimiter limiter;
-    private final SecureRandom random = new SecureRandom();
-    public AuthService(UserRepository users, PasswordEncoder encoder, StringRedisTemplate redis, LoginRateLimiter limiter) {
-        this.users = users; this.encoder = encoder; this.redis = redis; this.limiter = limiter;
+  public static final long SESSION_SECONDS = 86400;
+  private final UserRepository users;
+  private final PasswordEncoder encoder;
+  private final StringRedisTemplate redis;
+  private final LoginRateLimiter limiter;
+  private final SecureRandom random = new SecureRandom();
+
+  public AuthService(UserRepository users, PasswordEncoder encoder, StringRedisTemplate redis,
+      LoginRateLimiter limiter) {
+    this.users = users;
+    this.encoder = encoder;
+    this.redis = redis;
+    this.limiter = limiter;
+  }
+
+  @Transactional
+  public UserResponse register(RegisterRequest request) {
+    String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
+    String nickname = request.nickname() == null || request.nickname().isBlank() ? username : request.nickname().trim();
+    User user = users.saveAndFlush(new User(username, encoder.encode(request.password()), nickname));
+    return UserResponse.from(user);
+  }
+
+  public LoginResponse login(LoginRequest request) {
+    String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
+    limiter.check(username);
+    User user = users.findByUsername(username).orElse(null);
+    if (user == null || !user.isActive() || !encoder.matches(request.password(), user.getPasswordHash())) {
+      limiter.failure(username);
+      throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
-    @Transactional
-    public UserResponse register(RegisterRequest request) {
-        String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
-        String nickname = request.nickname() == null || request.nickname().isBlank() ? username : request.nickname().trim();
-        User user = users.saveAndFlush(new User(username, encoder.encode(request.password()), nickname));
-        return UserResponse.from(user);
+    limiter.success(username);
+    byte[] bytes = new byte[32];
+    random.nextBytes(bytes);
+    String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    redis.opsForValue().set(key(token), user.getId().toString(), Duration.ofSeconds(SESSION_SECONDS));
+    return new LoginResponse(token, SESSION_SECONDS, UserResponse.from(user));
+  }
+
+  public void logout(String token) {
+    redis.delete(key(token));
+  }
+
+  public User authenticate(String token) {
+    String id = redis.opsForValue().get(key(token));
+    if (id == null)
+      throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Unauthorized");
+    try {
+      User user = users.findById(Long.parseLong(id)).orElseThrow();
+      if (user.isActive())
+        return user;
+    } catch (IllegalArgumentException ignored) {
+      /* invalid session */ }
+    throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Unauthorized");
+  }
+
+  private static String key(String token) {
+    try {
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+      return "session:" + HexFormat.of().formatHex(digest);
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
     }
-    public LoginResponse login(LoginRequest request) {
-        String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
-        limiter.check(username);
-        User user = users.findByUsername(username).orElse(null);
-        if (user == null || !user.isActive() || !encoder.matches(request.password(), user.getPasswordHash())) {
-            limiter.failure(username);
-            throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Invalid credentials");
-        }
-        limiter.success(username);
-        byte[] bytes = new byte[32];
-        random.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        redis.opsForValue().set(key(token), user.getId().toString(), Duration.ofSeconds(SESSION_SECONDS));
-        return new LoginResponse(token, SESSION_SECONDS, UserResponse.from(user));
-    }
-    public void logout(String token) { redis.delete(key(token)); }
-    public User authenticate(String token) {
-        String id = redis.opsForValue().get(key(token));
-        if (id == null) throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Unauthorized");
-        try {
-            User user = users.findById(Long.parseLong(id)).orElseThrow();
-            if (user.isActive()) return user;
-        } catch (IllegalArgumentException ignored) { /* invalid session */ }
-        throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Unauthorized");
-    }
-    private static String key(String token) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
-            return "session:" + HexFormat.of().formatHex(digest);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
+  }
 }

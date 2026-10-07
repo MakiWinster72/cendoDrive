@@ -1,6 +1,6 @@
 <script setup lang="ts">
-defineProps<{ light?: boolean }>()
-const brandIconUrl = `${import.meta.env.BASE_URL}cendo_logo_light.svg`
+defineProps<{ light?: boolean }>();
+const brandIconUrl = `${import.meta.env.BASE_URL}cendo_logo_light.svg`;
 </script>
 
 <template>
@@ -11,5 +11,23 @@ const brandIconUrl = `${import.meta.env.BASE_URL}cendo_logo_light.svg`
 </template>
 
 <style scoped>
-.brand{display:flex;align-items:center;gap:10px;color:#1d2129}.brand strong{font-size:20px;letter-spacing:.5px}.brand.light{color:#fff}.brand-mark{display:block;width:32px;height:32px;object-fit:contain}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1d2129;
+}
+.brand strong {
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+.brand.light {
+  color: #fff;
+}
+.brand-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
 </style>

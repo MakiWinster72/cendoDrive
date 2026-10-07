@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 @org.springframework.context.annotation.Import(com.github.tobato.fastdfs.FdfsClientConfig.class)
 public class CendoDriveApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(CendoDriveApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(CendoDriveApplication.class, args);
+  }
 }

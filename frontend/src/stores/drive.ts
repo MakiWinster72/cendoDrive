@@ -1,91 +1,146 @@
-import { computed, reactive } from 'vue'
-import * as api from '../api/drive'
-import * as shareApi from '../api/shares'
+import { computed, reactive } from "vue";
+import * as api from "../api/drive";
+import * as shareApi from "../api/shares";
 
-export type FileKind = api.FileKind
-export interface DriveItem extends api.DriveItemResponse {
-}
-export type ShareRecord = shareApi.ShareRecord
+export type FileKind = api.FileKind;
+export interface DriveItem extends api.DriveItemResponse {}
+export type ShareRecord = shareApi.ShareRecord;
 
-const state = reactive({ files: [] as DriveItem[], shares: [] as ShareRecord[], loading: false, error: '' })
+const state = reactive({
+  files: [] as DriveItem[],
+  shares: [] as ShareRecord[],
+  loading: false,
+  error: "",
+});
 
 function upsert(item: DriveItem) {
-  const index = state.files.findIndex((entry) => entry.id === item.id)
-  if (index < 0) state.files.push(item)
-  else state.files[index] = item
+  const index = state.files.findIndex((entry) => entry.id === item.id);
+  if (index < 0) state.files.push(item);
+  else state.files[index] = item;
 }
 
 async function run<T>(operation: () => Promise<T>): Promise<T> {
-  state.loading = true
-  state.error = ''
-  try { return await operation() }
-  catch (error) { state.error = api.driveErrorMessage(error, '文件操作失败'); throw error }
-  finally { state.loading = false }
+  state.loading = true;
+  state.error = "";
+  try {
+    return await operation();
+  } catch (error) {
+    state.error = api.driveErrorMessage(error, "文件操作失败");
+    throw error;
+  } finally {
+    state.loading = false;
+  }
 }
 
 export function useDrive() {
-  const list = (parentId: string | null) => computed(() => state.files.filter((item) => !item.deletedAt && item.parentId === parentId))
-  const get = (itemId: string) => state.files.find((item) => item.id === itemId)
-  const load = (parentId: string | null) => run(async () => {
-    const items = await api.listFiles(parentId)
-    state.files = state.files.filter((item) => item.parentId !== parentId)
-    items.forEach(upsert)
-    return items
-  })
-  const loadTrash = () => run(async () => {
-    const items = await api.listTrash()
-    state.files = state.files.filter((item) => !item.deletedAt)
-    items.forEach(upsert)
-    return items
-  })
-  const loadShares = () => run(async () => {
-    state.shares = await shareApi.listShares()
-    return state.shares
-  })
-  const createFolder = (name: string, parentId: string | null) => run(async () => {
-    const item = await api.createFolder(name, parentId); upsert(item); return item
-  })
-  const rename = (itemId: string, name: string) => run(async () => {
-    const item = await api.renameFile(itemId, name); upsert(item); return item
-  })
-  const move = (itemId: string, parentId: string | null) => run(async () => {
-    const item = await api.moveFile(itemId, parentId); upsert(item); return item
-  })
+  const list = (parentId: string | null) =>
+    computed(() =>
+      state.files.filter(
+        (item) => !item.deletedAt && item.parentId === parentId,
+      ),
+    );
+  const get = (itemId: string) =>
+    state.files.find((item) => item.id === itemId);
+  const load = (parentId: string | null) =>
+    run(async () => {
+      const items = await api.listFiles(parentId);
+      state.files = state.files.filter((item) => item.parentId !== parentId);
+      items.forEach(upsert);
+      return items;
+    });
+  const loadTrash = () =>
+    run(async () => {
+      const items = await api.listTrash();
+      state.files = state.files.filter((item) => !item.deletedAt);
+      items.forEach(upsert);
+      return items;
+    });
+  const loadShares = () =>
+    run(async () => {
+      state.shares = await shareApi.listShares();
+      return state.shares;
+    });
+  const createFolder = (name: string, parentId: string | null) =>
+    run(async () => {
+      const item = await api.createFolder(name, parentId);
+      upsert(item);
+      return item;
+    });
+  const rename = (itemId: string, name: string) =>
+    run(async () => {
+      const item = await api.renameFile(itemId, name);
+      upsert(item);
+      return item;
+    });
+  const move = (itemId: string, parentId: string | null) =>
+    run(async () => {
+      const item = await api.moveFile(itemId, parentId);
+      upsert(item);
+      return item;
+    });
   const download = (itemId: string) => {
-    const item = get(itemId)
-    if (!item) return Promise.reject(new Error('文件不存在'))
-    return run(() => api.downloadFile(item.id, item.name))
-  }
-  const addUploaded = (item: DriveItem) => upsert(item)
-  const trash = (itemIds: string[]) => run(async () => {
-    const items = await api.trashFiles(itemIds); items.forEach(upsert); return items
-  })
-  const restore = (itemIds: string[]) => run(async () => {
-    const items = await api.restoreFiles(itemIds); items.forEach(upsert); return items
-  })
-  const removeForever = (itemIds: string[]) => run(async () => {
-    await api.deleteFilesForever(itemIds)
-    state.files = state.files.filter((item) => !itemIds.includes(item.id))
-  })
-  const emptyTrash = () => run(async () => {
-    await api.emptyTrash()
-    state.files = state.files.filter((item) => !item.deletedAt)
-  })
-  const share = (itemId: string, expiresInSeconds: number) => run(async () => {
-    const record = await shareApi.createShare(itemId, expiresInSeconds)
-    state.shares.unshift(record)
-    return record
-  })
-  const cancelShare = (shareId: string) => run(async () => {
-    await shareApi.cancelShare(shareId)
-    const share = state.shares.find((record) => record.id === shareId)
-    if (share) share.status = 'CANCELLED'
-  })
-  return { state, list, get, load, loadTrash, loadShares, createFolder, addUploaded, rename, move, download, trash, restore, removeForever, emptyTrash, share, cancelShare }
+    const item = get(itemId);
+    if (!item) return Promise.reject(new Error("文件不存在"));
+    return run(() => api.downloadFile(item.id, item.name));
+  };
+  const addUploaded = (item: DriveItem) => upsert(item);
+  const trash = (itemIds: string[]) =>
+    run(async () => {
+      const items = await api.trashFiles(itemIds);
+      items.forEach(upsert);
+      return items;
+    });
+  const restore = (itemIds: string[]) =>
+    run(async () => {
+      const items = await api.restoreFiles(itemIds);
+      items.forEach(upsert);
+      return items;
+    });
+  const removeForever = (itemIds: string[]) =>
+    run(async () => {
+      await api.deleteFilesForever(itemIds);
+      state.files = state.files.filter((item) => !itemIds.includes(item.id));
+    });
+  const emptyTrash = () =>
+    run(async () => {
+      await api.emptyTrash();
+      state.files = state.files.filter((item) => !item.deletedAt);
+    });
+  const share = (itemId: string, expiresInSeconds: number) =>
+    run(async () => {
+      const record = await shareApi.createShare(itemId, expiresInSeconds);
+      state.shares.unshift(record);
+      return record;
+    });
+  const cancelShare = (shareId: string) =>
+    run(async () => {
+      await shareApi.cancelShare(shareId);
+      const share = state.shares.find((record) => record.id === shareId);
+      if (share) share.status = "CANCELLED";
+    });
+  return {
+    state,
+    list,
+    get,
+    load,
+    loadTrash,
+    loadShares,
+    createFolder,
+    addUploaded,
+    rename,
+    move,
+    download,
+    trash,
+    restore,
+    removeForever,
+    emptyTrash,
+    share,
+    cancelShare,
+  };
 }
 
 export function formatSize(size: number) {
-  if (!size) return '—'
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
+  if (!size) return "—";
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
