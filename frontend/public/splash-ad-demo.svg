@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1600" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="80" x2="790" y2="1510" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BDE8FF"/>
+      <stop offset=".48" stop-color="#83B8F4"/>
+      <stop offset="1" stop-color="#526FD1"/>
+    </linearGradient>
+    <linearGradient id="card" x1="203" y1="466" x2="704" y2="1098" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#E4F3FF" stop-opacity=".73"/>
+    </linearGradient>
+    <filter id="blur" x="-100" y="-100" width="1100" height="1800" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="50"/>
+    </filter>
+  </defs>
+  <path fill="url(#bg)" d="M0 0h900v1600H0z"/>
+  <circle cx="130" cy="330" r="165" fill="#FFF" fill-opacity=".34" filter="url(#blur)"/>
+  <circle cx="780" cy="1190" r="220" fill="#B2F3FF" fill-opacity=".44" filter="url(#blur)"/>
+  <path d="M-40 1000c180-125 323-137 469-56 163 90 291 80 511-64v720H-40v-600Z" fill="#D6F2FF" fill-opacity=".2"/>
+  <rect x="143" y="458" width="614" height="684" rx="42" fill="url(#card)" stroke="#FFF" stroke-opacity=".8" stroke-width="3"/>
+  <path d="M314 690h270a27 27 0 0 1 27 27v186a27 27 0 0 1-27 27H314a27 27 0 0 1-27-27V717a27 27 0 0 1 27-27Z" fill="#76AAF2" fill-opacity=".24"/>
+  <path d="M330 747h97l28 30h143v107H330V747Z" fill="#6099E9"/>
+  <path d="M463 595c57 0 103 46 103 103H360c0-57 46-103 103-103Z" fill="#fff" fill-opacity=".82"/>
+  <rect x="427" y="642" width="72" height="72" rx="14" fill="#6A9DEB"/>
+  <text x="450" y="1040" fill="#375B99" font-family="Arial,sans-serif" font-size="34" font-weight="700" text-anchor="middle">CendoDrive · DEMO</text>
+</svg>

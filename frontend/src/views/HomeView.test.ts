@@ -25,6 +25,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
+  window.sessionStorage.removeItem("cendo:splash-ad-seen:demo-splash-ad");
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
   vi.mocked(getHomeContent).mockRejectedValue(new Error("内容接口未接入")); vi.mocked(getSplashAd).mockResolvedValue(null);
   vi.mocked(api.searchFiles).mockResolvedValue({ items: [], total: 0, page: 0, size: 20 });
@@ -313,6 +314,29 @@ describe("mobile profile unavailable destinations", () => {
 });
 
 describe("mobile home media shortcuts", () => {
+  it("shows a clearly labelled development splash demo when the ad API is missing", async () => {
+    vi.mocked(getSplashAd).mockRejectedValueOnce(new Error("splash endpoint not implemented"));
+    const wrapper = await open();
+    expect(document.body.querySelector(".splash-ad-demo-badge")?.textContent).toContain("演示广告");
+    expect(document.body.querySelector(".splash-ad-content")?.textContent).toContain("让每一份文件都井然有序");
+    (document.body.querySelector(".splash-ad-content") as HTMLButtonElement).click();
+    await flushPromises();
+    expect(routerPush).toHaveBeenCalledWith("/membership");
+    expect(window.sessionStorage.getItem("cendo:splash-ad-seen:demo-splash-ad")).toBe("1");
+    wrapper.unmount();
+  });
+
+  it("shows the splash ad only once per tab session", async () => {
+    vi.mocked(getSplashAd).mockRejectedValue(new Error("splash endpoint not implemented"));
+    const first = await open();
+    (document.body.querySelector(".splash-ad-content") as HTMLButtonElement).click();
+    await flushPromises();
+    first.unmount();
+    const second = await open();
+    expect(document.body.querySelector(".splash-ad-demo-badge")).toBeNull();
+    second.unmount();
+  });
+
   it("renders home promotion fields returned by the content endpoint", async () => {
     vi.mocked(getHomeContent).mockResolvedValueOnce({
       membershipEntry: { title: "服务端会员入口", subtitle: "后端返回副标题", targetUrl: "/membership" },
