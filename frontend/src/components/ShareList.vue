@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Copy, Link2, Share2, X } from "@lucide/vue";
+import { Copy, Share2, X } from "@lucide/vue";
+import { iconForFile } from "./fileIcon";
 import type { ShareRecord } from "../api/shares";
 
 const props = withDefaults(
@@ -43,7 +44,7 @@ function shareLink(share: ShareRecord) {
       >
         <div class="share-list-heading">
           <div class="share-list-file">
-            <span><Link2 :size="18" /></span>
+            <span><component :is="iconForFile({ name: share.fileName, kind: share.kind })" :size="24" aria-hidden="true" /></span>
             <div>
               <strong>{{ share.fileName }}</strong
               ><small
