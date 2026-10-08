@@ -22,6 +22,11 @@ describe("responsive style ownership", () => {
     expect(account).toContain("overflow-wrap: anywhere");
     expect(account).not.toContain("!important");
   });
+  it("keeps selected file rows within the shared mobile gutters", () => {
+    expect(selection).toContain("margin: 0 calc(-1 * var(--mobile-gutter, 18px))");
+    expect(selection).not.toContain("margin: 0 -22px");
+  });
+
   it("applies share gutters once at the page boundary", () => {
     expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
     expect(hub).not.toContain("!important");
