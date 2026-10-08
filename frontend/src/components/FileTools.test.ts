@@ -5,7 +5,7 @@ import FileTools from "./FileTools.vue";
 import { folderChoices, type ToolAction } from "./fileTools";
 import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
-vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), listFolders: vi.fn(), getFileDetails: vi.fn(), moveFiles: vi.fn(), copyFiles: vi.fn(), setFavorite: vi.fn(), setHidden: vi.fn(), organizeFiles: vi.fn(), getUsage: vi.fn() }));
+vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), createFolder: vi.fn(), listFolders: vi.fn(), getFileDetails: vi.fn(), moveFiles: vi.fn(), copyFiles: vi.fn(), setFavorite: vi.fn(), setHidden: vi.fn(), organizeFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 3, parentId: null, updatedAt: "", deletedAt: null };
 const folder = (id: string, name: string, parentId: string | null = null): DriveItem => ({ ...file, id, name, parentId, kind: "folder" });
 const wrappers: ReturnType<typeof mount>[] = [];
@@ -23,6 +23,29 @@ beforeEach(() => {
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); document.body.innerHTML = ""; });
 describe("file tools workflows", () => {
+  it.each(["move", "copy"] as const)("creates a new target before %s without losing selection", async action => {
+    const wrapper = await open(action); await wrapper.find('select').setValue("1");
+    const created = folder("9", "新目标", "1"); vi.mocked(api.createFolder).mockResolvedValue(created);
+    vi.mocked(api.listFolders).mockResolvedValue([folder("1", "资料"), created]);
+    await button(wrapper, "新建文件夹").trigger("click");
+    await wrapper.find('input[name="folderName"]').setValue("新目标");
+    await wrapper.find('.create-folder-form').trigger("submit"); await flushPromises();
+    expect(api.createFolder).toHaveBeenCalledWith("新目标", "1");
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe("9");
+    expect(wrapper.find('.create-folder-dialog').exists()).toBe(false);
+    expect(document.body.style.overflow).toBe("hidden");
+    await button(wrapper, action === "move" ? "确认移动" : "确认复制").trigger("click"); await flushPromises();
+    expect(action === "move" ? api.moveFiles : api.copyFiles).toHaveBeenCalledWith(["42"], "9");
+    wrapper.unmount(); expect(document.body.style.overflow).toBe("auto");
+  });
+  it("cancels nested creation without closing the move dialog or losing its target", async () => {
+    const wrapper = await open("move"); await wrapper.find("select").setValue("2");
+    await button(wrapper, "新建文件夹").trigger("click"); await wrapper.find(".create-folder-dialog").trigger("cancel");
+    expect(api.createFolder).not.toHaveBeenCalled(); expect(wrapper.emitted("close")).toBeUndefined();
+    expect((wrapper.find("select").element as HTMLSelectElement).value).toBe("2");
+    expect(wrapper.find(".create-folder-dialog").exists()).toBe(false);
+    wrapper.unmount(); expect(document.body.style.overflow).toBe("auto");
+  });
   it("disambiguates same-named folders and disables selected descendants and cycles", () => {
     const choices = folderChoices([folder("1", "资料"), folder("2", "资料", "1"), folder("3", "环", "3")], ["1"]);
     expect(choices.find(choice => choice.id === "2")).toMatchObject({ label: "/资料/资料", disabled: true });
