@@ -9,6 +9,21 @@
 | 适用范围 | 普通上传、分片合并、回收站、恢复、永久删除与 AI 索引的联动 |
 | 接口性质 | 服务端内部异步事件接口 |
 
+### 1.1 当前确认状态
+
+| 项目 | 当前结论 |
+| --- | --- |
+| Anna Base URL | 待提供；Lucky 侧先使用配置占位，默认关闭真实投递 |
+| 接口鉴权 | 当前约定为无鉴权，仅允许受控内部网络访问 |
+| FastDFS `storageKey` | 确认为 `group1/M00/...` 形式的完整路径 |
+| Anna 真实文件读取 | 尚未联调验证 |
+| Anna 接收事件后的读取失败重试 | 待 Anna 确认 |
+| Anna 是否在读取文件前检查 `revision` | 待 Anna 确认 |
+| 复制文件 | 本期不触发 `UPSERT` |
+| 分享转存文件 | 本期不触发 `UPSERT` |
+| Lucky 投递重试策略 | 接受本文第 7.6 节的默认配置 |
+| 契约文档 | 随本功能分支提交 |
+
 ## 2. 目标与边界
 
 本契约只约定 CendoDrive 文件服务与 Anna 索引服务之间的最小协作边界：Lucky 负责可靠地产生并投递文件生命周期事件，Anna 负责幂等地处理事件并维护索引状态。
@@ -21,6 +36,8 @@
 - 不在文件请求线程中执行文本提取、Embedding 或 Milvus 写入。
 
 本期不包含语义搜索接口、AI 问答、索引进度前端、回调接口、文件下载接口、Milvus Collection 结构、Chunk 参数和模型参数。
+
+本期也不为复制文件和分享转存产生的新文件触发 `UPSERT`。如后续需要让这些副本参与语义搜索，双方应先扩展触发范围和验收用例。
 
 ## 3. 交互方式
 
@@ -35,6 +52,16 @@ Anna 成功接收事件后自行完成文件读取、文本提取、分块、Emb
     → 后台异步投递事件
     → Anna 幂等处理事件
 ```
+
+### 3.1 外部 FastDFS 访问
+
+FastDFS 部署于独立主机。CendoDrive 与 Anna 分别通过各自的运行配置连接同一个 FastDFS Tracker 和 Storage，网络地址与连接参数不通过索引事件传递。
+
+- 索引事件只传递 `storageBackend` 和 `storageKey`，不传递 Tracker 地址、Storage 地址、密码或其他连接凭据。
+- FastDFS 连接参数由双方通过环境变量或本地配置维护，不得写入事件、日志或代码仓库。
+- CendoDrive 负责上传、下载和物理删除原始文件；Anna 对原始文件仅具有读取职责，不得删除、移动或覆盖 FastDFS 内容。
+- Anna 尚未完成使用真实 `storageKey` 读取外部 FastDFS 文件的联调验证。在该项通过前，不能将 AI-11 记为验收完成。
+- Anna Base URL 尚未确定。Lucky 侧应使用可配置占位值，并在未配置时默认关闭真实事件投递；关闭投递不得影响文件业务或丢失本地待投递任务。
 
 ## 4. 索引事件接口
 
@@ -69,11 +96,13 @@ Content-Type: application/json
 | `revision` | Long | 始终必填 | 文件搜索状态版本；每次搜索状态变化时递增，必须大于 0 |
 | `fileName` | String | `UPSERT` 必填 | 文件逻辑名称 |
 | `storageBackend` | String | `UPSERT` 必填 | 当前固定为 `fastdfs` |
-| `storageKey` | String | `UPSERT` 必填 | Anna 从 FastDFS 读取文件使用的 Key |
+| `storageKey` | String | `UPSERT` 必填 | Anna 从 FastDFS 读取文件使用的完整路径，例如 `group1/M00/00/01/example.pdf` |
 
 `fileId` 和 `ownerId` 使用字符串传输，避免不同语言处理大整数时出现精度问题。`DEACTIVATE` 和 `DELETE` 请求可以不携带 `fileName`、`storageBackend` 和 `storageKey`。
 
 Anna 读取 FastDFS 的连接配置由 Anna 的服务自行维护；本接口不传递 FastDFS 密码或其他存储凭据。
+
+`storageKey` 取自 CendoDrive 上传成功后保存的 FastDFS `StorePath.getFullPath()`。其格式为 `group/path`，不带协议、主机、端口、查询参数或开头斜杠。Anna 必须使用 `storageBackend + storageKey` 读取内容，不得根据 `fileName` 推导物理路径。
 
 ## 5. 操作语义
 
@@ -84,6 +113,11 @@ Anna 读取 FastDFS 的连接配置由 Anna 的服务自行维护；本接口不
 - 普通文件上传成功；
 - 分片上传合并成功；
 - 文件从回收站恢复。
+
+本期明确不包含以下触发场景：
+
+- 文件复制；
+- 分享文件转存。
 
 Anna 的处理规则：
 
@@ -215,6 +249,21 @@ HTTP/1.1 503 Service Unavailable
 
 建议连接超时为 3 秒，响应超时为 10 秒。接口只负责接收事件，不应同步等待文档解析和索引生成完成。
 
+### 7.6 Lucky 默认投递与重试配置
+
+| 配置 | 默认值 |
+| --- | --- |
+| 每次领取任务数 | 20 |
+| Worker 扫描间隔 | 5 秒 |
+| 连接超时 | 3 秒 |
+| 响应超时 | 10 秒 |
+| 最大投递尝试次数 | 10 次 |
+| 退避间隔 | 1 分钟、5 分钟、15 分钟、30 分钟、1 小时、2 小时、4 小时、8 小时、12 小时 |
+| 成功任务保留期 | 7 天 |
+| 达到最大次数 | 标记为 `DEAD` 并保留错误信息，等待人工排查 |
+
+`400`、`401`、`403` 直接标记为 `DEAD`；`429`、`5xx`、连接失败和超时按上述间隔重试。即使当前约定为无鉴权，仍保留 `401`、`403` 的处理规则，以便发现网络代理或未来鉴权配置错误。
+
 ## 8. 双方职责
 
 ### 8.1 Lucky
@@ -239,6 +288,9 @@ HTTP/1.1 503 Service Unavailable
 - 记录损坏、空白、不支持和处理失败状态。
 - 对已经接收的事件负责后续处理和内部重试。
 - 索引失败不得反向影响文件上传结果。
+- 对 FastDFS 原始文件仅执行读取，不删除、移动或覆盖文件。
+- 在处理 `UPSERT` 并读取 FastDFS 前检查当前最大 `revision`；该项尚待 Anna 确认。
+- 对已经返回 `2xx` 的事件，后续 FastDFS 暂时不可用或读取失败由 Anna 内部负责重试；该项尚待 Anna 确认。
 
 ## 9. 容量与稳定性约束
 
@@ -263,6 +315,11 @@ HTTP/1.1 503 Service Unavailable
 | AI-08 | Anna 停机、超时或返回 `503` | 上传和下载正常，本地任务保留并重试 |
 | AI-09 | 索引处理前后检查容量 | `usedBytes` 和 `availableBytes` 不因索引变化 |
 | AI-10 | FastDFS 删除首次失败 | Lucky 记录独立清理任务并能后续重试 |
+| AI-11 | Anna 使用真实 `storageKey` 读取外部 FastDFS | 下载字节与原文件一致 |
+| AI-12 | Tracker 可达但 Storage 暂时不可达 | Anna 记录可重试失败，不丢失已经接收的事件 |
+| AI-13 | Anna 接收 `UPSERT` 后 FastDFS 暂时离线 | Anna 内部重试，CendoDrive 文件业务不回滚 |
+| AI-14 | 旧 `UPSERT` 晚于新版 `DELETE` 执行 | Anna 忽略旧事件，不读取文件、不重建向量 |
+| AI-15 | FastDFS 原文件已经不存在 | `DELETE` 仍按幂等成功处理 |
 
 ## 11. 联调前确认清单
 
@@ -271,6 +328,9 @@ HTTP/1.1 503 Service Unavailable
 - Anna 服务的内部访问地址；
 - 双方使用的接口路径和 JSON 字段与本契约一致；
 - Anna 已具备读取相同 FastDFS 文件的网络和配置条件；
+- Anna 已使用 `group1/M00/...` 格式的真实 `storageKey` 完成文件读取测试；
+- Anna 确认返回 `2xx` 后自行负责 FastDFS 读取失败的重试；
+- Anna 确认在读取 FastDFS 文件前完成 `revision` 检查；
 - Lucky 的连接超时、响应超时及重试间隔；
 - `eventId` 生成规则和 `revision` 初始值；
 - 测试用 PDF、DOCX、TXT、Markdown 文件及对应用户、文件 ID。

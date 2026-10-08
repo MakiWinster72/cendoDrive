@@ -3,6 +3,7 @@ package com.cendodrive.drive;
 import com.cendodrive.auth.AuthService;
 import com.cendodrive.storage.FileStorage;
 import com.cendodrive.upload.*;
+import com.cendodrive.index.*;
 import com.cendodrive.user.*;
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.fasterxml.jackson.databind.*;
@@ -47,6 +48,7 @@ class FileManagementIntegrationTest {
   @Autowired UploadService uploads;
   @Autowired DriveService drive;
   @Autowired FileQuotaService quota;
+  @Autowired AiIndexTaskRepository indexTasks;
   @Autowired TransactionTemplate transactions;
   @MockBean AuthService auth;
   @MockBean FileStorage storage;
@@ -55,7 +57,7 @@ class FileManagementIntegrationTest {
   Map<String,Long> sizes=new ConcurrentHashMap<>();
 
   @BeforeEach void setup() throws Exception {
-    sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
+    indexTasks.deleteAllInBatch(); sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
     owner=users.saveAndFlush(new User("owner","test-hash","用户一"));
     other=users.saveAndFlush(new User("other","test-hash","用户二"));
     when(auth.authenticate("owner")).thenReturn(owner);
@@ -78,6 +80,7 @@ class FileManagementIntegrationTest {
   @Test void sharedCopiesRespectRecipientReservationsAndRefreshUsage() throws Exception {
     byte[] content="hello".getBytes();
     var source=drive.upload(other,new MockMultipartFile("file","shared.txt","text/plain",content),null);
+    long tasksBeforeSave=indexTasks.count();
     limit(9);
     byte[] pending=new byte[5];
     String reservation=init("owner","pending.bin",5,md5(pending),null,5,1,201).path("uploadId").asText();
@@ -89,6 +92,7 @@ class FileManagementIntegrationTest {
     assertEquals(5,usage().path("reservedBytes").asLong());
     sessions.deleteById(reservation);
     var copy=drive.saveSharedFile(owner,other,Long.valueOf(source.id()),null);
+    assertEquals(tasksBeforeSave,indexTasks.count(),"share saves do not enter this indexing scope");
     assertEquals(5,usage().path("usedBytes").asLong());
     assertEquals(5,users.findById(owner.getId()).orElseThrow().getStorageUsed());
     var original=files.findById(Long.valueOf(source.id())).orElseThrow();
@@ -118,6 +122,9 @@ class FileManagementIntegrationTest {
     JsonNode saved=merge("owner",id,hash,201);
     assertEquals(saved.path("id").asText(),merge("owner",id,hash,201).path("id").asText());
     assertEquals(1,files.count()); assertEquals(1,sizes.size());
+    assertEquals(1,indexTasks.count());
+    AiIndexTask task=indexTasks.findAll().getFirst();
+    assertEquals(AiIndexTask.Operation.UPSERT,task.getOperation()); assertEquals(saved.path("id").asLong(),task.getFileId());
     assertEquals(bytes.length,usage().path("usedBytes").asLong()); assertEquals(0,usage().path("reservedBytes").asLong());
     assertEquals(bytes.length,users.findById(owner.getId()).orElseThrow().getStorageUsed());
     assertFalse(Files.exists(STAGING.resolve(owner.getId().toString()).resolve(id)));
@@ -224,9 +231,11 @@ class FileManagementIntegrationTest {
   @Test void recursiveCopyPreservesHiddenFlagsButUsesIndependentContentAndQuota() throws Exception {
     long parent=folder("source",null); long child=folder("child",parent);
     long file=upload("hello.txt","hello".getBytes(),child,201).path("id").asLong();
+    long tasksBeforeCopy=indexTasks.count();
     call(postJson("/api/files/hidden",Map.of("ids",List.of(file),"value",true)),"owner",200);
     call(postJson("/api/files/favorite",Map.of("ids",List.of(file),"value",true)),"owner",200);
     JsonNode copied=call(postJson("/api/files/copy",target(List.of(parent,child),null)),"owner",201);
+    assertEquals(tasksBeforeCopy,indexTasks.count(),"copies do not enter this indexing scope");
     assertEquals(3,copied.size()); assertEquals("source - 副本",copied.get(0).path("name").asText());
     JsonNode copiedFile=copied.get(2); assertTrue(copiedFile.path("hidden").asBoolean()); assertFalse(copiedFile.path("favorite").asBoolean());
     assertEquals(10,usage().path("usedBytes").asLong());

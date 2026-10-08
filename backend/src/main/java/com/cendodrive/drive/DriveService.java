@@ -4,6 +4,7 @@ import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.index.AiIndexTaskService;
 import java.io.IOException;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
@@ -24,13 +25,16 @@ public class DriveService {
   private final Path storageRoot;
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
+  private final AiIndexTaskService indexTasks;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
   public DriveService(DriveFileRepository files, FileStorage fastDfs,
-      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota) {
+      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota,
+      AiIndexTaskService indexTasks) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
+    this.indexTasks = indexTasks;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -39,13 +43,13 @@ public class DriveService {
     if (content == null || content.isEmpty())
       fail(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "File is empty");
     try (var input = content.getInputStream()) {
-      return uploadStream(user, input, content.getSize(), content.getOriginalFilename(), parentId, null);
+      return uploadStream(user, input, content.getSize(), content.getOriginalFilename(), parentId, null, true);
     }
   }
 
   @Transactional(rollbackFor = IOException.class)
   public FileResponse uploadStream(User user, java.io.InputStream input, long size, String rawName,
-      Long parentId, String uploadId) throws IOException {
+      Long parentId, String uploadId, boolean createIndexTask) throws IOException {
     User locked = quota.check(user, size, uploadId);
     String name = validateUploadTarget(user, rawName, parentId);
     String extension = name.lastIndexOf('.') < 0 ? "" : name.substring(name.lastIndexOf('.') + 1);
@@ -54,7 +58,7 @@ public class DriveService {
     boolean synchronizedCleanup = org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive();
     if (synchronizedCleanup) onRollback(() -> deleteStorage("fastdfs", key));
     try {
-      FileResponse result = registerUploadedFile(user, parentId, name, size, key);
+      FileResponse result = registerUploadedFile(user, parentId, name, size, key, createIndexTask);
       quota.refresh(locked);
       return result;
     } catch (RuntimeException ex) {
@@ -96,7 +100,7 @@ public class DriveService {
       if (size != content.size())
         throw new IOException("Shared content size mismatch");
       try (var input = Files.newInputStream(temp)) {
-        return uploadStream(recipient, input, size, name, parentId, null);
+        return uploadStream(recipient, input, size, name, parentId, null, false);
       }
     } finally {
       Files.deleteIfExists(temp);
@@ -114,9 +118,13 @@ public class DriveService {
   @Transactional(readOnly = true)
   public FileResponse metadata(User user, Long id) { return FileResponse.from(requireActiveOwned(user, id)); }
 
-  private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
+  private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey,
+      boolean createIndexTask) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
-    return FileResponse.from(files.saveAndFlush(file));
+    if (createIndexTask) file.enableIndexing();
+    file=files.saveAndFlush(file);
+    if (createIndexTask) indexTasks.enqueueUpsert(file);
+    return FileResponse.from(file);
   }
 
   @Transactional(readOnly = true)

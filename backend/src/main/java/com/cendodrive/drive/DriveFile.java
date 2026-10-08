@@ -33,6 +33,8 @@ public class DriveFile {
   private boolean hidden;
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+  @Column(name = "index_revision", nullable = false)
+  private long indexRevision;
 
   protected DriveFile() {
   }
@@ -112,6 +114,10 @@ public class DriveFile {
   public boolean isFavorite() { return favorite; }
 
   public boolean isHidden() { return hidden; }
+
+  public long getIndexRevision() { return indexRevision; }
+
+  void enableIndexing() { if (indexRevision == 0) indexRevision = 1; }
 
   void setFavorite(boolean value) { favorite = value; }
 

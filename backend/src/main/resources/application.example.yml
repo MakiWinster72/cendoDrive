@@ -26,8 +26,11 @@ cendo:
   upload:
     root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
     ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
-  user:
-    cleanup-delay-ms: ${CENDO_ACCOUNT_CLEANUP_DELAY_MS:3600000}
+  ai:
+    # Keep blank until Anna provides the internal service address. Pending tasks remain durable.
+    enabled: ${CENDO_AI_ENABLED:false}
+    base-url: ${ANNA_INDEX_BASE_URL:}
+    worker-delay-ms: ${CENDO_AI_WORKER_DELAY_MS:5000}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}
