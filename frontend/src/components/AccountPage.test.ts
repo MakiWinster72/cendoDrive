@@ -12,6 +12,33 @@ async function open() { const wrapper=mount(AccountPage,{attachTo:document.body}
 beforeEach(()=>{vi.clearAllMocks();document.body.style.overflow="scroll";vi.mocked(api.getProfile).mockResolvedValue({...profile});vi.mocked(api.getAvatar).mockResolvedValue(new Blob(["png"],{type:"image/png"}));URL.createObjectURL=vi.fn(()=>"blob:avatar");URL.revokeObjectURL=vi.fn();});
 afterEach(()=>{wrappers.splice(0).forEach(w=>w.unmount());document.body.innerHTML="";document.body.style.overflow="";});
 describe("账号管理",()=>{
+  it("restores focus after cancelling deletion so Escape still returns",async()=>{
+    const w=await open();
+    await w.get(".account-danger > button").trigger("click");
+    await flushPromises();
+    expect(document.activeElement).toBe(w.get("#delete-password").element);
+    await w.get(".account-delete-actions button:last-child").trigger("click");
+    await flushPromises();
+    expect(w.find("#delete-password").exists()).toBe(false);
+    expect(document.activeElement).toBe(w.get(".account-danger > button").element);
+    document.activeElement?.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));
+    expect(w.emitted("back")).toHaveLength(1);
+    expect(api.deleteAccount).not.toHaveBeenCalled();
+  });
+  it("groups profile identity separately from editing with labelled sections and a compact back control",async()=>{
+    const w=await open();
+    expect(w.get("main").attributes("aria-labelledby")).toBe("account-title");
+    expect(w.get('.account-back[aria-label="返回文件"]').text()).toBe("");
+    expect(w.get(".account-profile-summary .account-identity strong").text()).toBe(profile.nickname);
+    const identity=w.get(".account-profile-details .account-info");
+    expect(identity.text()).toContain("用户名：maki");
+    expect(identity.text()).toContain("用户 ID：1");
+    expect(identity.findAll("input")).toHaveLength(0);
+    expect(w.get(".account-profile-details #nickname").attributes("maxlength")).toBe("64");
+    expect(w.findAll('section[aria-labelledby]').map(section=>section.attributes("aria-labelledby"))).toEqual(["profile-title","password-title","lookup-title","deletion-title"]);
+    await w.get(".account-back").trigger("click");
+    expect(w.emitted("back")).toHaveLength(1);
+  });
   it("loads identity, saves trimmed nickname and updates session display",async()=>{
     const w=await open();expect(w.text()).toContain("用户 ID：1");expect(document.body.style.overflow).toBe("hidden");
     vi.mocked(api.updateProfile).mockResolvedValue({...profile,nickname:"新昵称"});
