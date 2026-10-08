@@ -16,6 +16,19 @@ DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/
 
 首次启动时 Flyway 创建 `users` 和 `drive_files` 表，并应用后续迁移。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
 
+## 切换分支后的迁移校验
+
+若启动提示 `Detected applied migration not resolved locally: 5.`，表示数据库已经执行 V5，但当前运行代码缺少该迁移。此分支保留原始 `src/main/resources/db/migration/V5__create_share_links.sql`，用于兼容已经执行过分享迁移的数据库；保留表结构不代表此分支已实现分享接口。
+
+已应用迁移应在各分支保留原始文件和校验和；不要改写旧 SQL、删除 `flyway_schema_history` 记录或关闭校验来绕过错误，也不要仅因切换分支就运行 `repair`。先确认代码中包含原始迁移，再清理旧编译产物并重新启动：
+
+```sh
+# 在 backend 目录，使用前文相同的数据库环境变量
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn clean spring-boot:run
+```
+
+`FlywayMigrationTest` 使用独立 H2 数据库覆盖全新建库，以及历史 V1～V7 已执行后的校验和分享数据保留，不连接或修改开发数据库。
+
 ## 上传与容量配置
 
 普通上传以流方式传给存储服务；大文件使用[分片上传协议](../docs/分片上传接口协议.md)。服务端持久化任务和分片，校验合并内容 MD5、所有者、目录状态、同名冲突和容量。分片最大 5 MiB、最多 2048 片，每用户最多 20 个未完成任务。
