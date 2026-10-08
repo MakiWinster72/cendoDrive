@@ -78,6 +78,7 @@ import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
+import SplashAdOverlay from "../components/SplashAdOverlay.vue";
 import { Send } from "lucide-vue-next";
 import "../styles/profile.css";
 import "../styles/home.css";
@@ -90,6 +91,8 @@ import "../styles/share.css";
 import { useAuth } from "../stores/auth";
 import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
 import { shareErrorMessage, type ShareRecord } from "../api/shares";
+import { getHomeContent, getSplashAd, type SplashAdContent } from "../api/content";
+import { demoHomeContent } from "../api/contentDemo";
 
 type Mode =
   | "all"
@@ -145,6 +148,9 @@ const sortBy = ref<"name" | "time" | "size">("time"),
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
 watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
+const homeContent = ref(demoHomeContent);
+const homeContentSource = ref<"demo" | "backend">("demo");
+const splashAd = ref<SplashAdContent | null>(null);
 function openTransfers() {
   folderMenuOpen.value = false;
   showTransfers.value = true;
@@ -315,6 +321,39 @@ function flash(text: string) {
 }
 function showUnavailable(message: string) {
   unavailableMessage.value = message;
+}
+async function loadHomeContent() {
+  try {
+    homeContent.value = await getHomeContent();
+    homeContentSource.value = "backend";
+  } catch {
+    // Keep the clearly marked local demo content until the backend endpoint is available.
+  }
+}
+async function loadSplashAd() {
+  try {
+    splashAd.value = await getSplashAd();
+  } catch {
+    splashAd.value = null;
+  }
+}
+function openContentTarget(targetUrl: string | null | undefined) {
+  if (!targetUrl) {
+    showUnavailable("此内容暂时没有可用的跳转地址。");
+    return;
+  }
+  try {
+    const target = new URL(targetUrl, window.location.origin);
+    if (target.origin === window.location.origin) {
+      void router.push(`${target.pathname}${target.search}${target.hash}`);
+    } else if (target.protocol === "https:") {
+      window.open(target.href, "_blank", "noopener,noreferrer");
+    } else {
+      showUnavailable("内容跳转地址无效。");
+    }
+  } catch {
+    showUnavailable("内容跳转地址无效。");
+  }
 }
 async function changeMode(next: Mode) {
   mode.value = next;
@@ -597,6 +636,8 @@ async function logout() {
 onMounted(async () => {
   window.addEventListener("resize", updateViewport);
   drive.reset();
+  void loadHomeContent();
+  void loadSplashAd();
   void drive.loadUsage();
   searchPromptTimer = window.setInterval(() => {
     searchPromptIndex.value =
@@ -616,6 +657,11 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <SplashAdOverlay
+    :ad="splashAd"
+    @close="splashAd = null"
+    @open="openContentTarget"
+  />
   <UnavailableFeatureDialog
     :open="Boolean(unavailableMessage)"
     :message="unavailableMessage"
@@ -653,10 +699,10 @@ onUnmounted(() => {
     <template v-else-if="mobileTab === 'home'">
       <div class="m-home-top">
         <header class="m-home-head">
-          <div class="m-vip">
+          <button v-if="homeContent.membershipEntry" class="m-vip" type="button" @click="openContentTarget(homeContent.membershipEntry.targetUrl)">
             <span class="m-vip-envelope">领</span
-            ><span>会员免费领<small>新用户福利 ❯</small></span>
-          </div>
+            ><span>{{ homeContent.membershipEntry?.title || "会员免费领" }}<small>{{ homeContent.membershipEntry?.subtitle || "新用户福利" }} ❯<template v-if="homeContentSource === 'demo'"> · 演示</template></small></span>
+          </button>
           <div class="m-head-actions">
             <button aria-label="传输列表" @click="showTransfers = true">
               <Download />
@@ -1036,13 +1082,13 @@ onUnmounted(() => {
             <component :is="service.icon" /><span>{{ service.label }}</span>
           </button>
         </section>
-        <section class="profile-promo">
-          <div class="promo-gift"><Gift :size="52" /></div>
+        <section v-if="homeContent.profileCampaign" class="profile-promo">
+          <div class="promo-gift"><img v-if="homeContent.profileCampaign.imageUrl" class="promo-art" :src="homeContent.profileCampaign.imageUrl" alt="" /><Gift v-else :size="52" /></div>
           <div>
-            <strong>网盘 <em>SVIP</em> 会员活动</strong>
-            <p>活动领取能力暂未开放</p>
+            <strong>{{ homeContent.profileCampaign.title }}</strong>
+            <p>{{ homeContent.profileCampaign.subtitle }}<template v-if="homeContentSource === 'demo'"> · 演示内容</template></p>
           </div>
-          <button type="button" @click="router.push({ name: 'membership' })">查看方案</button>
+          <button type="button" @click="openContentTarget(homeContent.profileCampaign.targetUrl)">{{ homeContent.profileCampaign.buttonText }}</button>
         </section>
         <section class="profile-game">
           <div>

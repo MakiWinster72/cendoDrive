@@ -39,6 +39,7 @@
 .game-art { position: relative; display: grid; width: 60px; height: 60px; align-self: center; place-items: center; overflow: hidden; border: 3px solid #ffffffa6; border-radius: 16px; background: linear-gradient(145deg,#fff2a6,#f6a552); box-shadow: 0 3px 8px #2136501d; }
 .game-art::before { position: absolute; inset: 5px; border: 1px solid #ffffff70; border-radius: 12px; content: ""; }
 .game-art i { z-index: 1; font-size: 35px; font-style: normal; filter: drop-shadow(0 2px 2px #0002); }
+.game-art img { width: 100%; height: 100%; object-fit: cover; }
 .game-art small { position: absolute; top: 2px; right: 2px; z-index: 1; padding: 2px 4px; border-radius: 7px 0 7px 7px; background: #ff685a; color: #fff; font-size: 7px; }
 .game-art.blue,.more-game-icon.blue { background: linear-gradient(140deg,#8ee0ff,#367ff2); }
 .game-art.mint,.more-game-icon.mint { background: linear-gradient(140deg,#abf0df,#62cda9); }
@@ -55,10 +56,12 @@
 .more-game-row { display: flex; width: 100%; min-height: 67px; align-items: center; gap: 9px; padding: 7px 9px; border: 0; border-bottom: 1px solid #f0f2f4; background: #fff; text-align: left; }
 .more-game-row:last-child { border-bottom: 0; }
 .more-game-icon { display: grid; width: 44px; height: 44px; flex: none; place-items: center; border-radius: 12px; background: linear-gradient(140deg,#fff0a0,#f6ad48); font-size: 25px; }
+.more-game-icon img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .more-game-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
 .more-game-copy strong { overflow: hidden; color: #273243; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .more-game-copy small { overflow: hidden; color: #9ba5af; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 .game-open-button { padding: 5px 12px; border-radius: 14px; background: #edf6ff; color: #3988e8; font-size: 10px; }
+.game-empty-state { grid-column: 1/-1; margin: 12px 0; color: #929dab; text-align: center; font-size: 11px; }
 .game-center-page .media-demo-note { display: flex; align-items: center; justify-content: center; gap: 4px; }
 @media (max-width: 360px) {
   .game-task-heading small { font-size: 8px; }
