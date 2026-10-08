@@ -5,8 +5,12 @@ import HomeView from "./HomeView.vue";
 import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
 const routerPush = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn(), push: routerPush }) }));
-vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
+const routerReplace = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ replace: routerReplace, push: routerPush }) }));
+import { getProfile } from "../api/users";
+vi.mock("../api/users", async original => ({ ...(await original<typeof import("../api/users")>()), getProfile: vi.fn() }));
+const invalidateSession = vi.hoisted(() => vi.fn());
+vi.mock("../stores/auth", () => ({ invalidateSession, useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
 vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), searchFiles: vi.fn(), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
 const wrappers: ReturnType<typeof mount>[] = [];
@@ -24,11 +28,28 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
+  vi.mocked(getProfile).mockResolvedValue({ id: "1", username: "tester", nickname: "测试用户", hasAvatar: false });
   vi.mocked(api.searchFiles).mockResolvedValue({ items: [], total: 0, page: 0, size: 20 });
   vi.mocked(api.listFiles).mockResolvedValue([file]); vi.mocked(api.listTrash).mockResolvedValue([]); vi.mocked(api.listFavorites).mockResolvedValue([{ ...file, favorite: true }]); vi.mocked(api.listHidden).mockResolvedValue([{ ...file, hidden: true }]); vi.mocked(api.trashFiles).mockResolvedValue([{ ...file, deletedAt: "today" }]);
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
+describe("account page integration", () => {
+  it.each([390,1280])("opens and returns from account management at width %s", async width => {
+    window.innerWidth=width; const wrapper=await open();
+    if (width<768) await wrapper.findAll(".mobile-app nav button").find(button=>button.text()==="我的")!.trigger("click");
+    await wrapper.find(width<768 ? '.profile-avatar[aria-label="账号管理"]' : '.top-actions button[aria-label="账号管理"]').trigger("click");
+    await flushPromises(); expect(wrapper.find(".account-page h1").text()).toBe("账号管理");
+    await wrapper.find('.account-page button[aria-label="返回文件"]').trigger("click"); expect(wrapper.find(".account-page").exists()).toBe(false);
+    expect(useDrive().state.files).toHaveLength(1);
+  });
+  it.each(["password","deletion"] as const)("clears private file state and routes to login after %s",async reason=>{
+    const wrapper=await open();await wrapper.findAll(".mobile-app nav button").find(button=>button.text()==="我的")!.trigger("click");await wrapper.find('.profile-avatar').trigger("click");await flushPromises();
+    wrapper.findComponent({name:"AccountPage"}).vm.$emit("signedOut",reason,"2026-10-08T12:00:00Z");await flushPromises();
+    expect(invalidateSession).toHaveBeenCalledTimes(1);expect(useDrive().state.files).toEqual([]);
+    expect(routerReplace).toHaveBeenCalledWith({name:"login",query:reason==="password" ? {passwordChanged:"1"} : {accountDeleted:"1",purgeAfter:"2026-10-08T12:00:00Z"}});
+  });
+});
 describe("folder navigation and screenshot layout", () => {
   const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
   const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };
