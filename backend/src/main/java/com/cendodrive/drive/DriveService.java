@@ -24,13 +24,15 @@ public class DriveService {
   private final Path storageRoot;
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
+  private final FileRegistrationService fileRegistration;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
-  public DriveService(DriveFileRepository files, FileStorage fastDfs,
+  public DriveService(DriveFileRepository files, FileStorage fastDfs, FileRegistrationService fileRegistration,
       @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
+    this.fileRegistration = fileRegistration;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -115,8 +117,7 @@ public class DriveService {
   public FileResponse metadata(User user, Long id) { return FileResponse.from(requireActiveOwned(user, id)); }
 
   private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
-    DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
-    return FileResponse.from(files.saveAndFlush(file));
+    return fileRegistration.register(user.getId(), parentId, name, size, storageKey);
   }
 
   @Transactional(readOnly = true)

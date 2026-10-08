@@ -24,7 +24,8 @@ class DriveServiceTest {
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota);
+        service = new DriveService(files, storage, new FileRegistrationService(files),
+                "/tmp/cendodrive-test-storage", quota);
         lenient().when(user.getId()).thenReturn(7L);
     }
 
