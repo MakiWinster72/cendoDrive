@@ -142,7 +142,7 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   unavailableMessage = ref(""),
   loggingOut = ref(false),
   downloading = ref(false);
-const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+const mobileTab = ref<"home" | "files" | "share" | "profile">(new URLSearchParams(location.search).get("tab") === "share" ? "share" : "home");
 watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
 function openTransfers() {

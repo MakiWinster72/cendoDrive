@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { Bell, Cloud, UserRound, Folder, Mail, MoreHorizontal, Search, UserRoundPlus, UsersRound } from 'lucide-vue-next';
 import '../styles/share-hub.css';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { listRooms, type Room } from '../api/chat';
+const router=useRouter();
+const rooms=ref<Room[]>([]); const chatError=ref('');
+onMounted(async()=>{ try { rooms.value=await listRooms(); } catch { chatError.value='聊天列表加载失败'; } });
+function openShortcut(label:string) {
+  if(label==='新建群聊') void router.push('/groups/new');
+  if(label==='加好友/群' || label==='通讯录') void router.push('/friends');
+}
 
 const shortcuts = [
   { label: '新建群聊', icon: UsersRound },
@@ -25,11 +35,11 @@ const messages = [
         <button type="button">聊天文件</button>
         <button type="button">文件共享</button>
       </div>
-      <button type="button" class="share-hub-icon" aria-label="搜索消息"><Search /></button>
+      <button type="button" class="share-hub-icon" aria-label="搜索消息" @click="router.push('/friends')"><Search /></button>
       <button type="button" class="share-hub-icon" aria-label="更多选项"><MoreHorizontal /></button>
     </header>
     <section class="share-hub-shortcuts" aria-label="快捷入口">
-      <button v-for="shortcut in shortcuts" :key="shortcut.label" type="button">
+      <button v-for="shortcut in shortcuts" :key="shortcut.label" type="button" @click="openShortcut(shortcut.label)">
         <svg v-if="shortcut.label === '转存和订阅'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h12a5 5 0 0 0 1-9.9A7 7 0 0 0 5 10a5 5 0 0 0 1 10Z"/><path d="M9 13h6m-3-3 3 3-3 3"/></svg>
         <svg v-else-if="shortcut.label === '通讯录'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="5"/><path d="M13 12H9a6 6 0 0 0-6 7v2h8m5-5h6m-6 5h6"/></svg>
         <component v-else :is="shortcut.icon" :stroke-width="1.8" />
@@ -37,6 +47,11 @@ const messages = [
       </button>
     </section>
     <section class="share-hub-messages" aria-label="消息列表">
+      <p v-if="chatError" role="alert">{{ chatError }}</p>
+      <button v-for="room in rooms" :key="room.id" type="button" class="share-hub-message" @click="router.push(`/chat/${room.id}`)">
+        <span class="share-message-avatar blue"><UsersRound v-if="room.group"/><UserRound v-else/></span>
+        <span class="share-message-copy"><span class="share-message-title"><strong>{{ room.name }}</strong></span><span class="share-message-subtitle">{{ room.group ? '群聊' : '好友聊天' }}{{ room.description ? ' · '+room.description : '' }}</span></span>
+      </button>
       <button v-for="message in messages" :key="message.title" type="button" class="share-hub-message" :class="{ separated: message.service }">
         <span class="share-message-avatar" :class="message.color" aria-hidden="true">
           <Bell v-if="message.icon === 'bell'" class="filled-bell" />
