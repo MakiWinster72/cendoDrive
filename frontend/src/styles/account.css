@@ -158,9 +158,6 @@
 .account-error { color: #b42318; background: #fff1f0; }
 .account-notice { color: #237344; background: #edf8f0; }
 .account-loading { color: var(--account-muted); }
-.account-result { display: flex; flex-direction: column; gap: 7px; margin-top: 18px; padding: 16px; background: #f8f9fc; border-radius: 12px; overflow-wrap: anywhere; }
-.account-result span,
-.account-result code { color: var(--account-muted); }
 .account-danger > p { margin: 0 0 10px; font-size: 13px; line-height: 1.8; }
 .account-page .account-danger-button { border-color: #f3d6d4; background: #fff; color: #b42318; }
 .account-delete-actions { display: flex; flex-wrap: wrap; gap: 10px; }

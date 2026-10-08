@@ -8,9 +8,8 @@ const emit=defineEmits<{ back: []; changed: []; signedOut: [reason: "password" |
 const auth=useAuth();
 const profile=ref<api.UserProfile|null>(null),nickname=ref(""),avatarUrl=ref(""),busy=ref(false),loading=ref(true);
 const error=ref(""),notice=ref(""),currentPassword=ref(""),newPassword=ref(""),repeatPassword=ref("");
-const deleting=ref(false),deletePassword=ref(""),confirmation=ref(""),query=ref(""),result=ref<api.UserProfile|null>(null);
-const lookupBusy=ref(false),lookupError=ref(""),page=ref<HTMLElement|null>(null);
-let alive=true,lookupGeneration=0,lookupController: AbortController|undefined;
+const deleting=ref(false),deletePassword=ref(""),confirmation=ref(""),page=ref<HTMLElement|null>(null);
+let alive=true;
 const previousOverflow=document.body.style.overflow;
 async function loadAvatar() {
   if (!profile.value?.hasAvatar) { if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value); avatarUrl.value=""; return; }
@@ -64,20 +63,10 @@ async function deletion() {
   await run(async ()=>{ const value=await api.deleteAccount(deletePassword.value,confirmation.value); if (!alive) return;
     deletePassword.value=""; emit("signedOut","deletion",value.purgeAfter); });
 }
-watch(query,()=>{ lookupController?.abort(); lookupGeneration++; result.value=null; lookupError.value=""; lookupBusy.value=false; });
-async function lookup() {
-  const name=query.value.trim();
-  if (!/^[a-zA-Z0-9_]{3,64}$/.test(name)) { lookupError.value="请输入完整用户名（3–64 位字母、数字或下划线）"; return; }
-  lookupController?.abort(); const controller=new AbortController(),generation=++lookupGeneration;
-  lookupController=controller; lookupBusy.value=true; lookupError.value=""; result.value=null;
-  try { const value=await api.lookupUser(name,controller.signal); if (alive && generation===lookupGeneration) result.value=value; }
-  catch (e) { if (alive && !controller.signal.aborted && generation===lookupGeneration) lookupError.value=api.accountError(e,"查询失败，请稍后重试"); }
-  finally { if (alive && generation===lookupGeneration) lookupBusy.value=false; }
-}
 function back() { if (!busy.value) emit("back"); }
 function keydown(event: KeyboardEvent) { if (event.key==="Escape") { event.preventDefault(); back(); } }
 onMounted(()=>{ document.body.style.overflow="hidden"; page.value?.focus(); void load(); });
-onUnmounted(()=>{ alive=false; lookupController?.abort(); if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value); document.body.style.overflow=previousOverflow; });
+onUnmounted(()=>{ alive=false; if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value); document.body.style.overflow=previousOverflow; });
 watch(deleting,async value=>{
   await nextTick();
   if (!alive) return;
@@ -136,16 +125,6 @@ watch(deleting,async value=>{
             <p class="account-hint">8–72 个字符，且不超过 72 个 UTF-8 字节。</p>
             <button class="account-primary" :disabled="busy">修改密码并退出</button>
           </form>
-        </section>
-        <section class="account-card" aria-labelledby="lookup-title">
-          <h2 id="lookup-title">查找用户</h2>
-          <p class="account-hint">按完整用户名查找并确认用户身份，不会自动建立好友关系或发送分享。</p>
-          <form class="account-form" @submit.prevent="lookup">
-            <div class="account-field"><label for="lookup-username">完整用户名</label><input id="lookup-username" v-model="query" maxlength="64" autocomplete="off" required placeholder="输入完整用户名"></div>
-            <button class="account-primary" :disabled="lookupBusy">{{ lookupBusy ? '正在查询…' : '查找用户' }}</button>
-          </form>
-          <p v-if="lookupError" class="account-error" role="alert">{{ lookupError }}</p>
-          <div v-if="result" class="account-result" role="status"><strong>{{ result.nickname }}</strong><span>@{{ result.username }}</span><code>用户 ID：{{ result.id }}</code></div>
         </section>
         <section class="account-card account-danger" aria-labelledby="deletion-title">
           <h2 id="deletion-title">注销账号</h2>

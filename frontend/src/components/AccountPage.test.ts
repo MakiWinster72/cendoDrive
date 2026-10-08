@@ -35,7 +35,7 @@ describe("账号管理",()=>{
     expect(identity.text()).toContain("用户 ID：1");
     expect(identity.findAll("input")).toHaveLength(0);
     expect(w.get(".account-profile-details #nickname").attributes("maxlength")).toBe("64");
-    expect(w.findAll('section[aria-labelledby]').map(section=>section.attributes("aria-labelledby"))).toEqual(["profile-title","password-title","lookup-title","deletion-title"]);
+    expect(w.findAll('section[aria-labelledby]').map(section=>section.attributes("aria-labelledby"))).toEqual(["profile-title","password-title","deletion-title"]);
     await w.get(".account-back").trigger("click");
     expect(w.emitted("back")).toHaveLength(1);
   });
@@ -72,14 +72,13 @@ describe("账号管理",()=>{
   });
   it("requires separate deletion confirmation and exposes seven-day deadline",async()=>{
     const w=await open();expect(api.deleteAccount).not.toHaveBeenCalled();await w.findAll("button").find(b=>b.text()==="申请注销账号")!.trigger("click");
-    await w.get("#delete-password").setValue("password123");await w.get("#delete-confirmation").setValue("确定");await w.findAll("form")[3]!.trigger("submit");expect(api.deleteAccount).not.toHaveBeenCalled();
+    await w.get("#delete-password").setValue("password123");await w.get("#delete-confirmation").setValue("确定");await w.findAll("form")[2]!.trigger("submit");expect(api.deleteAccount).not.toHaveBeenCalled();
     await w.get("#delete-confirmation").setValue("注销账号");vi.mocked(api.deleteAccount).mockResolvedValue({deletedAt:"2026-10-01T12:00:00Z",purgeAfter:"2026-10-08T12:00:00Z"});
-    await w.findAll("form")[3]!.trigger("submit");await flushPromises();expect(api.deleteAccount).toHaveBeenCalledWith("password123","注销账号");expect(w.emitted("signedOut")).toEqual([["deletion","2026-10-08T12:00:00Z"]]);expect(w.text()).toContain("7 天");
+    await w.findAll("form")[2]!.trigger("submit");await flushPromises();expect(api.deleteAccount).toHaveBeenCalledWith("password123","注销账号");expect(w.emitted("signedOut")).toEqual([["deletion","2026-10-08T12:00:00Z"]]);expect(w.text()).toContain("7 天");
   });
-  it("cancels stale username lookups and does not display the previous user",async()=>{
-    const w=await open();let finish!:(value:api.UserProfile)=>void;vi.mocked(api.lookupUser).mockImplementationOnce(()=>new Promise(resolve=>finish=resolve));
-    await w.get("#lookup-username").setValue("other");await w.findAll("form")[2]!.trigger("submit");const signal=vi.mocked(api.lookupUser).mock.calls[0]![1]!;
-    await w.get("#lookup-username").setValue("new-user");expect(signal.aborted).toBe(true);finish({...profile,id:"2",nickname:"过期用户"});await flushPromises();expect(w.text()).not.toContain("过期用户");
+  it("does not offer user search or recipient selection in personal settings",async()=>{
+    const w=await open();expect(w.find("#lookup-username").exists()).toBe(false);
+    expect(w.text()).not.toContain("查找用户");expect(api.lookupUser).not.toHaveBeenCalled();
   });
   it("retries profile loading and ignores late completion after unmount",async()=>{
     vi.mocked(api.getProfile).mockRejectedValueOnce(new Error("offline"));const w=await open();expect(w.text()).toContain("个人资料加载失败");await w.findAll("button").find(b=>b.text()==="重新加载")!.trigger("click");await flushPromises();expect(w.text()).toContain("原昵称");
