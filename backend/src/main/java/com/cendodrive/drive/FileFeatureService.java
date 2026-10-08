@@ -94,7 +94,7 @@ public class FileFeatureService {
           try (OutputStream output=Files.newOutputStream(temp)) { download.body().writeTo(output); }
           if (Files.size(temp)!=source.getSize()) throw new IOException("Copied content size mismatch");
           FileResponse saved;
-          try (InputStream input=Files.newInputStream(temp)) { saved=drive.uploadStream(user,input,source.getSize(),name,parent,null); }
+          try (InputStream input=Files.newInputStream(temp)) { saved=drive.uploadStream(user,input,source.getSize(),name,parent,null,false); }
           copied=drive.requireActiveOwned(user,Long.valueOf(saved.id()));
           copied.setHidden(source.isHidden());
           copied=files.saveAndFlush(copied);

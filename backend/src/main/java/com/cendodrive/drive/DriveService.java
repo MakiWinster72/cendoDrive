@@ -4,6 +4,9 @@ import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.storage.StorageCleanupService;
+import com.cendodrive.index.AiIndexTaskService;
+import com.cendodrive.index.AiIndexTask;
 import java.io.IOException;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
@@ -24,13 +27,18 @@ public class DriveService {
   private final Path storageRoot;
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
+  private final AiIndexTaskService indexTasks;
+  private final StorageCleanupService storageCleanup;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
   public DriveService(DriveFileRepository files, FileStorage fastDfs,
-      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota) {
+      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota,
+      AiIndexTaskService indexTasks,StorageCleanupService storageCleanup) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
+    this.indexTasks = indexTasks;
+    this.storageCleanup = storageCleanup;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -39,13 +47,13 @@ public class DriveService {
     if (content == null || content.isEmpty())
       fail(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "File is empty");
     try (var input = content.getInputStream()) {
-      return uploadStream(user, input, content.getSize(), content.getOriginalFilename(), parentId, null);
+      return uploadStream(user, input, content.getSize(), content.getOriginalFilename(), parentId, null, true);
     }
   }
 
   @Transactional(rollbackFor = IOException.class)
   public FileResponse uploadStream(User user, java.io.InputStream input, long size, String rawName,
-      Long parentId, String uploadId) throws IOException {
+      Long parentId, String uploadId, boolean createIndexTask) throws IOException {
     User locked = quota.check(user, size, uploadId);
     String name = validateUploadTarget(user, rawName, parentId);
     String extension = name.lastIndexOf('.') < 0 ? "" : name.substring(name.lastIndexOf('.') + 1);
@@ -54,7 +62,7 @@ public class DriveService {
     boolean synchronizedCleanup = org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive();
     if (synchronizedCleanup) onRollback(() -> deleteStorage("fastdfs", key));
     try {
-      FileResponse result = registerUploadedFile(user, parentId, name, size, key);
+      FileResponse result = registerUploadedFile(user, parentId, name, size, key, createIndexTask);
       quota.refresh(locked);
       return result;
     } catch (RuntimeException ex) {
@@ -96,7 +104,7 @@ public class DriveService {
       if (size != content.size())
         throw new IOException("Shared content size mismatch");
       try (var input = Files.newInputStream(temp)) {
-        return uploadStream(recipient, input, size, name, parentId, null);
+        return uploadStream(recipient, input, size, name, parentId, null, false);
       }
     } finally {
       Files.deleteIfExists(temp);
@@ -114,9 +122,13 @@ public class DriveService {
   @Transactional(readOnly = true)
   public FileResponse metadata(User user, Long id) { return FileResponse.from(requireActiveOwned(user, id)); }
 
-  private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
+  private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey,
+      boolean createIndexTask) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
-    return FileResponse.from(files.saveAndFlush(file));
+    if (createIndexTask) file.enableIndexing();
+    file=files.saveAndFlush(file);
+    if (createIndexTask) indexTasks.enqueueUpsert(file);
+    return FileResponse.from(file);
   }
 
   @Transactional(readOnly = true)
@@ -143,12 +155,14 @@ public class DriveService {
   public List<FileResponse> trash(User user, FileIdsRequest request) {
     quota.lock(user);
     List<DriveFile> selected = requireSelection(user, request);
+    List<DriveFile> affected=subtree(user,selected,false);
     selected.forEach(file -> {
       requireActiveOwned(user, file.getId());
       if (file.isDeleted())
         fail(HttpStatus.CONFLICT, "ALREADY_IN_TRASH", "Item is already in trash");
       file.moveToTrash();
     });
+    enqueueLifecycle(affected,AiIndexTask.Operation.DEACTIVATE);
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
 
@@ -156,6 +170,7 @@ public class DriveService {
   public List<FileResponse> restore(User user, FileIdsRequest request) {
     quota.lock(user);
     List<DriveFile> selected = requireSelection(user, request);
+    List<DriveFile> affected=subtree(user,selected,true);
     selected.forEach(file -> {
       if (!file.isDeleted())
         fail(HttpStatus.CONFLICT, "NOT_IN_TRASH", "Item is not in trash");
@@ -164,6 +179,7 @@ public class DriveService {
       requireAvailableName(user.getId(), file.getParentId(), file.getName(), file);
       file.restore();
     });
+    enqueueLifecycle(affected.stream().filter(file -> activeTree(user,file)).toList(),AiIndexTask.Operation.UPSERT);
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
 
@@ -185,13 +201,19 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
-    List<Runnable> deletions = doomed.stream().filter(f -> !f.isFolder() && f.getStorageKey() != null)
-        .map(f -> (Runnable) () -> deleteStorage(f.getStorageBackend(), f.getStorageKey())).toList();
+    enqueueLifecycle(doomed,AiIndexTask.Operation.DELETE);
+    doomed.stream().filter(f -> !f.isFolder()).forEach(storageCleanup::enqueue);
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
     files.deleteAllInBatch(doomed);
     files.flush();
     quota.refresh(locked);
-    afterCommit(() -> deletions.forEach(Runnable::run));
+  }
+
+  private void enqueueLifecycle(List<DriveFile> affected,AiIndexTask.Operation operation) {
+    affected.stream().filter(file -> !file.isFolder() && file.isIndexManaged()).forEach(file -> {
+      file.advanceIndexRevision();
+      indexTasks.enqueue(file,operation);
+    });
   }
 
   List<DriveFile> subtree(User user, List<DriveFile> roots, boolean includeDeleted) {
@@ -216,14 +238,6 @@ public class DriveService {
         if (path.startsWith(storageRoot)) Files.deleteIfExists(path);
       }
     } catch (IOException | RuntimeException e) { LOG.warn("Storage cleanup failed for {}:{}", backend, key, e); }
-  }
-
-  private static void afterCommit(Runnable action) {
-    if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) { action.run(); return; }
-    org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-        new org.springframework.transaction.support.TransactionSynchronization() {
-          @Override public void afterCommit() { action.run(); }
-        });
   }
 
   private static void onRollback(Runnable action) {

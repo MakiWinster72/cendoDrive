@@ -19,7 +19,7 @@ class FlywayMigrationTest {
       "V7__create_upload_sessions.sql", "V8__add_account_lifecycle.sql");
   @TempDir Path history;
 
-  @Test void freshDatabaseAppliesAllElevenMigrations() {
+  @Test void freshDatabaseAppliesAllMigrations() {
     Flyway flyway = current(databaseUrl());
     assertEquals(11, flyway.migrate().migrationsExecuted);
     assertTrue(flyway.validateWithResult().validationSuccessful);
@@ -48,7 +48,6 @@ class FlywayMigrationTest {
           + "VALUES (1, 42, 'historical-share', '保留文件.txt', 123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
     Flyway flyway = current(url);
-    // Apply V9 chat, V10 chat files and V11 share extraction code without rewriting historical migrations.
     assertEquals(3, flyway.migrate().migrationsExecuted);
     assertDoesNotThrow(flyway::validate);
     assertEquals(MigrationVersion.fromVersion("11"), flyway.info().current().getVersion());
