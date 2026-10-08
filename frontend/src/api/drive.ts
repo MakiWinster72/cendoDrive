@@ -13,6 +13,30 @@ export interface DriveItemResponse {
   favorite?: boolean;
   hidden?: boolean;
 }
+export type SearchType = "all" | "folder" | "image" | "video" | "audio" | "doc" | "other";
+export interface FileSearchParams {
+  q: string;
+  scope: "all" | "folder";
+  parentId?: string | null;
+  type: SearchType;
+  sort: "time" | "name" | "size";
+  page?: number;
+  size?: number;
+}
+export interface FileSearchHit {
+  file: DriveItemResponse;
+  ancestors: DriveItemResponse[];
+  path: string;
+}
+export interface FileSearchResponse {
+  items: FileSearchHit[];
+  total: number;
+  page: number;
+  size: number;
+}
+export async function searchFiles(params: FileSearchParams, signal?: AbortSignal): Promise<FileSearchResponse> {
+  return (await http.get<FileSearchResponse>("/files/search", { params, signal })).data;
+}
 export interface StorageUsage {
   usedBytes: number;
   limitBytes: number;
