@@ -6,12 +6,17 @@ import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
 vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
-vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
+vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
 const wrappers: ReturnType<typeof mount>[] = [];
 async function open() {
   const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } }); wrappers.push(wrapper); await flushPromises();
   await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "文件")!.trigger("click"); await flushPromises(); return wrapper;
+}
+async function startCreate(wrapper: ReturnType<typeof mount>) {
+  if (!wrapper.find('.mobile-app button[aria-label="新建文件夹"]').exists())
+    await wrapper.find('.m-file-head-actions > button[aria-label="文件更多操作"]').trigger("click");
+  await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
 }
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
@@ -39,6 +44,20 @@ describe("folder navigation and screenshot layout", () => {
     expect(wrapper.find('.m-folder-files .folder-sheet-icon').exists()).toBe(true);
     expect(wrapper.find('.m-filter').exists()).toBe(false); expect(wrapper.find('.m-capacity').exists()).toBe(false);
     expect(wrapper.find('.m-folder-toolbar select').exists()).toBe(true);
+  });
+  it("uses the folder arrows for downloads, preserving folder, keyword and sorting on return", async () => {
+    const wrapper = await inside();
+    expect(wrapper.find('.m-folder-head select').exists()).toBe(false);
+    await wrapper.find('.m-folder-toolbar select').setValue('name');
+    await wrapper.find('.m-folder-search input').setValue('S01');
+    const loads = vi.mocked(api.listFiles).mock.calls.length;
+    await wrapper.find('.m-folder-head .m-transfer-button').trigger('click');
+    expect(wrapper.find('.transfer-tabs button.active').text()).toBe('下载');
+    await wrapper.find('.transfer-header button[aria-label="返回"]').trigger('click');
+    expect(wrapper.find('.m-folder-breadcrumb [aria-current]').text()).toBe(parent.name);
+    expect((wrapper.find('.m-folder-toolbar select').element as HTMLSelectElement).value).toBe('name');
+    expect((wrapper.find('.m-folder-search input').element as HTMLInputElement).value).toBe('S01');
+    expect(api.listFiles).toHaveBeenCalledTimes(loads);
   });
   it("returns one level at a time, not directly from a nested folder to root", async () => {
     const wrapper = await inside(); await wrapper.find('.m-file-row').trigger("click"); await flushPromises();
@@ -103,17 +122,40 @@ describe("folder navigation and screenshot layout", () => {
   });
 });
 describe("mobile file management wiring", () => {
+  it("opens the real download page from the root arrows and returns without changing files", async () => {
+    const wrapper = await open();
+    expect(wrapper.findAll('.m-file-head-actions > button').map(button => button.attributes('aria-label'))).toEqual(['传输列表', '文件更多操作']);
+    await wrapper.find('.m-file-head-actions button[aria-label="文件更多操作"]').trigger('click');
+    expect(wrapper.find('.m-folder-menu').exists()).toBe(true);
+    await wrapper.find('.m-transfer-button').trigger('click');
+    expect(wrapper.find('.m-folder-menu').exists()).toBe(false);
+    expect(wrapper.find('.transfer-page h1').text()).toBe('传输列表');
+    expect(wrapper.find('.transfer-tabs button.active').text()).toBe('下载');
+    await wrapper.find('.transfer-header button[aria-label="返回"]').trigger('click');
+    expect(wrapper.find('.transfer-page').exists()).toBe(false);
+    expect(wrapper.find('.m-file-row b').text()).toBe(file.name);
+  });
+  it("lists real download completions rather than sample tasks", async () => {
+    const wrapper = await open();
+    vi.mocked(api.downloadFile).mockImplementationOnce(async (_id, _name, progress) => { progress?.(37); });
+    await useDrive().download(file.id);
+    expect(api.downloadFile).toHaveBeenCalledWith(file.id, file.name, expect.any(Function));
+    await wrapper.find('.m-transfer-button').trigger('click');
+    expect(wrapper.find('.transfer-task').text()).toContain(file.name);
+    expect(wrapper.find('.transfer-task').text()).toContain('已下载至：浏览器下载目录');
+  });
   it("offers folder creation in the mobile file page", async () => {
     const wrapper = await open();
-    expect(wrapper.find('.mobile-app button[aria-label="新建文件夹"]').exists()).toBe(true);
-    await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
+    expect(wrapper.find('.mobile-app button[aria-label="新建文件夹"]').exists()).toBe(false);
+    expect(wrapper.findAll('.m-file-head-actions > button')).toHaveLength(2);
+    await startCreate(wrapper);
     expect(wrapper.find(".m-file-list .inline-name-editor").exists()).toBe(true);
     expect(wrapper.find("dialog").exists()).toBe(false);
   });
   it("creates a trimmed root folder and refreshes the list without prompt", async () => {
     const wrapper = await open(), created = { ...file, id: "99", name: "目标目录", kind: "folder" as const, size: 0 };
     vi.mocked(api.createFolder).mockResolvedValue(created); vi.mocked(api.listFiles).mockResolvedValue([file, created]);
-    await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
+    await startCreate(wrapper);
     await wrapper.find('.m-file-list .inline-name-input').setValue("  目标目录  ");
     await wrapper.find('.m-file-list .inline-name-editor').trigger("submit"); await flushPromises();
     expect(api.createFolder).toHaveBeenCalledWith("目标目录", null);
@@ -125,7 +167,7 @@ describe("mobile file management wiring", () => {
     vi.mocked(api.listFiles).mockResolvedValue([folder]); const wrapper = await open();
     vi.mocked(api.listFiles).mockResolvedValue([]); await wrapper.find('.m-file-row').trigger("click"); await flushPromises();
     await wrapper.find('.m-folder-head button[aria-label="文件夹更多操作"]').trigger("click");
-    await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
+    await startCreate(wrapper);
     await wrapper.find('.m-file-list .inline-name-input').setValue("../bad"); await wrapper.find('.m-file-list .inline-name-editor').trigger("submit");
     expect(api.createFolder).not.toHaveBeenCalled();
     await wrapper.find('.m-file-list .inline-name-input').setValue("目标目录");
@@ -191,11 +233,11 @@ describe("mobile file management wiring", () => {
   });
   it("can create after switching from favorites back to all files", async () => {
     const wrapper = await open(); await wrapper.findAll('.m-filter button').find(button => button.text() === "我的收藏")!.trigger("click"); await flushPromises();
-    await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click"); await flushPromises();
+    await startCreate(wrapper); await flushPromises();
     expect(wrapper.find('.m-file-list .inline-name-editor').exists()).toBe(true); expect(wrapper.find('.m-filter button.active').text()).toBe("全部");
   });
   it("preserves the draft and mounts only the visible editor when resizing across 768px", async () => {
-    const wrapper = await open(); await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
+    const wrapper = await open(); await startCreate(wrapper);
     await wrapper.find('.m-file-list .inline-name-input').setValue("跨屏草稿"); window.innerWidth = 768; window.dispatchEvent(new Event("resize")); await flushPromises();
     expect(wrapper.findAll('.inline-name-editor')).toHaveLength(1); expect(wrapper.find('.mobile-app .inline-name-editor').exists()).toBe(false);
     expect((wrapper.find('.desktop-drive .inline-name-input').element as HTMLInputElement).value).toBe("跨屏草稿");
