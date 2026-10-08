@@ -42,6 +42,11 @@ describe("reference upload panel", () => {
     for (const binding of ["chooseType('image', 'image/*')", "chooseType('video', 'video/*')", "chooseType('other', '*/*')", "emit('createFolder')", 'ref="fileInput"', '@change="handleFileSelection"', '@click="startUpload"', '@click="retryUpload(task)"', '@click="cancelUpload(task)"'])
       expect(template).toContain(binding);
     const home = readFileSync(new URL("../views/HomeView.vue", import.meta.url), "utf8");
-    expect(home).toContain('@create-folder="uploadPanelOpen = false; createFolder()"');
+    const upload = parse(home).descriptor.template!.ast!.children.find(node => node.type === 1 && node.tag === "UploadPanel");
+    if (upload?.type !== 1) throw new Error("HomeView must contain UploadPanel");
+    const handler = upload.props.find(prop => prop.type === 7 && prop.name === "on" && prop.arg?.type === 4 && prop.arg.content === "create-folder");
+    if (handler?.type !== 7 || handler.exp?.type !== 4) throw new Error("UploadPanel must handle create-folder");
+    expect(handler.exp.content).toContain("uploadPanelOpen = false");
+    expect(handler.exp.content).toContain("createFolder()");
   });
 });
