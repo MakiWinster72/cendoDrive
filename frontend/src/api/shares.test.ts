@@ -48,6 +48,14 @@ describe("share owner API contract", () => {
     expect(http.post).toHaveBeenCalledWith("/shares/token/save", { parentId: "12" }, { timeout: 0 });
   });
 
+  it("sends an optional creation code in the body and a transfer code only in the header", async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: record });
+    await createShare("42", 86400, "Ab12");
+    expect(http.post).toHaveBeenCalledWith("/shares", { fileId: "42", expiresInSeconds: 86400, extractionCode: "Ab12" });
+    await saveSharedFile("opaque", null, "Ab12");
+    expect(http.post).toHaveBeenCalledWith("/shares/opaque/save", { parentId: null }, { timeout: 0, headers: { "X-Share-Code": "Ab12" } });
+  });
+
   it("cancels a share by its owner-side share id", async () => {
     vi.mocked(http.delete).mockResolvedValue({ data: undefined });
     await cancelShare("share/51");
