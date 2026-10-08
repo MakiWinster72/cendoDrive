@@ -114,7 +114,7 @@ public class UploadService {
       }
       FileResponse result;
       try (InputStream input=Files.newInputStream(merged)) {
-        result=drive.uploadStream(user,input,s.getFileSize(),s.getFileName(),s.getParentId(),s.getId());
+        result=drive.uploadStream(user,input,s.getFileSize(),s.getFileName(),s.getParentId(),s.getId(),true);
       }
       s.complete(Long.valueOf(result.id()));
       sessions.saveAndFlush(s);

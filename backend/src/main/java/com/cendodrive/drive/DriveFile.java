@@ -33,6 +33,8 @@ public class DriveFile {
   private boolean hidden;
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+  @Column(name = "index_revision", nullable = false)
+  private long indexRevision;
 
   protected DriveFile() {
   }
@@ -112,6 +114,17 @@ public class DriveFile {
   public boolean isFavorite() { return favorite; }
 
   public boolean isHidden() { return hidden; }
+
+  public long getIndexRevision() { return indexRevision; }
+
+  void enableIndexing() { if (indexRevision == 0) indexRevision = 1; }
+
+  boolean isIndexManaged() { return indexRevision > 0; }
+
+  void advanceIndexRevision() {
+    if (indexRevision <= 0) throw new IllegalStateException("File is not managed by the index lifecycle");
+    indexRevision++;
+  }
 
   void setFavorite(boolean value) { favorite = value; }
 
