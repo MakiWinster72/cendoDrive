@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   Archive,
@@ -64,7 +64,8 @@ import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import FilePreview from "../components/FilePreview.vue";
 import FileTools from "../components/FileTools.vue";
-import CreateFolderDialog from "../components/CreateFolderDialog.vue";
+import InlineNameEditor from "../components/InlineNameEditor.vue";
+import { useNameEdit } from "../components/useNameEdit";
 import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
@@ -73,7 +74,7 @@ import "../styles/profile.css";
 import "../styles/home.css";
 import "../styles/selection.css";
 import "../styles/file-list.css";
-import "../styles/rename.css";
+
 import "../styles/share.css";
 import { useAuth } from "../stores/auth";
 import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
@@ -105,7 +106,9 @@ const keyword = ref(""),
 const createdShare = ref<ShareRecord | null>(null);
 const previewTarget = ref<DriveItem | null>(null);
 const toolsTarget = ref<{ action: ToolAction; items: DriveItem[] } | null>(null);
-const folderCreation = ref<{ parentId: string | null; parentLabel: string } | null>(null);
+const mobileViewport = ref(window.innerWidth < 768);
+function updateViewport() { mobileViewport.value = window.innerWidth < 768; }
+const { edit: nameEdit, saving: nameSaving, error: nameError, beginCreate, beginRename, submit: saveName, cancel: cancelName } = useNameEdit((_item, kind) => { checked.value = []; flash(kind === "create" ? "文件夹创建成功" : "重命名成功"); });
 function openTools(action: ToolAction, items = checked.value.map(id => drive.get(id)).filter((item): item is DriveItem => !!item)) {
   if (!items.length) return;
   checked.value = items.map(item => item.id);
@@ -117,15 +120,13 @@ async function toolsChanged(message: string) {
   if (mode.value === "all") await loadFolder(currentFolder.value);
   else await changeMode(mode.value);
 }
-const renameTarget = ref<DriveItem | null>(null),
-  renameName = ref(""),
-  renaming = ref(false),
-  renameError = ref("");
+
 const sortBy = ref<"name" | "time" | "size">("time"),
   notice = ref(""),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+watch([currentFolder, mode, keyword, mobileTab], cancelName, { flush: "sync" });
 const showMyShares = ref(false);
 const mySharesError = ref("");
 const recentVisible = ref(true);
@@ -319,13 +320,11 @@ async function goRoot() {
   checked.value = [];
   await loadFolder(null);
 }
-function createFolder() {
-  folderCreation.value = { parentId: currentFolder.value, parentLabel: currentFolder.value ? title.value : "根目录 /" };
-}
-async function folderCreated(item: DriveItem) {
-  flash("文件夹创建成功");
-  mode.value = "all";
-  await loadFolder(item.parentId);
+async function createFolder() {
+  if (nameSaving.value) return;
+  mobileTab.value = "files"; keyword.value = ""; checked.value = [];
+  if (mode.value !== "all") { mode.value = "all"; await loadFolder(currentFolder.value); }
+  beginCreate(currentFolder.value, drive.state.files.filter(item => item.parentId === currentFolder.value && !item.deletedAt).map(item => item.name));
 }
 function chooseFiles() {
   uploadPanelOpen.value = true;
@@ -334,47 +333,13 @@ function handleUploaded(item: DriveItem) {
   drive.addUploaded(item);
   flash(`已上传：${item.name}`);
 }
-async function renameItem(item: DriveItem) {
-  const name = prompt("请输入新名称", item.name)?.trim();
-  if (!name || name === item.name) return;
-  try {
-    await drive.rename(item.id, name);
-    flash("重命名成功");
-  } catch {
-    alert(drive.state.error);
-  }
+function renameItem(item: DriveItem) {
+  if (mode.value === "trash" || nameSaving.value) return;
+  checked.value = []; mobileTab.value = "files"; beginRename(item);
 }
 function startMobileRename() {
   if (checked.value.length !== 1) return;
-  const item = drive.get(checked.value[0]!);
-  if (!item) return;
-  renameTarget.value = item;
-  renameName.value = item.name;
-  renameError.value = "";
-}
-async function submitMobileRename() {
-  if (!renameTarget.value || renaming.value) return;
-  const name = renameName.value.trim();
-  if (!name || name === "." || name === ".." || /[\\/]/.test(name)) {
-    renameError.value = "请输入有效名称，不能包含斜杠";
-    return;
-  }
-  if (name === renameTarget.value.name) {
-    renameTarget.value = null;
-    return;
-  }
-  renaming.value = true;
-  renameError.value = "";
-  try {
-    await drive.rename(renameTarget.value.id, name);
-    checked.value = [];
-    renameTarget.value = null;
-    flash("重命名成功");
-  } catch {
-    renameError.value = drive.state.error || "重命名失败，请重试";
-  } finally {
-    renaming.value = false;
-  }
+  const item = drive.get(checked.value[0]!); if (item) renameItem(item);
 }
 function itemMenu(item: DriveItem) { openTools("menu", [item]); }
 async function removeSelected(ids = checked.value) {
@@ -554,6 +519,7 @@ async function logout() {
   }
 }
 onMounted(async () => {
+  window.addEventListener("resize", updateViewport);
   drive.reset();
   void drive.loadUsage();
   searchPromptTimer = window.setInterval(() => {
@@ -568,12 +534,12 @@ onMounted(async () => {
   }
 });
 onUnmounted(() => {
+  window.removeEventListener("resize", updateViewport);
   if (searchPromptTimer) clearInterval(searchPromptTimer);
 });
 </script>
 
 <template>
-  <CreateFolderDialog v-if="folderCreation" v-bind="folderCreation" @close="folderCreation = null" @created="folderCreated" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
@@ -584,40 +550,7 @@ onUnmounted(() => {
     @uploaded="handleUploaded"
   />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
-  <div
-    v-if="renameTarget"
-    class="rename-backdrop"
-    @click.self="!renaming && (renameTarget = null)"
-  >
-    <form
-      class="rename-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="rename-title"
-      @submit.prevent="submitMobileRename"
-    >
-      <h2 id="rename-title">重命名文件</h2>
-      <label for="rename-name">文件名称</label>
-      <input
-        id="rename-name"
-        v-model="renameName"
-        autofocus
-        maxlength="255"
-        :disabled="renaming"
-        @input="renameError = ''"
-      />
-      <p v-if="renameError" class="rename-error" role="alert">
-        {{ renameError }}
-      </p>
-      <div class="rename-actions">
-        <button type="button" :disabled="renaming" @click="renameTarget = null">
-          取消</button
-        ><button type="submit" :disabled="renaming">
-          {{ renaming ? "保存中…" : "保存" }}
-        </button>
-      </div>
-    </form>
-  </div>
+
 
   <div class="mobile-app">
     <MobileMyShares
@@ -827,11 +760,12 @@ onUnmounted(() => {
       <p v-if="drive.state.usage" class="m-capacity">已用 {{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }} · 可用 {{ formatBytes(drive.state.usage.availableBytes) }}</p>
       <p v-if="drive.state.usageError" class="m-capacity" role="alert">{{ drive.state.usageError }} <button @click="drive.loadUsage">重试</button></p>
       <div class="m-file-list">
+        <div v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="m-file-row is-editing draft-folder-row"><span class="m-folder"><Folder /></span><div><InlineNameEditor v-if="mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></div></div>
         <div
           v-for="item in filteredFiles"
           :key="item.id"
           class="m-file-row"
-          :class="{ selected: checked.includes(item.id) }"
+          :class="{ selected: checked.includes(item.id), 'is-editing': nameEdit?.kind === 'rename' && nameEdit.item.id === item.id }"
           @click="
             checked.length && mode !== 'trash'
               ? (checked = checked.includes(item.id)
@@ -842,7 +776,7 @@ onUnmounted(() => {
         >
           <span class="m-folder"><component :is="iconForFile(item)" /></span>
           <div>
-            <b>{{ item.name }}</b
+            <InlineNameEditor v-if="mobileViewport && nameEdit?.kind === 'rename' && nameEdit.item.id === item.id" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" :select-stem="item.kind === 'file'" @save="saveName" @cancel="cancelName" /><b v-else>{{ item.name }}</b
             ><small
               >{{ item.kind === "folder" ? "" : formatSize(item.size) + "　"
               }}{{
@@ -859,7 +793,7 @@ onUnmounted(() => {
             @click.stop
           />
         </div>
-        <p v-if="!filteredFiles.length" class="m-empty">这里还没有文件</p>
+        <p v-if="!filteredFiles.length && !nameEdit" class="m-empty">这里还没有文件</p>
       </div>
       <section
         v-if="checked.length && mode !== 'trash'"
@@ -1217,11 +1151,8 @@ onUnmounted(() => {
               <div>{{ mode === "trash" ? "删除时间" : "修改日期" }}</div>
               <div></div>
             </div>
-            <div
-              v-for="item in filteredFiles"
-              :key="item.id"
-              class="file-row"
-              @dblclick="openItem(item)"
+            <div v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="file-row is-editing draft-folder-row"><div></div><div class="file-name"><Folder class="folder" :size="31" /><InlineNameEditor v-if="!mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></div><div>—</div><div>尚未创建</div><div></div></div>
+            <div v-for="item in filteredFiles" :key="item.id" class="file-row" tabindex="0" :class="{ 'is-editing': nameEdit?.kind === 'rename' && nameEdit.item.id === item.id }" @keydown.f2.stop.prevent="renameItem(item)" @dblclick="openItem(item)"
             >
               <label
                 ><input
@@ -1234,7 +1165,7 @@ onUnmounted(() => {
                   :is="iconForFile(item)"
                   :class="item.kind"
                   :size="31"
-                /><b>{{ item.name }}</b>
+                /><InlineNameEditor v-if="!mobileViewport && nameEdit?.kind === 'rename' && nameEdit.item.id === item.id" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" :select-stem="item.kind === 'file'" @save="saveName" @cancel="cancelName" /><b v-else>{{ item.name }}</b>
               </div>
               <div>{{ formatSize(item.size) }}</div>
               <div>
@@ -1261,12 +1192,13 @@ onUnmounted(() => {
                 </button>
               </div>
             </div>
-            <div v-if="!filteredFiles.length" class="empty">这里还没有文件</div>
+            <div v-if="!filteredFiles.length && !nameEdit" class="empty">这里还没有文件</div>
           </div>
           <div v-else class="file-grid">
+            <article v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="is-editing draft-folder-row"><Folder class="folder" :size="58" /><InlineNameEditor v-if="!mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></article>
             <article
               v-for="item in filteredFiles"
-              :key="item.id"
+              :key="item.id" tabindex="0" :class="{ 'is-editing': nameEdit?.kind === 'rename' && nameEdit.item.id === item.id }" @keydown.f2.stop.prevent="renameItem(item)"
               @dblclick="openItem(item)"
             >
               <button v-if="mode !== 'trash'" aria-label="文件操作" @click.stop="itemMenu(item)">
@@ -1292,7 +1224,7 @@ onUnmounted(() => {
                 :class="item.kind"
                 :size="58"
                 @click="openItem(item)"
-              /><b>{{ item.name }}</b
+              /><InlineNameEditor v-if="!mobileViewport && nameEdit?.kind === 'rename' && nameEdit.item.id === item.id" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" :select-stem="item.kind === 'file'" @save="saveName" @cancel="cancelName" /><b v-else>{{ item.name }}</b
               ><small>{{
                 dateText(
                   mode === "trash" ? item.deletedAt! : item.updatedAt,

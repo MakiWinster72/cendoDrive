@@ -28,11 +28,11 @@ describe("file tools workflows", () => {
     const created = folder("9", "新目标", "1"); vi.mocked(api.createFolder).mockResolvedValue(created);
     vi.mocked(api.listFolders).mockResolvedValue([folder("1", "资料"), created]);
     await button(wrapper, "新建文件夹").trigger("click");
-    await wrapper.find('input[name="folderName"]').setValue("新目标");
-    await wrapper.find('.create-folder-form').trigger("submit"); await flushPromises();
+    await wrapper.find('.target-draft-row .inline-name-input').setValue("新目标");
+    await wrapper.find('.target-draft-row .inline-name-editor').trigger("submit"); await flushPromises();
     expect(api.createFolder).toHaveBeenCalledWith("新目标", "1");
     expect((wrapper.find('select').element as HTMLSelectElement).value).toBe("9");
-    expect(wrapper.find('.create-folder-dialog').exists()).toBe(false);
+    expect(wrapper.find('.target-draft-row').exists()).toBe(false);
     expect(document.body.style.overflow).toBe("hidden");
     await button(wrapper, action === "move" ? "确认移动" : "确认复制").trigger("click"); await flushPromises();
     expect(action === "move" ? api.moveFiles : api.copyFiles).toHaveBeenCalledWith(["42"], "9");
@@ -40,10 +40,10 @@ describe("file tools workflows", () => {
   });
   it("cancels nested creation without closing the move dialog or losing its target", async () => {
     const wrapper = await open("move"); await wrapper.find("select").setValue("2");
-    await button(wrapper, "新建文件夹").trigger("click"); await wrapper.find(".create-folder-dialog").trigger("cancel");
+    await button(wrapper, "新建文件夹").trigger("click"); await wrapper.find(".target-draft-row input").trigger("keydown", { key: "Escape" });
     expect(api.createFolder).not.toHaveBeenCalled(); expect(wrapper.emitted("close")).toBeUndefined();
     expect((wrapper.find("select").element as HTMLSelectElement).value).toBe("2");
-    expect(wrapper.find(".create-folder-dialog").exists()).toBe(false);
+    expect(wrapper.find(".target-draft-row").exists()).toBe(false);
     wrapper.unmount(); expect(document.body.style.overflow).toBe("auto");
   });
   it("disambiguates same-named folders and disables selected descendants and cycles", () => {

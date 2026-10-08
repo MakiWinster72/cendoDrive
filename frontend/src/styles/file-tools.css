@@ -12,9 +12,6 @@
 .tools-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tools-menu button { display: flex; align-items: center; gap: 10px; text-align: left; }
 .tools-target { display: grid; gap: 12px; }
-.create-folder-form { display: grid; gap: 16px; margin-top: 16px; }
-.create-folder-form label { display: grid; gap: 8px; }
-.create-folder-form input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px; border: 1px solid #d5dae3; border-radius: 8px; font: inherit; }
 .tools-target label { display: grid; gap: 8px; }
 .tools-target select { width: 100%; min-height: 44px; border: 1px solid #d5dae3; border-radius: 8px; padding: 8px; background: #fff; color: inherit; }
 .file-tools dl { display: grid; grid-template-columns: 100px 1fr; gap: 12px; }
