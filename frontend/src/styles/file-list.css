@@ -1,9 +1,25 @@
 /* 移动端文件列表：缩小行距，但保留舒适的触控区域。 */
-@media (max-width: 768px) {
-  .m-file-row { height: 62px; grid-template-columns: 36px minmax(0, 1fr) 22px; gap: 10px; }
-  .m-folder { width: 36px; height: 36px; }
-  .m-folder svg { width: 32px; height: 32px; }
-  .m-file-row > div { gap: 3px; }
-  .m-file-row b { font-size: 14px; }
-  .m-file-row small { font-size: 11px; }
+@media (width < 768px) {
+  .m-file-row {
+    height: 62px;
+    grid-template-columns: 36px minmax(0, 1fr) 22px;
+    gap: 10px;
+  }
+  .m-folder {
+    width: 36px;
+    height: 36px;
+  }
+  .m-folder svg {
+    width: 32px;
+    height: 32px;
+  }
+  .m-file-row > div {
+    gap: 3px;
+  }
+  .m-file-row b {
+    font-size: 14px;
+  }
+  .m-file-row small {
+    font-size: 11px;
+  }
 }

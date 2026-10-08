@@ -2,7 +2,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:cendo}
-    password: ${DB_PASSWORD:change-me}
+    password: ${DB_PASSWORD:cendo}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -24,15 +24,10 @@ cendo:
     root: ${CENDO_STORAGE_ROOT:./storage}
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
   upload:
-    chunk-size: ${CENDO_UPLOAD_CHUNK_SIZE:5242880}
-    session-ttl-minutes: ${CENDO_UPLOAD_SESSION_TTL_MINUTES:1440}
-    lock-timeout-minutes: ${CENDO_UPLOAD_LOCK_TIMEOUT_MINUTES:30}
-    done-ttl-minutes: ${CENDO_UPLOAD_DONE_TTL_MINUTES:1440}
-    chunk-root: ${CENDO_UPLOAD_CHUNK_ROOT:./storage/chunks}
-    # 默认开启：回收 Redis 会话已过期、且超过宽限期未改动的临时分片目录
-    cleanup-enabled: ${CENDO_UPLOAD_CLEANUP_ENABLED:true}
-    cleanup-grace-minutes: ${CENDO_UPLOAD_CLEANUP_GRACE_MINUTES:1440}
-    cleanup-interval-minutes: ${CENDO_UPLOAD_CLEANUP_INTERVAL_MINUTES:60}
+    root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
+    ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
+  user:
+    cleanup-delay-ms: ${CENDO_ACCOUNT_CLEANUP_DELAY_MS:3600000}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}

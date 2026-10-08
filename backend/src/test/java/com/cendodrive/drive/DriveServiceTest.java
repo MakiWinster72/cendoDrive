@@ -22,10 +22,11 @@ class DriveServiceTest {
     @Mock UserRepository users;
     @Mock FileStorage storage;
     @Mock User user;
+    @Mock FileQuotaService quota;
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, users, storage, "/tmp/cendodrive-test-storage");
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota);
         lenient().when(user.getId()).thenReturn(7L);
         lenient().when(user.getStorageLimit()).thenReturn(1024L * 1024 * 1024);
     }
@@ -73,6 +74,9 @@ class DriveServiceTest {
     @Test void rejectsMovingFolderIntoItsDescendant() {
         DriveFile source = mock(DriveFile.class);
         DriveFile child = mock(DriveFile.class);
+        when(source.getId()).thenReturn(1L);
+        when(source.getParentId()).thenReturn(null);
+        when(child.getId()).thenReturn(2L);
         when(source.isFolder()).thenReturn(true);
         when(child.isFolder()).thenReturn(true);
         when(child.getParentId()).thenReturn(1L);
@@ -94,6 +98,7 @@ class DriveServiceTest {
     @Test void movesSelectedItemToTrash() {
         DriveFile file = mock(DriveFile.class);
         when(file.getId()).thenReturn(1L);
+        when(file.getParentId()).thenReturn(null);
         when(file.getName()).thenReturn("资料");
         when(file.getKind()).thenReturn("folder");
         when(file.getUpdatedAt()).thenReturn(java.time.LocalDateTime.now());

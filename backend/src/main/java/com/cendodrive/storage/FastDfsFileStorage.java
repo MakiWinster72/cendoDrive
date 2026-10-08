@@ -9,35 +9,43 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class FastDfsFileStorage implements FileStorage {
-    private final FastFileStorageClient client;
+  private final FastFileStorageClient client;
 
-    public FastDfsFileStorage(FastFileStorageClient client) { this.client = client; }
+  public FastDfsFileStorage(FastFileStorageClient client) {
+    this.client = client;
+  }
 
-    @Override public String upload(InputStream input, long size, String extension) throws IOException {
-        try {
-            return client.uploadFile(input, size, extension, null).getFullPath();
-        } catch (RuntimeException ex) {
-            throw new IOException("FastDFS upload failed", ex);
-        }
+  @Override
+  public String upload(InputStream input, long size, String extension) throws IOException {
+    try {
+      return client.uploadFile(input, size, extension, null).getFullPath();
+    } catch (RuntimeException ex) {
+      throw new IOException("FastDFS upload failed", ex);
     }
+  }
 
-    @Override public void download(String key, OutputStream output) throws IOException {
-        StorePath path = StorePath.parseFromUrl(key);
-        try {
-            client.downloadFile(path.getGroup(), path.getPath(), input -> {
-                input.transferTo(output);
-                return null;
-            });
-        } catch (RuntimeException ex) {
-            throw new IOException("FastDFS download failed", ex);
-        }
+  @Override
+  public void download(String key, OutputStream output) throws IOException {
+    StorePath path = StorePath.parseFromUrl(key);
+    try {
+      client.downloadFile(path.getGroup(), path.getPath(), input -> {
+        input.transferTo(output);
+        return null;
+      });
+    } catch (RuntimeException ex) {
+      throw new IOException("FastDFS download failed", ex);
     }
+  }
 
-    @Override public void delete(String key) throws IOException {
-        try {
-            client.deleteFile(key);
-        } catch (RuntimeException ex) {
-            throw new IOException("FastDFS delete failed", ex);
-        }
+  @Override
+  public void delete(String key) throws IOException {
+    try {
+      client.deleteFile(key);
+    } catch (com.github.tobato.fastdfs.exception.FdfsServerException ex) {
+      // FastDFS ENOENT (2): a previous deletion succeeded before a DB commit failed.
+      if (ex.getErrorCode()!=2) throw new IOException("FastDFS delete failed",ex);
+    } catch (RuntimeException ex) {
+      throw new IOException("FastDFS delete failed", ex);
     }
+  }
 }

@@ -1,6 +1,7 @@
 myDocs/
 backend/target/
 backend/.env
+.env
 backend/src/main/resources/application.yml
 
 # Eclipse / Spring Tools 本机工程配置
@@ -16,6 +17,11 @@ backend/.settings/
 # NOTE: 前端依赖
 **/node_modules/
 **/dist/
+# 由前端 predev/prebuild 从 pdfjs-dist 生成
+frontend/public/pdfjs/
 
 # NOTE: AI
 AGENTS.md
+.pi/
+.codex/
+.claude/

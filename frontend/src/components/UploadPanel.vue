@@ -1,212 +1,871 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { Check, FilePlus2, FileText, FolderPlus, Image, LoaderCircle, Music2, RotateCcw, Trash2, UploadCloud, Video, X } from 'lucide-vue-next'
-import { isUploadCancelled, uploadErrorMessage, uploadFile } from '../api/files'
-import { CHUNK_THRESHOLD, uploadFileChunked } from '../api/upload'
-import type { DriveItem } from '../stores/drive'
+import { computed, nextTick, ref, watch } from "vue";
+import {
+  Check,
+  FileText,
+  Link2,
+  LoaderCircle,
+  RotateCcw,
+  ScanLine,
+  Trash2,
+  X,
+} from "@lucide/vue";
+import {
+  isUploadCancelled,
+  uploadErrorMessage,
+  uploadFile,
+} from "../api/files";
+import {
+  shouldUseChunkedUpload,
+  uploadFileInChunks,
+} from "../api/chunkedUpload";
+import UploadActionIcon from "./UploadActionIcon.vue";
+import { ChevronRight, CloudDownload, ShieldCheck } from "@lucide/vue";
+import type { DriveItem } from "../stores/drive";
+import { useTransfers } from "../stores/transfers";
 
-interface FolderOption { id: string | null; name: string }
-const props = withDefaults(defineProps<{
-  open: boolean
-  folderOptions?: FolderOption[]
-  initialFolderId?: string | null
-}>(), {
-  folderOptions: () => [{ id: null, name: 'Ula' }],
-  initialFolderId: null,
-})
-const emit = defineEmits<{ close: []; uploaded: [item: DriveItem] }>()
-type UploadType = 'image' | 'video' | 'document' | 'audio' | 'other'
-type UploadStatus = 'waiting' | 'uploading' | 'success' | 'failed' | 'cancelled'
-interface UploadTask { id: string; file: File; status: UploadStatus; progress: number; parentId?: string | null; error?: string }
+interface FolderOption {
+  id: string | null;
+  name: string;
+}
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    folderOptions?: FolderOption[];
+    initialFolderId?: string | null;
+  }>(),
+  {
+    folderOptions: () => [{ id: null, name: "Ula" }],
+    initialFolderId: null,
+  },
+);
+const emit = defineEmits<{ close: []; createFolder: []; uploaded: [item: DriveItem] }>();
+type UploadType = "image" | "video" | "document" | "audio" | "other";
+type UploadStatus =
+  "waiting" | "preparing" | "uploading" | "success" | "failed" | "cancelled";
+type UploadMode = "normal" | "chunked";
+interface UploadTask {
+  id: string;
+  file: File;
+  status: UploadStatus;
+  progress: number;
+  mode?: UploadMode;
+  parentId?: string | null;
+  error?: string;
+}
 
-const MAX_UPLOAD_SIZE = 100 * 1024 * 1024
-const fileInput = ref<HTMLInputElement>()
-const accept = ref('*/*')
-const oversizeNotice = ref('')
-const uploadTasks = ref<UploadTask[]>([])
-const selectedType = ref<UploadType | null>(null)
-const selectedFolderId = ref<string | null>(props.initialFolderId)
-const folderPickerOpen = ref(false)
-const controllers = new Map<string, AbortController>()
-watch(() => props.initialFolderId, (folderId) => {
-  if (!props.open || uploadTasks.value.length === 0) selectedFolderId.value = folderId
-})
-const selectedFiles = computed(() => uploadTasks.value.filter((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))
-const activeCount = computed(() => uploadTasks.value.filter((task) => task.status === 'uploading').length)
-const hasPending = computed(() => uploadTasks.value.some((task) => ['waiting', 'failed', 'cancelled'].includes(task.status)))
-const waitingCount = computed(() => uploadTasks.value.filter((task) => task.status === 'waiting').length)
-const retryCount = computed(() => uploadTasks.value.filter((task) => task.status === 'failed' || task.status === 'cancelled').length)
+const panel = ref<HTMLElement>();
+const fileInput = ref<HTMLInputElement>();
+let previousFocus: HTMLElement | null = null;
+watch(() => props.open, async (open) => {
+  if (open) {
+    previousFocus = document.activeElement as HTMLElement | null;
+    await nextTick();
+    panel.value?.focus();
+  } else {
+    previousFocus?.focus();
+  }
+}, { immediate: true });
+
+function handleDialogKey(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    emit("close");
+  }
+  if (event.key !== "Tab") return;
+  const buttons = [...(panel.value?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") || [])];
+  const first = buttons[0];
+  const last = buttons.at(-1);
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.value)) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.value)) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
+const accept = ref("*/*");
+const uploadTasks = ref<UploadTask[]>([]);
+const transfers = useTransfers();
+watch(uploadTasks, (tasks) => {
+  for (const task of tasks) transfers.syncUpload({
+    id: task.id, name: task.file.name, size: task.file.size,
+    status: task.status, progress: task.progress, error: task.error,
+  });
+}, { deep: true, flush: "sync" });
+const selectedType = ref<UploadType | null>(null);
+const selectedFolderId = ref<string | null>(props.initialFolderId);
+const folderPickerOpen = ref(false);
+const controllers = new Map<string, AbortController>();
+watch(
+  () => props.initialFolderId,
+  (folderId) => {
+    if (!props.open || uploadTasks.value.length === 0)
+      selectedFolderId.value = folderId;
+  },
+);
+const selectedFiles = computed(() =>
+  uploadTasks.value.filter((task) =>
+    ["waiting", "failed", "cancelled"].includes(task.status),
+  ),
+);
+const activeCount = computed(
+  () =>
+    uploadTasks.value.filter(
+      (task) => task.status === "preparing" || task.status === "uploading",
+    ).length,
+);
+const hasPending = computed(() =>
+  uploadTasks.value.some((task) =>
+    ["waiting", "failed", "cancelled"].includes(task.status),
+  ),
+);
+const waitingCount = computed(
+  () => uploadTasks.value.filter((task) => task.status === "waiting").length,
+);
+const retryCount = computed(
+  () =>
+    uploadTasks.value.filter(
+      (task) => task.status === "failed" || task.status === "cancelled",
+    ).length,
+);
 const uploadButtonText = computed(() => {
-  if (waitingCount.value && retryCount.value) return `上传 ${waitingCount.value} 个 · 重试 ${retryCount.value} 个`
-  if (waitingCount.value) return `上传 ${waitingCount.value} 个`
-  if (retryCount.value) return `重试失败项（${retryCount.value}）`
-  return '正在上传…'
-})
-const selectedTypeName = computed(() => ({ image: '照片', video: '视频', document: '文档', audio: '音频', other: '其他文件' }[selectedType.value || 'other']))
-const selectedFolderName = computed(() => props.folderOptions.find((folder) => folder.id === selectedFolderId.value)?.name || props.folderOptions[0]?.name || 'Ula')
+  if (waitingCount.value && retryCount.value)
+    return `上传 ${waitingCount.value} 个 · 重试 ${retryCount.value} 个`;
+  if (waitingCount.value) return `上传 ${waitingCount.value} 个`;
+  if (retryCount.value) return `重试失败项（${retryCount.value}）`;
+  return "正在上传…";
+});
+const selectedTypeName = computed(
+  () =>
+    ({
+      image: "照片",
+      video: "视频",
+      document: "文档",
+      audio: "音频",
+      other: "其他文件",
+    })[selectedType.value || "other"],
+);
+const selectedFolderName = computed(
+  () =>
+    props.folderOptions.find((folder) => folder.id === selectedFolderId.value)
+      ?.name ||
+    props.folderOptions[0]?.name ||
+    "Ula",
+);
 
 async function chooseType(type: UploadType, typeAccept: string) {
-  selectedType.value = type
-  accept.value = typeAccept
-  await nextTick()
-  fileInput.value?.click()
+  selectedType.value = type;
+  accept.value = typeAccept;
+  await nextTick();
+  fileInput.value?.click();
 }
 
 function handleFileSelection(event: Event) {
-  const input = event.target as HTMLInputElement
-  const files = [...(input.files || [])]
-  const accepted = files.filter((file) => file.size <= MAX_UPLOAD_SIZE)
-  const rejected = files.length - accepted.length
-  oversizeNotice.value = rejected ? `已忽略 ${rejected} 个超过 100MB 的文件` : ''
-  uploadTasks.value.push(...accepted.map((file, index) => ({ id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`, file, status: 'waiting' as const, progress: 0 })))
-  input.value = ''
+  const input = event.target as HTMLInputElement;
+  const files = [...(input.files || [])];
+  uploadTasks.value.push(
+    ...files.map((file, index) => ({
+      id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`,
+      file,
+      status: "waiting" as const,
+      progress: 0,
+    })),
+  );
+  input.value = "";
 }
 
 function removeFile(fileId: string) {
-  const task = uploadTasks.value.find(({ id }) => id === fileId)
-  if (!task || task.status === 'uploading' || task.status === 'success') return
-  uploadTasks.value = uploadTasks.value.filter(({ id }) => id !== fileId)
+  const task = uploadTasks.value.find(({ id }) => id === fileId);
+  if (!task || task.status === "uploading" || task.status === "success") return;
+  uploadTasks.value = uploadTasks.value.filter(({ id }) => id !== fileId);
+  transfers.removeUpload(fileId);
 }
 
 function formatSize(size: number) {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function fileType(file: File) {
-  if (file.type) return file.type.split('/').pop()?.toUpperCase() || file.type
-  return file.name.split('.').pop()?.toUpperCase() || '文件'
+  if (file.type) return file.type.split("/").pop()?.toUpperCase() || file.type;
+  return file.name.split(".").pop()?.toUpperCase() || "文件";
 }
 
 function selectFolder(folderId: string | null) {
-  selectedFolderId.value = folderId
-  folderPickerOpen.value = false
+  selectedFolderId.value = folderId;
+  folderPickerOpen.value = false;
 }
 
 async function runUpload(task: UploadTask) {
-  const controller = new AbortController()
-  controllers.set(task.id, controller)
-  task.status = 'uploading'
-  task.progress = 0
-  task.error = undefined
+  const controller = new AbortController();
+  const useChunks = shouldUseChunkedUpload(task.file.size);
+  controllers.set(task.id, controller);
+  task.mode = useChunks ? "chunked" : "normal";
+  task.status = useChunks ? "preparing" : "uploading";
+  task.progress = 0;
+  task.error = undefined;
   try {
-    const options = {
-      file: task.file,
-      parentId: task.parentId ?? null,
-      signal: controller.signal,
-      onProgress: (progress: number) => { task.progress = progress },
-    }
-    const item = task.file.size > CHUNK_THRESHOLD
-      ? await uploadFileChunked(options)
-      : await uploadFile(options)
-    task.progress = 100
-    task.status = 'success'
-    emit('uploaded', item)
+    const item = useChunks
+      ? await uploadFileInChunks({
+          file: task.file,
+          parentId: task.parentId ?? null,
+          signal: controller.signal,
+          onPhase: (phase) => {
+            task.status = phase === "hashing" ? "preparing" : "uploading";
+          },
+          onProgress: (progress) => {
+            task.progress = progress;
+          },
+        })
+      : await uploadFile({
+          file: task.file,
+          parentId: task.parentId ?? null,
+          signal: controller.signal,
+          onProgress: (progress) => {
+            task.progress = progress;
+          },
+        });
+    task.progress = 100;
+    task.status = "success";
+    emit("uploaded", item);
   } catch (error) {
     if (isUploadCancelled(error, controller.signal)) {
-      task.status = 'cancelled'
+      task.status = "cancelled";
     } else {
-      task.status = 'failed'
-      task.error = uploadErrorMessage(error)
+      task.status = "failed";
+      task.error = uploadErrorMessage(error);
     }
   } finally {
-    controllers.delete(task.id)
+    controllers.delete(task.id);
   }
 }
 
 function startUpload() {
-  uploadTasks.value.filter((task) => task.status === 'waiting').forEach((task) => {
-    task.parentId = selectedFolderId.value
-    void runUpload(task)
-  })
-  uploadTasks.value.filter((task) => task.status === 'failed' || task.status === 'cancelled').forEach((task) => {
-    task.parentId = selectedFolderId.value
-    void runUpload(task)
-  })
+  uploadTasks.value
+    .filter((task) => task.status === "waiting")
+    .forEach((task) => {
+      task.parentId = selectedFolderId.value;
+      void runUpload(task);
+    });
+  uploadTasks.value
+    .filter((task) => task.status === "failed" || task.status === "cancelled")
+    .forEach((task) => {
+      task.parentId = selectedFolderId.value;
+      void runUpload(task);
+    });
 }
 
 function retryUpload(task: UploadTask) {
-  if (task.status === 'failed' || task.status === 'cancelled') {
-    task.parentId = selectedFolderId.value
-    void runUpload(task)
+  if (task.status === "failed" || task.status === "cancelled") {
+    task.parentId = selectedFolderId.value;
+    void runUpload(task);
   }
 }
 
 function cancelUpload(task: UploadTask) {
-  controllers.get(task.id)?.abort()
+  controllers.get(task.id)?.abort();
 }
 
-function statusText(status: UploadStatus) {
-  return ({ waiting: '等待上传', uploading: '上传中', success: '上传成功', failed: '上传失败', cancelled: '已取消' })[status]
+function statusText(task: UploadTask) {
+  if (task.status === "preparing") return "正在计算文件校验值";
+  if (task.status === "uploading" && task.mode === "chunked")
+    return "分片上传中";
+  return {
+    waiting: "等待上传",
+    preparing: "准备中",
+    uploading: "上传中",
+    success: "上传成功",
+    failed: "上传失败",
+    cancelled: "已取消",
+  }[task.status];
 }
 </script>
 
 <template>
-  <div v-if="open" class="upload-overlay" role="presentation" @click.self="emit('close')">
-    <section class="upload-panel" role="dialog" aria-modal="true" aria-labelledby="upload-title">
-      <header class="upload-header">
-        <div><span class="upload-eyebrow">CendoDrive · 文件中心</span><h2 id="upload-title">上传文件</h2></div>
-        <button class="close-button" type="button" aria-label="关闭上传面板" @click="emit('close')"><X :size="20" /></button>
-      </header>
-
-      <div class="desktop-dropzone"><span class="dropzone-icon"><UploadCloud :size="28" /></span><strong>把文件拖到这里</strong><p>也可以选择下方的文件类型开始上传</p></div>
-
-      <div class="upload-section-heading"><span>选择上传内容</span><small>可多选文件</small></div>
-      <div class="upload-options">
-        <button class="upload-option option-image" type="button" @click="chooseType('image', '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg')"><span><Image :size="21" /></span><b>照片</b><small>JPG、PNG</small></button>
-        <button class="upload-option option-video" type="button" @click="chooseType('video', '.mp4,.mov,.mkv,.avi,.webm')"><span><Video :size="21" /></span><b>视频</b><small>MP4、MOV</small></button>
-        <button class="upload-option option-document" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.txt,.md,.xls,.xlsx,.ppt,.pptx')"><span><FileText :size="21" /></span><b>文档</b><small>PDF、Word</small></button>
-        <button class="upload-option option-audio" type="button" @click="chooseType('audio', '.mp3,.wav,.flac,.aac,.m4a')"><span><Music2 :size="21" /></span><b>音频</b><small>MP3、WAV</small></button>
-        <button class="upload-option option-other" type="button" @click="chooseType('other', '*/*')"><span><UploadCloud :size="21" /></span><b>其他文件</b><small>全部类型</small></button>
-        <div class="upload-option option-folder"><span><FolderPlus :size="21" /></span><b>新建文件夹</b><small>整理文件</small></div>
-        <div class="upload-option option-note"><span><FilePlus2 :size="21" /></span><b>新建文档</b><small>稍后开放</small></div>
+  <Transition name="upload-sheet" appear>
+  <div
+    v-if="open"
+    class="upload-overlay"
+    role="presentation"
+    @click.self="emit('close')"
+  >
+    <section
+      ref="panel"
+      class="upload-panel"
+      tabindex="-1"
+      @keydown="handleDialogKey"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="upload-title"
+    >
+      <div class="backup-banner">
+        <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
+        <span>开启相册备份，节省手机空间</span>
+        <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
+      </div>
+      <div class="upload-content">
+        <div class="upload-quick-actions" aria-label="其他添加方式">
+          <button type="button" disabled aria-label="扫一扫（暂未开放）"><ScanLine /><span>扫一扫<small>暂未开放</small></span></button>
+          <button type="button" disabled aria-label="链接任务（暂未开放）"><Link2 /><span>链接任务<small>暂未开放</small></span></button>
+          <button type="button" disabled aria-label="BT 任务（暂未开放）"><CloudDownload /><span>BT 任务<small>暂未开放</small></span></button>
+        </div>
+        <h2 id="upload-title">上传文件</h2>
+        <div class="upload-options">
+          <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
+            <span class="action-art"><span class="action-badge live-badge">Live 原图</span><UploadActionIcon kind="photo" /></span><span>照片</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('video', 'video/*')">
+            <span class="action-art"><span class="action-badge vip-badge">SVIP</span><UploadActionIcon kind="video" /></span><span>视频</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx')">
+            <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
+            <span class="action-art"><UploadActionIcon kind="music" /></span><span>音乐</span>
+          </button>
+          <button class="upload-option" type="button" aria-label="微信文件（暂未开放）">
+            <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
+            <span class="action-art"><UploadActionIcon kind="file" /></span><span>其他文件</span>
+          </button>
+          <button class="upload-option" type="button" @click="emit('createFolder')">
+            <span class="action-art"><UploadActionIcon kind="folder" /></span><span>新建文件夹</span>
+          </button>
+          <button class="upload-option" type="button" aria-label="新建笔记（暂未开放）">
+            <span class="action-art"><UploadActionIcon kind="note" /></span><span>新建笔记</span>
+          </button>
+        </div>
+        <h2 class="ai-heading">智能生成</h2>
+        <div class="ai-options">
+          <button v-for="action in [
+            { kind: 'camera', label: 'AI相机' },
+            { kind: 'mic', label: 'AI录音速记' },
+            { kind: 'ai-video', label: 'AI视频笔记' },
+            { kind: 'story', label: 'AI照片故事' },
+          ]" :key="action.kind" class="upload-option" type="button" :aria-label="`${action.label}（暂未开放）`">
+            <span class="action-art"><UploadActionIcon :kind="action.kind" /></span><span>{{ action.label }}</span>
+          </button>
+        </div>
+        <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>千度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
       </div>
 
       <p v-if="oversizeNotice" class="upload-notice">{{ oversizeNotice }}</p>
 
       <div v-if="uploadTasks.length" class="selected-files">
-        <div class="selected-files-heading"><div><strong>上传任务</strong><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small></div><span v-if="activeCount">{{ activeCount }} 个正在上传</span><span v-else>逐个显示上传结果</span></div>
+        <div class="selected-files-heading">
+          <div>
+            <strong>上传任务</strong
+            ><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small>
+          </div>
+          <span v-if="activeCount">{{ activeCount }} 个处理中</span
+          ><span v-else>逐个显示上传结果</span>
+        </div>
         <ul>
-          <li v-for="task in uploadTasks" :key="task.id" class="upload-task-row">
-            <span class="file-badge"><Check v-if="task.status === 'success'" :size="17" /><LoaderCircle v-else-if="task.status === 'uploading'" class="spin" :size="17" /><FileText v-else :size="17" /></span>
-            <div class="file-meta"><b :title="task.file.name">{{ task.file.name }}</b><small>{{ formatSize(task.file.size) }} · {{ fileType(task.file) }} · {{ statusText(task.status) }}</small><div v-if="task.status === 'uploading' || task.status === 'success'" class="progress-line"><div class="progress-track"><span :class="task.status" :style="{ width: `${task.progress}%` }"></span></div><small>{{ task.progress }}%</small></div><small v-if="task.error" class="task-error">{{ task.error }}</small></div>
-            <button v-if="task.status === 'uploading'" type="button" aria-label="取消上传" @click="cancelUpload(task)"><X :size="16" /></button>
-            <button v-else-if="task.status === 'failed' || task.status === 'cancelled'" type="button" aria-label="重试上传" @click="retryUpload(task)"><RotateCcw :size="16" /></button>
-            <button v-else-if="task.status !== 'success'" type="button" aria-label="移除文件" @click="removeFile(task.id)"><Trash2 :size="16" /></button>
+          <li
+            v-for="task in uploadTasks"
+            :key="task.id"
+            class="upload-task-row"
+          >
+            <span class="file-badge"
+              ><Check
+                v-if="task.status === 'success'"
+                :size="17" /><LoaderCircle
+                v-else-if="
+                  task.status === 'preparing' || task.status === 'uploading'
+                "
+                class="spin"
+                :size="17" /><FileText v-else :size="17"
+            /></span>
+            <div class="file-meta">
+              <b :title="task.file.name">{{ task.file.name }}</b
+              ><small
+                >{{ formatSize(task.file.size) }} · {{ fileType(task.file) }} ·
+                {{ statusText(task) }}</small
+              >
+              <div
+                v-if="
+                  task.status === 'preparing' ||
+                  task.status === 'uploading' ||
+                  task.status === 'success'
+                "
+                class="progress-line"
+              >
+                <div class="progress-track">
+                  <span
+                    :class="task.status"
+                    :style="{ width: `${task.progress}%` }"
+                  ></span>
+                </div>
+                <small>{{
+                  task.status === "preparing"
+                    ? `校验 ${task.progress}%`
+                    : `${task.progress}%`
+                }}</small>
+              </div>
+              <small v-if="task.error" class="task-error">{{
+                task.error
+              }}</small>
+            </div>
+            <button
+              v-if="task.status === 'preparing' || task.status === 'uploading'"
+              type="button"
+              aria-label="取消上传"
+              @click="cancelUpload(task)"
+            >
+              <X :size="16" />
+            </button>
+            <button
+              v-else-if="
+                task.status === 'failed' || task.status === 'cancelled'
+              "
+              type="button"
+              aria-label="重试上传"
+              @click="retryUpload(task)"
+            >
+              <RotateCcw :size="16" />
+            </button>
+            <button
+              v-else-if="task.status !== 'success'"
+              type="button"
+              aria-label="移除文件"
+              @click="removeFile(task.id)"
+            >
+              <Trash2 :size="16" />
+            </button>
           </li>
         </ul>
       </div>
 
-      <div v-if="selectedFiles.length && folderPickerOpen" class="folder-picker">
-        <div class="folder-picker-heading"><strong>选择上传位置</strong><button type="button" aria-label="关闭文件夹选择" @click="folderPickerOpen = false"><X :size="16" /></button></div>
-        <button v-for="folder in props.folderOptions" :key="folder.id || 'root'" type="button" :class="{ selected: folder.id === selectedFolderId }" @click="selectFolder(folder.id)">{{ folder.name }}<span v-if="folder.id === selectedFolderId">已选择</span></button>
+      <div
+        v-if="selectedFiles.length && folderPickerOpen"
+        class="folder-picker"
+      >
+        <div class="folder-picker-heading">
+          <strong>选择上传位置</strong
+          ><button
+            type="button"
+            aria-label="关闭文件夹选择"
+            @click="folderPickerOpen = false"
+          >
+            <X :size="16" />
+          </button>
+        </div>
+        <button
+          v-for="folder in props.folderOptions"
+          :key="folder.id || 'root'"
+          type="button"
+          :class="{ selected: folder.id === selectedFolderId }"
+          @click="selectFolder(folder.id)"
+        >
+          {{ folder.name
+          }}<span v-if="folder.id === selectedFolderId">已选择</span>
+        </button>
       </div>
 
-      <input ref="fileInput" class="file-input" type="file" :accept="accept" multiple @change="handleFileSelection" />
-      <footer class="upload-footer">
+      <input
+        ref="fileInput"
+        class="file-input"
+        type="file"
+        :accept="accept"
+        multiple
+        @change="handleFileSelection"
+      />
+      <footer v-if="uploadTasks.length" class="upload-footer">
         <template v-if="uploadTasks.length">
-          <button class="destination-button" type="button" @click="folderPickerOpen = !folderPickerOpen">上传到：<b>{{ selectedFolderName }}</b><span>›</span></button>
-          <button v-if="hasPending || activeCount" class="start-upload-button" type="button" :disabled="waitingCount + retryCount === 0" @click="startUpload">{{ uploadButtonText }}</button>
-          <button v-else type="button" @click="emit('close')">完成</button>
+          <button
+            class="destination-button"
+            type="button"
+            @click="folderPickerOpen = !folderPickerOpen"
+          >
+            上传到：<b>{{ selectedFolderName }}</b
+            ><span>›</span>
+          </button>
+          <button
+            v-if="hasPending || activeCount"
+            class="start-upload-button"
+            type="button"
+            :disabled="waitingCount + retryCount === 0"
+            @click="startUpload"
+          >
+            {{ uploadButtonText }}
+          </button>
+          <button v-else class="upload-complete-button" type="button" @click="emit('close')">上传完成</button>
         </template>
-        <template v-else><span>选择文件后，可在这里查看上传进度</span><button type="button" @click="emit('close')">暂时取消</button></template>
+        <template v-else
+          ><span>选择文件后，可在这里查看上传进度</span
+          ><button type="button" @click="emit('close')">
+            暂时取消
+          </button></template
+        >
       </footer>
     </section>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
-.upload-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;background:rgba(17,29,52,.42);backdrop-filter:blur(5px)}
-.upload-panel{width:min(560px,100%);overflow:hidden;border:1px solid rgba(255,255,255,.8);border-radius:24px;background:#fff;box-shadow:0 26px 80px rgba(22,44,83,.24);color:#19243a}
-.upload-header{display:flex;align-items:flex-start;justify-content:space-between;padding:28px 30px 22px;border-bottom:1px solid #edf1f7}.upload-eyebrow{display:block;margin-bottom:8px;color:#6e7b91;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.upload-header h2{margin:0;font-size:25px;letter-spacing:-.03em}.close-button{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:11px;background:#f3f6fb;color:#64728a}.close-button:hover{background:#e8eef9;color:#2868ed}
-.desktop-dropzone{margin:24px 30px 22px;padding:25px 20px;border:1px dashed #b8caec;border-radius:17px;background:linear-gradient(135deg,#f7faff,#eef5ff);text-align:center}.dropzone-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 12px;border-radius:16px;background:#dce9ff;color:#2868ed}.desktop-dropzone strong{display:block;font-size:15px}.desktop-dropzone p{margin:7px 0 0;color:#8895a9;font-size:12px}
-.upload-section-heading{display:flex;align-items:center;justify-content:space-between;padding:0 30px 12px;color:#26344d;font-size:13px;font-weight:700}.upload-section-heading small{color:#a0a9b8;font-size:11px;font-weight:500}.upload-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 30px 24px}.upload-option{min-height:91px;padding:14px 12px;border:1px solid #edf0f5;border-radius:15px;background:#fff;color:#19243a;text-align:left}.upload-option button{cursor:pointer}.upload-option:hover{border-color:#9db9ef;background:#f7faff}.upload-option>span{display:grid;place-items:center;width:34px;height:34px;margin-bottom:8px;border-radius:10px}.upload-option b,.upload-option small{display:block}.upload-option b{font-size:12px}.upload-option small{margin-top:3px;color:#9aa5b5;font-size:10px}.option-image>span{background:#e7f1ff;color:#4285ed}.option-video>span{background:#e9f8f0;color:#21a96a}.option-document>span{background:#fff0e7;color:#ef8238}.option-audio>span{background:#f0ebff;color:#8469df}.option-other>span{background:#e8f7ff;color:#2793cf}.option-folder>span{background:#fff7de;color:#d69921}.option-note>span{background:#f1f3f6;color:#8e98a8}
-.selected-files{margin:0 30px 24px;padding:16px;border:1px solid #e7edf6;border-radius:15px;background:#fbfcff}.selected-files-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.selected-files-heading strong,.selected-files-heading small{display:block}.selected-files-heading strong{font-size:13px}.selected-files-heading small{margin-top:4px;color:#8d9aae;font-size:11px}.selected-files-heading>span{color:#7c8da7;font-size:10px}.selected-files ul{max-height:170px;margin:0;padding:0;overflow:auto;list-style:none}.selected-files li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #edf1f6}.file-badge{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:9px;background:#eeeaff;color:#7564e9}.file-meta{min-width:0;flex:1}.file-meta b,.file-meta small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-meta b{font-size:12px}.file-meta small{margin-top:3px;color:#8f9aac;font-size:10px}.selected-files li>button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:#a0aaba}.selected-files li>button:hover{background:#fff0f0;color:#e15d68}.file-input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.progress-line{display:flex;align-items:center;gap:8px;margin-top:7px}.progress-line>small{flex:0 0 32px;margin:0;text-align:right}.progress-track{height:4px;flex:1;overflow:hidden;border-radius:999px;background:#e8edf5}.progress-track span{display:block;height:100%;border-radius:inherit;background:#54a9eb;transition:width .18s ease}.progress-track span.success{background:#2fac78}.task-error{color:#d74d58!important;white-space:normal!important}.upload-notice{margin:-10px 30px 20px;color:#d74d58;font-size:11px;line-height:1.5}.spin{animation:upload-spin 1s linear infinite}.start-upload-button:disabled{cursor:not-allowed;opacity:.55}
- .folder-picker{margin:0 30px 18px;padding:13px;border:1px solid #e5ebf5;border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(35,62,104,.08)}.folder-picker-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;color:#26344d;font-size:12px}.folder-picker-heading button{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:7px;background:#f3f6fb;color:#718098}.folder-picker>button{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#4a5870;text-align:left;font-size:12px}.folder-picker>button:hover,.folder-picker>button.selected{background:#eef4ff;color:#2868ed}.folder-picker>button span{font-size:10px}.upload-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 30px;background:#fafbfd;color:#8995a8;font-size:11px}.upload-footer button{height:34px;padding:0 15px;border:1px solid #dce4f1;border-radius:9px;background:#fff;color:#3d6ec9;font-size:12px;font-weight:600}.upload-footer button:hover{border-color:#9db9ef;background:#f5f8ff}.destination-button{display:flex;align-items:center;gap:4px;min-width:0;flex:1;text-align:left}.destination-button b{overflow:hidden;color:#2868ed;text-overflow:ellipsis;white-space:nowrap}.destination-button span{margin-left:auto;color:#8d9bb0;font-size:20px;line-height:1}.start-upload-button{border-color:#8bc9f6!important;background:#8ed1f7!important;color:#fff!important}.start-upload-button:hover{border-color:#50afe8!important;background:#68c0f1!important}
- @media(max-width:700px){.upload-overlay{align-items:end;padding:0;background:rgba(17,29,52,.48)}.upload-panel{width:100%;border-radius:25px 25px 0 0;box-shadow:0 -18px 55px rgba(22,44,83,.18);animation:upload-sheet-in .22s ease-out}.upload-header{padding:22px 22px 17px}.upload-header h2{font-size:22px}.desktop-dropzone{display:none}.upload-section-heading{padding:20px 22px 12px}.upload-options{grid-template-columns:repeat(3,1fr);gap:9px;padding:0 22px 20px}.upload-option{min-height:84px;padding:12px 9px}.selected-files{margin:0 22px 20px}.folder-picker{margin:0 22px 16px}.upload-notice{margin:-8px 22px 16px}.upload-footer{padding:14px 22px max(14px,env(safe-area-inset-bottom));margin:0}.upload-footer span{max-width:200px;line-height:1.5}.destination-button{padding-left:0;padding-right:0}.start-upload-button{flex:0 0 auto;padding-inline:17px!important}}
- @keyframes upload-sheet-in{from{transform:translateY(22px);opacity:.6}to{transform:translateY(0);opacity:1}}
- @keyframes upload-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.upload-panel{animation:none}}
+.upload-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 70%);
+}
+.upload-panel {
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 100% 65%, #f0f9ff, transparent 45%), linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
+  color: #080f1e;
+  outline: none;
+}
+.upload-panel button { font: inherit; cursor: pointer; }
+.upload-panel button:focus-visible { outline: 2px solid #438aff; outline-offset: 4px; }
+.backup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #eaf0f5;
+  font-size: 16px;
+  font-weight: 600;
+  color: #50596b;
+}
+.backup-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: white; }
+.backup-icon svg { width: 21px; height: 21px; }
+.backup-banner button { margin-left: auto; padding: 10px 12px; flex-shrink: 0; border: 0; border-radius: 9px; background: #e4eeff; color: #4185ff; font-weight: 600; }
+.upload-content { padding: 17px 17px 40px; }
+.upload-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.upload-quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 58px; padding: 8px; border: 0; border-radius: 14px; background: #fff; color: #33435c; }
+.upload-quick-actions button:disabled { cursor: default; }
+.upload-quick-actions svg { flex: none; width: 24px; height: 24px; color: #4696f1; }
+.upload-quick-actions span { min-width: 0; font-size: 14px; white-space: nowrap; }
+.upload-quick-actions small { display: block; color: #8491a4; font-size: 10px; }
+.upload-content h2 { margin: 26px 9px 21px; font-size: 21px; line-height: 1.3; font-weight: 700; }
+.upload-options, .ai-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0; row-gap: 19px; }
+.upload-option { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px 0 0; border: 0; background: transparent; color: inherit; font-size: 17px !important; white-space: nowrap; }
+.action-art { position: relative; display: block; width: 51px; height: 51px; }
+.action-art > svg { width: 100%; height: 100%; }
+.action-badge { position: absolute; z-index: 1; top: -19px; left: 36px; padding: 2px 8px; border-radius: 20px; font-size: 14px; line-height: 1.25; white-space: nowrap; }
+.live-badge { background: #4287ff; color: white; }
+.vip-badge { background: #35251f; color: #fce1bb; font-style: italic; font-weight: 700; }
+.upload-content .ai-heading { margin-top: 37px; margin-bottom: 22px; }
+.ai-options .action-art { width: 48px; height: 48px; }
+.ai-options .upload-option { gap: 17px; }
+.security-caption { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 23px; color: #4185ff; font-size: 16px; font-weight: 500; }
+
+.selected-files {
+  margin: 0 30px 24px;
+  padding: 16px;
+  border: 1px solid #e7edf6;
+  border-radius: 15px;
+  background: #fbfcff;
+}
+.selected-files-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.selected-files-heading strong,
+.selected-files-heading small {
+  display: block;
+}
+.selected-files-heading strong {
+  font-size: 13px;
+}
+.selected-files-heading small {
+  margin-top: 4px;
+  color: #8d9aae;
+  font-size: 11px;
+}
+.selected-files-heading > span {
+  color: #7c8da7;
+  font-size: 10px;
+}
+.selected-files ul {
+  max-height: 170px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.selected-files li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid #edf1f6;
+}
+.file-badge {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #eeeaff;
+  color: #7564e9;
+}
+.file-meta {
+  min-width: 0;
+  flex: 1;
+}
+.file-meta b,
+.file-meta small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-meta b {
+  font-size: 12px;
+}
+.file-meta small {
+  margin-top: 3px;
+  color: #8f9aac;
+  font-size: 10px;
+}
+.selected-files li > button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #a0aaba;
+}
+.selected-files li > button:hover {
+  background: #fff0f0;
+  color: #e15d68;
+}
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.progress-line > small {
+  flex: 0 0 32px;
+  margin: 0;
+  text-align: right;
+}
+.progress-track {
+  height: 4px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8edf5;
+}
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #54a9eb;
+  transition: width 0.18s ease;
+}
+.progress-track span.success {
+  background: #2fac78;
+}
+.task-error {
+  color: #d74d58 !important;
+  white-space: normal !important;
+}
+.spin {
+  animation: upload-spin 1s linear infinite;
+}
+.start-upload-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.folder-picker {
+  margin: 0 30px 18px;
+  padding: 13px;
+  border: 1px solid #e5ebf5;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(35, 62, 104, 0.08);
+}
+.folder-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  color: #26344d;
+  font-size: 12px;
+}
+.folder-picker-heading button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: #f3f6fb;
+  color: #718098;
+}
+.folder-picker > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #4a5870;
+  text-align: left;
+  font-size: 12px;
+}
+.folder-picker > button:hover,
+.folder-picker > button.selected {
+  background: #eef4ff;
+  color: #2868ed;
+}
+.folder-picker > button span {
+  font-size: 10px;
+}
+.upload-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 30px;
+  background: #fafbfd;
+  color: #8995a8;
+  font-size: 11px;
+}
+.upload-footer button {
+  height: 34px;
+  padding: 0 15px;
+  border: 1px solid #dce4f1;
+  border-radius: 9px;
+  background: #fff;
+  color: #3d6ec9;
+  font-size: 12px;
+  font-weight: 600;
+}
+.upload-footer button:hover {
+  border-color: #9db9ef;
+  background: #f5f8ff;
+}
+.destination-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.destination-button b {
+  overflow: hidden;
+  color: #2868ed;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.destination-button span {
+  margin-left: auto;
+  color: #8d9bb0;
+  font-size: 20px;
+  line-height: 1;
+}
+.start-upload-button {
+  border-color: #2877e5 !important;
+  background: #2877e5 !important;
+  color: #fff !important;
+}
+.start-upload-button:hover:not(:disabled) {
+  border-color: #1766d2 !important;
+  background: #1766d2 !important;
+}
+.upload-complete-button {
+  border-color: #b9ddf4 !important;
+  background: #b9ddf4 !important;
+  color: #fff !important;
+}
+.upload-complete-button:hover {
+  border-color: #a8d3ef !important;
+  background: #a8d3ef !important;
+}
+
+@media (width < 768px) {
+  .upload-overlay { align-items: end; padding: 0; }
+  .upload-panel { width: 100%; max-height: 100dvh; border-radius: 0; }
+  .backup-banner { padding: 9px 18px; gap: 7px; font-size: 12px; min-height: 49px; box-sizing: border-box; }
+  .backup-icon { width: 24px; height: 24px; }
+  .backup-icon svg { width: 16px; height: 16px; }
+  .backup-banner button { padding: 7px 8px; border-radius: 7px; }
+  .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
+  .upload-quick-actions { gap: 6px; }
+  .upload-quick-actions button { min-height: 48px; padding: 5px 3px; gap: 4px; border-radius: 12px; }
+  .upload-quick-actions svg { width: 19px; height: 19px; }
+  .upload-quick-actions span { font-size: 11px; }
+  .upload-quick-actions small { font-size: 9px; }
+  .upload-content h2 { margin: 18px 6px 14px; font-size: 14px; }
+  .upload-options { row-gap: 0; }
+  .upload-option { gap: 9px; padding-top: 0; font-size: 12px !important; line-height: 1.25; }
+  .action-art { width: 36px; height: 36px; }
+  .action-badge { top: -13px; left: 25px; padding: 1px 6px; font-size: 10px; }
+  .upload-content .ai-heading { margin-top: 25px; margin-bottom: 13px; }
+  .ai-options .action-art { width: 34px; height: 34px; }
+  .ai-options .upload-option { gap: 12px; }
+  .security-caption { gap: 4px; margin-top: 16px; font-size: 12px; }
+  .security-caption svg { width: 14px; height: 14px; }
+  .selected-files { margin: 0 18px 16px; }
+  .folder-picker { margin: 0 18px 16px; }
+  .upload-footer { padding: 14px 18px max(14px, env(safe-area-inset-bottom)); }
+}
+.upload-sheet-enter-active,
+.upload-sheet-leave-active {
+  transition: opacity 280ms ease;
+}
+.upload-sheet-enter-active .upload-panel,
+.upload-sheet-leave-active .upload-panel {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.upload-sheet-leave-active {
+  pointer-events: none;
+  transition-duration: 220ms;
+}
+.upload-sheet-leave-active .upload-panel {
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+.upload-sheet-enter-from,
+.upload-sheet-leave-to {
+  opacity: 0;
+}
+.upload-sheet-enter-from .upload-panel,
+.upload-sheet-leave-to .upload-panel {
+  transform: translateY(100%);
+}
+@keyframes upload-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+  .progress-track span,
+  .upload-sheet-enter-active,
+  .upload-sheet-leave-active,
+  .upload-sheet-enter-active .upload-panel,
+  .upload-sheet-leave-active .upload-panel { transition: none; }
+  .upload-sheet-enter-from .upload-panel,
+  .upload-sheet-leave-to .upload-panel { transform: none; }
+}
+
 </style>

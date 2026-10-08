@@ -12,7 +12,7 @@
 
 ## 产品一览
 
-CendoDrive 面向个人文件的上传、归类和管理。前端提供文件列表及文件夹视图；后端负责身份校验、文件元数据、存储读写与回收站操作。目前仍处于开发阶段，分享页面不是可用的真实分享服务。
+CendoDrive 面向个人文件的上传、归类和管理。前端提供文件列表及文件夹视图；后端负责身份校验、文件元数据、存储读写与回收站操作。目前仍处于开发阶段，已支持限时分享及跨用户独立转存。
 
 | 能力       | 当前实现                                           |
 | ---------- | -------------------------------------------------- |
@@ -20,7 +20,7 @@ CendoDrive 面向个人文件的上传、归类和管理。前端提供文件列
 | 文件整理   | 按目录浏览、新建文件夹、重命名和移动               |
 | 文件传输   | 上传至 FastDFS、经鉴权下载；单文件上限 100 MB      |
 | 回收站     | 移入、恢复、永久删除和清空                         |
-| 分享       | 尚无后端分享接口；前端相关页面仅供展示             |
+| 分享       | Redis TTL 限时链接、匿名下载、撤销和登录后独立转存 |
 
 ## 它如何工作
 
@@ -34,18 +34,29 @@ Spring Boot API
     └── 文件上传与下载 ── FastDFS tracker + storage
 ```
 
-文件接口按登录用户隔离数据；上传后元数据写入 MySQL，文件内容存入 FastDFS。下载经后端鉴权，不直接向浏览器公开存储服务地址。历史本地存储文件保留读取兼容。
+文件接口和分享管理按登录用户隔离数据；上传后元数据写入 MySQL，文件内容存入 FastDFS。下载经后端鉴权，不直接向浏览器公开存储服务地址。历史本地存储文件保留读取兼容。
 
 ## 快速开始
 
-需要 **Java 21、Maven、Node.js/npm、MySQL 和 Redis**。使用上传和下载功能还需可访问的 FastDFS tracker 及其返回的 storage 地址。先创建 `cendo` 数据库，并为应用账号提供 Flyway 迁移所需的建表权限及数据读写权限。
+需要 **Docker Compose**。一键构建并启动前端、后端、MySQL `cendo`、Redis、FastDFS tracker 和三个 storage：
 
 ```sh
+docker compose up -d --build
+# 如端口已被现有容器占用，请先停止现有容器；不要删除原有数据卷。
+```
+
+打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，Compose 前端使用 Vite Preview 将 `/api/` 代理至后端，无需配置 Nginx（仅用于本机开发）。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
+
+```sh
+# 可选：在宿主机分别开发时，需 Java 21、Maven、Node.js/npm；只启动依赖：
+# docker compose up -d mysql redis tracker storage1 storage2 storage3
 # 终端 1：后端
 cd backend
 cp src/main/resources/application.example.yml src/main/resources/application.yml
-# 编辑本地 application.yml，或设置 DB_URL、DB_USER、DB_PASSWORD、REDIS_*、FASTDFS_TRACKER 等环境变量
-mvn spring-boot:run
+# 示例默认 DB_USER=cendo、REDIS_HOST=localhost、FASTDFS_TRACKER=localhost:22122
+# Compose 默认密码需同步设置；也可编辑本地 application.yml
+DB_PASSWORD=cendo_dev_password mvn spring-boot:run
+# 若已在 application.yml 设置密码，则直接运行 mvn spring-boot:run
 ```
 
 ```sh
@@ -58,7 +69,23 @@ npm run dev
 打开 `http://localhost:5173`；后端默认监听 `http://localhost:8080`。开发服务器默认把 `/api` 代理到后端 8080；如需调整，设置 `VITE_API_PROXY_TARGET`。不要将密码或 Token 放入 `VITE_*` 环境变量，它们会暴露在浏览器中。本地配置文件不要提交到仓库。
 
 > [!NOTE]
-> 本仓库没有 Docker Compose 一键部署配置。生产部署需要单独配置数据库、Redis、FastDFS、HTTPS 和访问控制；本地开发默认值不等于生产安全配置。
+> Compose 面向本机开发，不提供生产级 HTTPS、访问控制或备份；默认密码不适用于生产。
+
+### FastDFS 上传空间不足
+
+节点 `ACTIVE` 只说明在线，不保证允许上传。镜像默认预留磁盘的 20%；低于阈值时 SDK 会报 `错误码：28，错误信息：没有足够的存储空间`，即使磁盘仍有空闲。
+
+本地 Compose 默认预留 **5%**，可用 `FDFS_RESERVED_STORAGE_SPACE` 覆盖（整数 `1%`–`99%`，拒绝零预留）。例如设置 `FDFS_RESERVED_STORAGE_SPACE=10%` 后启动。生产环境应根据容量、备份和监控另行选择阈值，不要关闭空间保护。
+
+已有环境应用修改时只需重建 tracker，再重启 storage 获取新策略；不删除数据卷：
+
+```sh
+docker compose up -d --no-deps tracker
+docker compose restart storage1 storage2 storage3
+docker compose exec tracker fdfs_monitor /etc/fdfs/client.conf
+```
+
+检查三节点均为 `ACTIVE`，且 `disk available space` 大于待上传文件大小。如果修改了后端鉴权代码，也需重启本机后端（容器部署则重新构建后端），否则仍会运行旧的异步下载逻辑。
 
 ## 技术架构
 

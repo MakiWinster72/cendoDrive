@@ -1,0 +1,204 @@
+@media (width < 768px) {
+  .my-shares-mobile {
+    min-height: 100dvh;
+    padding-bottom: 80px;
+    background: #fff;
+    color: #19243a;
+  }
+  .my-shares-head {
+    height: 67px;
+    display: grid;
+    grid-template-columns: 55px 1fr 62px;
+    align-items: center;
+    padding: 0 14px;
+  }
+  .my-shares-head h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .my-shares-head button {
+    border: 0;
+    background: transparent;
+    color: #2b3c58;
+  }
+  .my-shares-back {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+  }
+  .my-shares-select {
+    height: 42px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .my-shares-tabs {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    padding: 0 12px;
+    border-bottom: 1px solid #edf1f6;
+    scrollbar-width: none;
+  }
+  .my-shares-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .my-shares-tabs button {
+    position: relative;
+    flex: 0 0 auto;
+    height: 49px;
+    padding: 0 13px;
+    border: 0;
+    background: #fff;
+    color: #9aa5b5;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .my-shares-tabs button.active {
+    color: #287df4;
+    font-weight: 700;
+  }
+  .my-shares-tabs button.active:after {
+    position: absolute;
+    bottom: 1px;
+    left: calc(50% - 8px);
+    width: 16px;
+    height: 3px;
+    border-radius: 3px;
+    background: #2985ff;
+    content: "";
+  }
+  .my-shares-content {
+    min-height: calc(100dvh - 117px);
+    background: #fff;
+  }
+  .my-shares-empty {
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px;
+    color: #9ca9b9;
+    text-align: center;
+    font-size: 13px;
+  }
+  .my-shares-empty p {
+    margin: 0;
+    line-height: 1.6;
+  }
+  .my-shares-empty button {
+    padding: 9px 16px;
+    border: 1px solid #c9dbfb;
+    border-radius: 8px;
+    background: #f2f7ff;
+    color: #286fe8;
+  }
+  .my-shares-items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .my-shares-row {
+    width: 100%;
+    min-height: 82px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border: 0;
+    border-bottom: 1px solid #f0f3f7;
+    background: #fff;
+    text-align: left;
+    font-family: inherit;
+  }
+  .my-shares-row.selected {
+    background: #edf5ff;
+  }
+  .my-shares-file-icon {
+    flex: 0 0 40px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+    background: #e7f4ff;
+    color: #239aef;
+  }
+  .my-shares-file-info {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .my-shares-file-info strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #27364c;
+    font-size: 13px;
+  }
+  .my-shares-file-info small {
+    color: #acb6c4;
+    font-size: 10px;
+  }
+  .my-shares-status {
+    max-width: 84px;
+    color: #3689ec;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .my-shares-status.expired,
+  .my-shares-status.cancelled {
+    color: #9ca6b6;
+  }
+  .my-shares-check {
+    flex: 0 0 19px;
+    display: grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    border: 1.5px solid #d5dce5;
+    border-radius: 50%;
+    color: #fff;
+  }
+  .my-shares-check.checked {
+    border-color: #3186fb;
+    background: #3186fb;
+  }
+  .my-shares-check.unavailable {
+    opacity: 0.4;
+  }
+  .my-shares-actions {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 62px;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #3288f5;
+    box-shadow: 0 -6px 20px rgba(43, 112, 215, 0.15);
+  }
+  .my-shares-actions button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+  }
+  .my-shares-actions button:disabled {
+    opacity: 0.5;
+  }
+
+}
