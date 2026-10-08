@@ -66,6 +66,8 @@ import TransferPage from "../components/TransferPage.vue";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
+import MobileShareHub from "../components/MobileShareHub.vue";
+import { Send } from "lucide-vue-next";
 import "../styles/profile.css";
 import "../styles/home.css";
 import "../styles/selection.css";
@@ -990,18 +992,7 @@ onUnmounted(() => {
         </button>
       </main>
     </template>
-    <template v-else
-      ><main class="mobile-share-hub">
-        <h1>共享</h1>
-        <div class="mobile-share-hub-tabs">
-          <span>消息</span><span>聊天文件</span><span>文件共享</span>
-        </div>
-        <div class="mobile-share-hub-empty">
-          <MessageCircle :size="38" />
-          <p>暂无消息</p>
-        </div>
-      </main></template
-    >
+    <MobileShareHub v-else />
     <nav
       v-if="
         !showMyShares &&
@@ -1028,7 +1019,7 @@ onUnmounted(() => {
         :class="{ active: mobileTab === 'share' }"
         @click="mobileTab = 'share'"
       >
-        <Share2 /><span>共享</span></button
+        <Send /><em>99</em><span>共享</span></button
       ><button
         :class="{ active: mobileTab === 'profile' }"
         @click="mobileTab = 'profile'"

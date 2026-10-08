@@ -4,7 +4,7 @@
   .mobile-app:has(.m-home-top) {
     background: #f2f4f9;
     color: #090e1c;
-    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-bottom: var(--mobile-content-bottom);
   }
   .m-home-top {
     background: linear-gradient(180deg, #e7f6ff 0%, #fff 54%, #f2f4f9 100%);
@@ -15,7 +15,7 @@
     align-items: center;
     justify-content: space-between;
     height: 78px;
-    padding: 12px 20px 4px;
+    padding: 12px var(--mobile-gutter) 4px;
     background: transparent;
   }
   .m-vip {
@@ -76,7 +76,7 @@
     align-items: center;
     background: #fff;
     width: calc(100% - 36px);
-    margin: 4px 18px 16px;
+    margin: 4px var(--mobile-gutter) 16px;
     height: 50px;
     border: 2px solid #3986eb;
     border-radius: 12px;
@@ -187,7 +187,7 @@
   .mobile-app:has(.m-home-top) .m-banner,
   .mobile-app:has(.m-home-top) .m-memory {
     margin: 5px 0 0;
-    padding: 4px 18px;
+    padding: 4px var(--mobile-gutter);
     border-radius: 19px;
     background: #fff;
     height: auto;
@@ -366,28 +366,6 @@
   .m-discover small {
     font-size: 11px;
     color: #9ca5b5;
-  }
-  .mobile-app:has(.m-home-top) .m-bottom-nav {
-    height: 78px;
-  }
-  .mobile-app:has(.m-home-top) .m-bottom-nav button {
-    font-size: 12px;
-  }
-  .mobile-app:has(.m-home-top) .m-bottom-nav svg {
-    width: 25px;
-    height: 25px;
-  }
-  .mobile-app:has(.m-home-top) .m-bottom-nav .genflow i {
-    width: 56px;
-    height: 56px;
-    background: radial-gradient(
-      circle at 32% 22%,
-      #eaffff,
-      #a6f4fa 45%,
-      #46bceb 85%
-    );
-    color: #fff;
-    box-shadow: 0 2px 10px #45b9e878;
   }
   .m-home-top button:focus-visible,
   .m-panel button:focus-visible,
