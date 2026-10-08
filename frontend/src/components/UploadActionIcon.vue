@@ -21,6 +21,12 @@ const id = useId();
     <g v-else-if="kind === 'video'">
       <rect x="5" y="11" width="46" height="43" rx="7" :fill="`url(#${id}-blue)`"/><path d="m43 27 13-8q7-3 7 4v18q0 8-7 4l-13-8q-7-5 0-10Z" :fill="`url(#${id}-pink)`"/><path d="m43 27 8-5v20l-8-5q-7-5 0-10Z" fill="#3478ff"/><circle cx="17" cy="23" r="3" fill="white"/>
     </g>
+    <g v-else-if="kind === 'document'">
+      <rect x="10" y="5" width="42" height="54" rx="7" :fill="`url(#${id}-blue)`"/><path d="M41 5v13h11" fill="#c4edff"/><path d="M20 30h22M20 40h16" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g v-else-if="kind === 'music'">
+      <circle cx="32" cy="32" r="27" :fill="`url(#${id}-blue)`"/><path d="M28 43V23l17-4v19" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="45" r="6" fill="white"/><circle cx="41" cy="40" r="6" fill="white"/>
+    </g>
     <g v-else-if="kind === 'file' || kind === 'folder' || kind === 'note'">
       <path v-if="kind !== 'note'" d="M8 18V12q0-7 8-7h8l9 3h10q7 0 7 9v7H8Z" :fill="`url(#${id}-pink)`"/>
       <rect x="6" :y="kind === 'note' ? 5 : 14" width="51" :height="kind === 'note' ? 52 : 45" rx="7" :fill="`url(#${id}-blue)`"/>

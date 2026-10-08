@@ -80,6 +80,11 @@
     height: 27px;
     stroke-width: 2.4;
   }
+  .m-head-actions .m-signin-icon,
+  .m-head-actions button:nth-child(2) svg {
+    width: 24px;
+    height: 24px;
+  }
   .m-profile-search {
     display: flex;
     align-items: center;

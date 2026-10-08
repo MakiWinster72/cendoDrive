@@ -33,6 +33,17 @@ beforeEach(() => {
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
 describe("folder navigation and screenshot layout", () => {
+  it("keeps the three reference actions connected to sign-in, transfers, and upload", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.findAll(".m-head-actions button").map(button => button.attributes("aria-label"))).toEqual(["签到", "传输列表", "上传文件"]);
+    await wrapper.get('.m-head-actions button[aria-label="传输列表"]').trigger("click");
+    expect(wrapper.find(".transfer-page").exists()).toBe(true);
+    await wrapper.get('.transfer-header button[aria-label="返回"]').trigger("click");
+    await wrapper.get('.m-head-actions button[aria-label="上传文件"]').trigger("click");
+    expect(wrapper.findComponent({ name: "UploadPanel" }).props("open")).toBe(true);
+  });
   it("routes the mobile search card and desktop AI entry to one page", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
     wrappers.push(wrapper);

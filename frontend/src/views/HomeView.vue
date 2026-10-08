@@ -702,14 +702,20 @@ onUnmounted(() => {
             ><span>{{ homeContent.membershipEntry?.title || "会员免费领" }}<small>{{ homeContent.membershipEntry?.subtitle || "新用户福利" }} ❯<template v-if="homeContentSource === 'demo'"> · 演示</template></small></span>
           </button>
           <div class="m-head-actions">
-            <button aria-label="传输列表" @click="showTransfers = true">
-              <Download />
+            <button type="button" aria-label="签到" @click="showUnavailable('签到功能暂未开放。')">
+              <svg class="m-signin-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="17" height="17" rx="2" stroke="currentColor" stroke-width="2" />
+                <path d="M8 2.5v4M16 2.5v4M4 9h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <text x="12" y="18" text-anchor="middle" fill="currentColor" stroke="none" font-size="9" font-weight="700">签</text>
+              </svg>
             </button>
-            <button aria-label="签到" @click="showUnavailable('签到功能暂未开放。')">
-              <CalendarDays /></button
-            ><button aria-label="存储空间" @click="mobileTab = 'files'">
-              <HardDrive /></button
-            ><button aria-label="上传文件" @click="chooseFiles">
+            <button type="button" aria-label="传输列表" @click="showTransfers = true">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+                <path d="M9 16V8m0 0L6.5 10.5M9 8l2.5 2.5M15 8v8m0 0-2.5-2.5M15 16l2.5-2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button type="button" aria-label="上传文件" @click="chooseFiles">
               <Plus />
             </button>
           </div>

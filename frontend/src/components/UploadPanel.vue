@@ -3,8 +3,10 @@ import { computed, nextTick, ref, watch } from "vue";
 import {
   Check,
   FileText,
+  Link2,
   LoaderCircle,
   RotateCcw,
+  ScanLine,
   Trash2,
   X,
 } from "lucide-vue-next";
@@ -18,7 +20,7 @@ import {
   uploadFileInChunks,
 } from "../api/chunkedUpload";
 import UploadActionIcon from "./UploadActionIcon.vue";
-import { ChevronRight, ShieldCheck } from "lucide-vue-next";
+import { ChevronRight, CloudDownload, ShieldCheck } from "lucide-vue-next";
 import type { DriveItem } from "../stores/drive";
 import { useTransfers } from "../stores/transfers";
 
@@ -304,9 +306,11 @@ function statusText(task: UploadTask) {
         <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
       </div>
       <div class="upload-content">
-        <button class="scan-entry" type="button" aria-label="扫码登录、AI识别等（暂未开放）">
-          <UploadActionIcon kind="scan" /><b>扫码登录、AI识别等</b>
-        </button>
+        <div class="upload-quick-actions" aria-label="其他添加方式">
+          <button type="button" disabled aria-label="扫一扫（暂未开放）"><ScanLine /><span>扫一扫<small>暂未开放</small></span></button>
+          <button type="button" disabled aria-label="链接任务（暂未开放）"><Link2 /><span>链接任务<small>暂未开放</small></span></button>
+          <button type="button" disabled aria-label="BT 任务（暂未开放）"><CloudDownload /><span>BT 任务<small>暂未开放</small></span></button>
+        </div>
         <h2 id="upload-title">上传文件</h2>
         <div class="upload-options">
           <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
@@ -315,11 +319,17 @@ function statusText(task: UploadTask) {
           <button class="upload-option" type="button" @click="chooseType('video', 'video/*')">
             <span class="action-art"><span class="action-badge vip-badge">SVIP</span><UploadActionIcon kind="video" /></span><span>视频</span>
           </button>
-          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
-            <span class="action-art"><UploadActionIcon kind="file" /></span><span>文件</span>
+          <button class="upload-option" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx')">
+            <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
+            <span class="action-art"><UploadActionIcon kind="music" /></span><span>音乐</span>
           </button>
           <button class="upload-option" type="button" aria-label="微信文件（暂未开放）">
             <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
+            <span class="action-art"><UploadActionIcon kind="file" /></span><span>其他文件</span>
           </button>
           <button class="upload-option" type="button" @click="emit('createFolder')">
             <span class="action-art"><UploadActionIcon kind="folder" /></span><span>新建文件夹</span>
@@ -529,8 +539,12 @@ function statusText(task: UploadTask) {
 .backup-icon svg { width: 21px; height: 21px; }
 .backup-banner button { margin-left: auto; padding: 10px 12px; flex-shrink: 0; border: 0; border-radius: 9px; background: #e4eeff; color: #4185ff; font-weight: 600; }
 .upload-content { padding: 17px 17px 40px; }
-.scan-entry { display: flex; align-items: center; gap: 14px; width: 100%; height: 68px; padding: 0 24px; border: 0; border-radius: 18px; background: rgb(255 255 255 / 80%); text-align: left; color: inherit; font-size: 17px !important; }
-.scan-entry svg { width: 38px; height: 38px; }
+.upload-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.upload-quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 58px; padding: 8px; border: 0; border-radius: 14px; background: #fff; color: #33435c; }
+.upload-quick-actions button:disabled { cursor: default; }
+.upload-quick-actions svg { flex: none; width: 24px; height: 24px; color: #4696f1; }
+.upload-quick-actions span { min-width: 0; font-size: 14px; white-space: nowrap; }
+.upload-quick-actions small { display: block; color: #8491a4; font-size: 10px; }
 .upload-content h2 { margin: 26px 9px 21px; font-size: 21px; line-height: 1.3; font-weight: 700; }
 .upload-options, .ai-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0; row-gap: 19px; }
 .upload-option { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px 0 0; border: 0; background: transparent; color: inherit; font-size: 17px !important; white-space: nowrap; }
@@ -788,8 +802,11 @@ function statusText(task: UploadTask) {
   .backup-icon svg { width: 16px; height: 16px; }
   .backup-banner button { padding: 7px 8px; border-radius: 7px; }
   .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
-  .scan-entry { height: 48px; padding: 0 18px; gap: 10px; border-radius: 13px; font-size: 12px !important; }
-  .scan-entry svg { width: 26px; height: 26px; }
+  .upload-quick-actions { gap: 6px; }
+  .upload-quick-actions button { min-height: 48px; padding: 5px 3px; gap: 4px; border-radius: 12px; }
+  .upload-quick-actions svg { width: 19px; height: 19px; }
+  .upload-quick-actions span { font-size: 11px; }
+  .upload-quick-actions small { font-size: 9px; }
   .upload-content h2 { margin: 18px 6px 14px; font-size: 14px; }
   .upload-options { row-gap: 0; }
   .upload-option { gap: 9px; padding-top: 0; font-size: 12px !important; line-height: 1.25; }
