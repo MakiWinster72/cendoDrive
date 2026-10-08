@@ -12,9 +12,12 @@ public class ShareAccessStore {
   public ShareAccessStore(StringRedisTemplate redis) { this.redis = redis; }
 
   void enable(ShareLink link, Instant now) {
-    // Every write carries TTL; no permanent public credentials or scheduled expiry job.
-    redis.opsForValue().set(key(link.getToken()), link.getId().toString(),
-        Duration.between(now, link.getExpiresAt()));
+    if (link.isPermanent()) {
+      redis.opsForValue().set(key(link.getToken()), link.getId().toString());
+    } else {
+      redis.opsForValue().set(key(link.getToken()), link.getId().toString(),
+          Duration.between(now, link.getExpiresAt()));
+    }
   }
 
   boolean allows(ShareLink link) {
