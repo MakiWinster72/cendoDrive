@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,55 @@ public class DriveService {
         ex.addSuppressed(cleanup);
       }
       throw ex;
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public DriveFile shareableFile(User user, Long id) {
+    DriveFile file = requireActiveOwned(user, id);
+    if (file.isFolder())
+      fail(HttpStatus.BAD_REQUEST, "FOLDER_NOT_SHAREABLE", "Folder sharing is not supported");
+    Set<Long> visited = new HashSet<>();
+    visited.add(id);
+    Long parent = file.getParentId();
+    while (parent != null) {
+      if (!visited.add(parent))
+        fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
+      parent = requireFolder(user, parent).getParentId();
+    }
+    return file;
+  }
+
+  public FileResponse saveSharedFile(User recipient, User owner, Long fileId, Long parentId) throws IOException {
+    DriveFile source = shareableFile(owner, fileId);
+    if (parentId != null)
+      requireFolder(recipient, parentId);
+    requireAvailableName(recipient.getId(), parentId, source.getName(), null);
+    // Stream via a temporary file: never retain the complete shared content in heap memory.
+    Path temp = Files.createTempFile("cendo-share-", ".tmp");
+    try {
+      Download content = download(owner, fileId);
+      try (var output = Files.newOutputStream(temp)) {
+        content.body().writeTo(output);
+      }
+      long size = Files.size(temp);
+      if (size != content.size())
+        throw new IOException("Shared content size mismatch");
+      String name = source.getName();
+      String extension = name.lastIndexOf('.') < 0 ? "" : name.substring(name.lastIndexOf('.') + 1);
+      if (!extension.matches("[A-Za-z0-9]{0,16}")) extension = "";
+      String key;
+      try (var input = Files.newInputStream(temp)) {
+        key = fastDfs.upload(input, size, extension);
+      }
+      try {
+        return registerUploadedFile(recipient, parentId, name, size, key);
+      } catch (RuntimeException ex) {
+        try { fastDfs.delete(key); } catch (IOException cleanup) { ex.addSuppressed(cleanup); }
+        throw ex;
+      }
+    } finally {
+      Files.deleteIfExists(temp);
     }
   }
 
