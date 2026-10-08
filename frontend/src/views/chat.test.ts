@@ -5,14 +5,50 @@ import Discovery from './ChatDiscoveryView.vue';
 import NewGroup from './NewGroupView.vue';
 import Chat from './ChatView.vue';
 import * as api from '../api/chat';
+import * as drive from '../api/drive';
+import * as uploads from '../api/files';
+vi.mock('../api/drive',()=>({listFiles:vi.fn(),driveErrorMessage:(_e:unknown,f:string)=>f}));
+vi.mock('../api/files',()=>({uploadFile:vi.fn(),uploadErrorMessage:()=> '上传失败'}));
 const { push } = vi.hoisted(()=>({push:vi.fn()}));
 vi.mock('vue-router',()=>({useRouter:()=>({push}),useRoute:()=>({params:{id:'room'}})}));
 vi.mock('../stores/auth',()=>({useAuth:()=>({user:{value:{id:'1'}}})}));
-vi.mock('../api/chat',()=>({searchUsers:vi.fn(),searchGroups:vi.fn(),openDirect:vi.fn(),joinGroup:vi.fn(),createGroup:vi.fn(),listRooms:vi.fn(),getMessages:vi.fn(),sendMessage:vi.fn()}));
+vi.mock('../api/chat',()=>({searchUsers:vi.fn(),searchGroups:vi.fn(),openDirect:vi.fn(),joinGroup:vi.fn(),createGroup:vi.fn(),listRooms:vi.fn(),getMessages:vi.fn(),sendMessage:vi.fn(),sendFileMessage:vi.fn(),saveChatFile:vi.fn()}));
 const room={id:'room',name:'测试群',description:'简介',group:true,searchable:true};
 beforeEach(()=>{vi.clearAllMocks();vi.mocked(api.searchGroups).mockResolvedValue([]);vi.mocked(api.listRooms).mockResolvedValue([room]);vi.mocked(api.getMessages).mockResolvedValue([]);});
 afterEach(()=>vi.useRealTimers());
 describe('聊天页面',()=>{
+  it('文件卡片转存失败可重试，成功后阻止重复点击',async()=>{
+    vi.mocked(api.getMessages).mockResolvedValue([{id:7,senderId:2,senderName:'Bob',content:'',createdAt:new Date().toISOString(),attachment:{name:'报告.pdf',size:1024}}]);
+    const wrapper=mount(Chat); await flushPromises();
+    expect(wrapper.text()).toContain('报告.pdf');
+    vi.mocked(api.saveChatFile).mockRejectedValueOnce(new Error('offline'));
+    await wrapper.find('.chat-file-card').trigger('click'); await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true);
+    vi.mocked(api.saveChatFile).mockResolvedValue({id:'9',name:'报告.pdf',kind:'file',size:1024,parentId:null,updatedAt:'',deletedAt:null});
+    await wrapper.find('.chat-file-card').trigger('click'); await flushPromises();
+    expect(api.saveChatFile).toHaveBeenCalledWith('room',7); expect(wrapper.text()).toContain('已转存');
+    expect(wrapper.find('.chat-file-card').attributes('disabled')).toBeDefined(); wrapper.unmount();
+  });
+  it('云盘文件选择支持目录并发送文件ID',async()=>{
+    const file={id:'42',name:'附件.txt',kind:'file' as const,size:5,parentId:'8',updatedAt:'',deletedAt:null};
+    vi.mocked(drive.listFiles).mockResolvedValueOnce([{...file,id:'8',name:'目录',kind:'folder',parentId:null}]).mockResolvedValueOnce([file]);
+    vi.mocked(api.sendFileMessage).mockResolvedValue();
+    const wrapper=mount(Chat); await flushPromises();
+    await wrapper.find('.chat-file-actions button').trigger('click'); await flushPromises();
+    await wrapper.findAll('.chat-file-picker button').at(-1)!.trigger('click'); await flushPromises();
+    expect(drive.listFiles).toHaveBeenLastCalledWith('8');
+    await wrapper.findAll('.chat-file-picker button').at(-1)!.trigger('click'); await flushPromises();
+    expect(api.sendFileMessage).toHaveBeenCalledWith('room','42'); wrapper.unmount();
+  });
+  it('本地文件上传后发送失败可重试而不重复上传',async()=>{
+    const file={id:'42',name:'附件.txt',kind:'file' as const,size:5,parentId:null,updatedAt:'',deletedAt:null};
+    vi.mocked(uploads.uploadFile).mockResolvedValue(file); vi.mocked(api.sendFileMessage).mockRejectedValueOnce(new Error('offline'));
+    const wrapper=mount(Chat); await flushPromises(); const input=wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element,'files',{value:[new File(['hello'],'附件.txt')],configurable:true});
+    await input.trigger('change'); await flushPromises(); expect(wrapper.text()).toContain('重试发送已上传文件');
+    vi.mocked(api.sendFileMessage).mockResolvedValue(); await wrapper.findAll('.chat-file-actions button').at(-1)!.trigger('click'); await flushPromises();
+    expect(uploads.uploadFile).toHaveBeenCalledTimes(1); expect(api.sendFileMessage).toHaveBeenCalledTimes(2); wrapper.unmount();
+  });
   it('按用户名搜索并进入真实私聊，展示入口不调用接口',async()=>{
     vi.mocked(api.searchUsers).mockResolvedValue([{id:2,username:'bob',nickname:'Bob'}]);
     vi.mocked(api.openDirect).mockResolvedValue({...room,group:false});

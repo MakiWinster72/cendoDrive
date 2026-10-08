@@ -1,7 +1,10 @@
 import http from './http';
+import type { DriveItemResponse } from './drive';
+export const sendFileMessage = async (room: string, fileId: string) => { await http.post(`/chat/rooms/${room}/files`, { fileId }); };
+export const saveChatFile = async (room: string, messageId: number) => (await http.post<DriveItemResponse>(`/chat/rooms/${room}/files/${messageId}/save`)).data;
 export interface Person { id: number; username: string; nickname: string }
 export interface Room { id: string; name: string; description: string; group: boolean; searchable: boolean }
-export interface Message { id: number; senderId: number; senderName: string; content: string; createdAt: string }
+export interface Message { id: number; senderId: number; senderName: string; content: string; createdAt: string; attachment?: { name: string; size: number } | null }
 export const searchUsers = async (q: string) => (await http.get<Person[]>('/chat/users', { params: { q } })).data;
 export const searchGroups = async (q: string) => (await http.get<Room[]>('/chat/groups', { params: { q } })).data;
 export const listRooms = async () => (await http.get<Room[]>('/chat/rooms')).data;

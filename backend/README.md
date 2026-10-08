@@ -29,6 +29,14 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 
 `FlywayMigrationTest` 使用独立 H2 数据库覆盖全新建库，以及历史 V1～V7 已执行后的校验和分享数据保留，不连接或修改开发数据库。
 
+## 聊天文件消息
+
+私聊和群聊支持文本与文件消息。`POST /api/chat/rooms/{room}/files` 接收 `{"fileId":"42"}`，仅允许成员发送本人有效的普通云盘文件，不支持文件夹或隐藏/回收站文件。本地文件使用已有上传接口先上传到发送者云盘根目录，再发送文件消息；发送失败可重试已上传文件，不会重复上传。
+
+`GET /api/chat/rooms/{room}/messages` 的文件消息附带 `attachment: {name, size}`。成员通过 `POST /api/chat/rooms/{room}/files/{messageId}/save` 转存到自己的云盘根目录。服务端从该聊天的消息解析发送者及源文件，不接受客户端指定所有者；转存执行容量、同名冲突和源文件有效性检查，并复制为独立存储。源文件失效后不能再转存，但已经转存的副本不受影响。新加入的群成员可以转存可见历史消息中的文件。
+
+V10 仅新增可空文件字段，旧文本消息保持兼容，不改写已应用迁移。`ChatFileWorkflowTest` 使用 H2 与内存存储替身验证上传、发送、越权拦截、独立转存及源文件删除后的副本下载。
+
 ## 文件名搜索
 
 认证接口 `GET /api/files/search` 直接查询 MySQL 8 的文件元数据，无新增数据库迁移、环境变量、容器或搜索服务。参数、返回路径和权限规则见[文件管理接口文档](../docs/文件管理接口文档.md#文件名搜索)。

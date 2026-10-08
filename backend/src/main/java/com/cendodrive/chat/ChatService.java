@@ -14,7 +14,8 @@ public class ChatService {
   public ChatService(JdbcTemplate db) { this.db = db; }
   public record Person(long id, String username, String nickname) {}
   public record Room(String id, String name, String description, boolean group, boolean searchable) {}
-  public record Message(long id, long senderId, String senderName, String content, String createdAt) {}
+  public record Message(long id, long senderId, String senderName, String content, String createdAt, Attachment attachment) {}
+  public record Attachment(String name, long size) {}
   public List<Person> search(String query) {
     String q = query.trim();
     if (q.isEmpty()) return List.of();
@@ -71,8 +72,8 @@ public class ChatService {
   }
   public List<Message> messages(User user,String id,long after) {
     member(user,id);
-    return db.query("SELECT m.id,m.sender_id,u.nickname,m.content,m.created_at FROM chat_messages m JOIN users u ON u.id=m.sender_id WHERE m.room_id=? AND m.id>? ORDER BY m.id LIMIT 100",
-      (r,n)->new Message(r.getLong(1),r.getLong(2),r.getString(3),r.getString(4),r.getTimestamp(5).toInstant().toString()),id,after);
+    return db.query("SELECT m.id,m.sender_id,u.nickname,m.content,m.created_at,m.file_id,m.file_name,m.file_size FROM chat_messages m JOIN users u ON u.id=m.sender_id WHERE m.room_id=? AND m.id>? ORDER BY m.id LIMIT 100",
+      (r,n)->new Message(r.getLong(1),r.getLong(2),r.getString(3),r.getString(4),r.getTimestamp(5).toInstant().toString(),r.getObject(6)==null ? null : new Attachment(r.getString(7),r.getLong(8))),id,after);
   }
   @Transactional
   public void send(User user,String id,String content) {
