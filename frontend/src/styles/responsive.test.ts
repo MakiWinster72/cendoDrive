@@ -8,10 +8,48 @@ const profile = read("./profile.css");
 const share = read("./share.css");
 const files = read("./file-list.css");
 const selection = read("./selection.css");
+const layout = read("./mobile-layout.css");
+const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
-  it.each([main, home, profile, share, files, selection, upload])(
+  it("applies share gutters once at the page boundary", () => {
+    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(hub).not.toContain("!important");
+    expect(share).not.toContain(".mobile-share-hub");
+    expect(hub.match(/var\(--mobile-gutter\)/g)).toHaveLength(1);
+    expect(profile).not.toContain("max-width: 520px");
+  });
+
+  it("inherits one font family across all mobile tabs and controls", () => {
+    expect(main).toContain("font-family: var(--app-font-family)");
+    expect(layout).toContain("font-family: var(--app-font-family)");
+    expect(layout).toContain("line-height: 1.5");
+    expect(hub).toContain("font-family: inherit");
+    expect(hub).not.toContain("BlinkMacSystemFont");
+    expect(hub).toContain("font-size: var(--mobile-font-body)");
+  });
+
+  it("keeps bottom navigation in one shared stylesheet", () => {
+    for (const source of [main, home, profile, hub]) {
+      expect(source).not.toContain(".m-bottom-nav");
+    }
+    expect(layout).toContain("--mobile-gutter: 18px");
+    expect(layout).toContain("height: var(--mobile-nav-height)");
+    expect(layout).toContain("max(18px, env(safe-area-inset-bottom))");
+    expect(layout).not.toContain(":has(");
+  });
+
+  it("uses common gutters and bottom clearance across primary tabs", () => {
+    for (const source of [main, home, profile, hub]) {
+      expect(source).toContain("var(--mobile-gutter)");
+    }
+    expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
+    expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
+    expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
+    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+  });
+  it.each([main, home, profile, share, files, selection, upload, layout, hub])(
     "uses the same exclusive mobile boundary",
     (source) => {
       expect(source).toContain("@media (width < 768px)");

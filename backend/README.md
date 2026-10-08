@@ -1,6 +1,6 @@
 # CendoDrive 后端
 
-当前实现 Spring Boot 基础工程、用户认证、普通与分片上传、文件下载、回收站、复制、收藏、隐藏空间、详情、按类型整理和真实容量统计。前端位于 `../frontend`；AI 模块尚未实现。文件接口契约见 [文件管理接口文档](../docs/文件管理接口文档.md)。
+当前实现 Spring Boot 基础工程、用户认证、普通与分片上传、文件下载、回收站、复制、收藏、隐藏空间、详情、按类型整理、真实容量统计、限时分享及跨用户独立转存。前端位于 `../frontend`；AI 模块尚未实现。文件接口契约见 [文件管理接口文档](../docs/文件管理接口文档.md)。
 
 ## 环境
 
@@ -14,7 +14,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn spring-boot:run
 ```
 
-首次启动时 Flyway 创建 `users` 和 `drive_files` 表，并应用后续迁移。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
+首次启动时 Flyway 创建 `users`、`drive_files` 和 `share_links` 等表，并应用后续迁移。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
 
 ## 切换分支后的迁移校验
 
@@ -53,7 +53,29 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 
 在线接口规范：`http://localhost:8080/v3/api-docs`，交互页面：`http://localhost:8080/swagger-ui/index.html`。运行中的旧服务不会自动加载新代码；重启后再查看。
 
-可选数据库与 Redis 集成测试（会临时创建用户、使用独立随机用户名并在测试后删除）：
+## 分享与转存
+
+| 接口 | 访问条件 / 行为 |
+| --- | --- |
+| `POST /api/shares` | 登录；`{"fileId":42,"expiresInSeconds":86400}`，返回 201 |
+| `GET /api/shares` | 登录；仅列出当前用户创建的分享 |
+| `DELETE /api/shares/{id}` | 登录；仅允许创建者撤销，返回 204 |
+| `GET /api/shares/{token}` | 匿名；返回有效分享的文件摘要和过期时间 |
+| `GET /api/shares/{token}/download` | 匿名；经后端读取文件，不暴露 FastDFS 地址 |
+| `POST /api/shares/{token}/save` | 登录；`{"parentId":null}` 保存到根目录，或指定本人的目标目录，返回 201 |
+
+- 仅支持单文件分享，有效期为 1–2592000 秒（最长 30 天）。MySQL 保存归属和历史；Redis `share:access:<token>` 保存访问凭据并设置剩余有效期 TTL。访问同时校验数据库时间、撤销状态和 Redis 凭据；Redis Key 缺失不会被自动重建，按失效处理。
+- 创建、列表和撤销按用户隔离；他人不能直接访问原文件的私有接口。持有有效链接的人可匿名查看/下载，无提取码。分享取消、到期、原文件删除或所在目录进入回收站后返回 `404 / SHARE_NOT_FOUND`。
+- 转存创建接收者自己的元数据和独立存储副本；原作者随后撤销分享或永久删除原文件，不影响已转存的副本。流式下载到临时文件再上传，不将整份内容放入内存；重名返回 `409 / NAME_CONFLICT`，不覆盖原文件。前端目前转存到根目录，接口支持目标目录。
+- 当前已有注册、登录、会话和数据隔离；尚无管理员用户管理界面或文件夹分享。上传、复制和分享转存统一检查账户配额，并计入未完成上传的预留容量。生产环境还应设置分享/转存限流及访问审计；链接属于访问凭据，不要记录完整 Token。
+
+分享专项集成测试只需本机 Redis，不需要 MySQL/FastDFS：H2 执行 Flyway 迁移并验证 JPA，实际 Redis 验证 TTL 和跨用户流程，外部文件存储使用隔离测试替身。测试仅创建和清理随机专用 Key，不执行 `FLUSHDB`。
+
+```sh
+CENDO_TEST_REDIS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn -Dtest=ShareRedisIntegrationTest,ShareWorkflowIntegrationTest test
+```
+
+可选数据库与 Redis 认证集成测试（会临时创建用户、使用独立随机用户名并在测试后删除）：
 
 ```sh
 DB_PASSWORD=cendo_dev_password RUN_INTEGRATION_TESTS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn -Dtest=AuthIntegrationTest test

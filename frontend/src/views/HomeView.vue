@@ -74,6 +74,8 @@ import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
+import MobileShareHub from "../components/MobileShareHub.vue";
+import { Send } from "lucide-vue-next";
 import "../styles/profile.css";
 import "../styles/home.css";
 import "../styles/selection.css";
@@ -502,6 +504,7 @@ async function openProfileShortcut(label: string) {
     await changeMode("trash");
   } else if (label === "我的收藏" || label === "隐藏空间") openHomeCategory(label === "我的收藏" ? "favorites" : "hidden");
   else if (label === "我的分享") await openMyShares();
+  else if (label === "转存与下载") showTransfers.value = true;
 }
 async function downloadSelected() {
   if (downloading.value) return;
@@ -509,7 +512,11 @@ async function downloadSelected() {
   if (!files.length) return flash("文件夹暂不支持下载");
   downloading.value = true;
   try {
-    for (const id of files) await drive.download(id);
+    const results = await Promise.allSettled(
+      files.map((id) => drive.download(id)),
+    );
+    if (results.some((result) => result.status === "rejected"))
+      throw new Error("部分下载失败");
     flash(`已下载 ${files.length} 个文件`);
   } catch {
     alert(drive.state.error || "下载失败");
@@ -585,6 +592,10 @@ onUnmounted(() => {
     :initial-folder-id="currentFolder"
     @close="uploadPanelOpen = false"
     @uploaded="handleUploaded"
+    @create-folder="
+      uploadPanelOpen = false;
+      createFolder();
+    "
   />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
 
@@ -609,6 +620,9 @@ onUnmounted(() => {
             ><span>会员免费领<small>新用户福利 ❯</small></span>
           </div>
           <div class="m-head-actions">
+            <button aria-label="传输列表" @click="showTransfers = true">
+              <Download />
+            </button>
             <button aria-label="签到" @click="flash('签到功能即将上线')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">
@@ -697,10 +711,18 @@ onUnmounted(() => {
         <div class="m-panel-title">
           <h2>转存 <span>订阅</span></h2>
           <div class="m-panel-actions">
-            <button type="button" aria-label="查看转存与订阅" @click="mobileTab = 'share'">
+            <button
+              type="button"
+              aria-label="查看转存与订阅"
+              @click="mobileTab = 'share'"
+            >
               <Eye :size="20" />
             </button>
-            <button type="button" aria-label="查看分享" @click="mobileTab = 'share'">
+            <button
+              type="button"
+              aria-label="查看分享"
+              @click="mobileTab = 'share'"
+            >
               <ChevronRight :size="20" />
             </button>
           </div>
@@ -1001,18 +1023,7 @@ onUnmounted(() => {
         </button>
       </main>
     </template>
-    <template v-else
-      ><main class="mobile-share-hub">
-        <h1>共享</h1>
-        <div class="mobile-share-hub-tabs">
-          <span>消息</span><span>聊天文件</span><span>文件共享</span>
-        </div>
-        <div class="mobile-share-hub-empty">
-          <MessageCircle :size="38" />
-          <p>暂无消息</p>
-        </div>
-      </main></template
-    >
+    <MobileShareHub v-else />
     <nav
       v-if="
         !showMyShares &&
@@ -1039,7 +1050,7 @@ onUnmounted(() => {
         :class="{ active: mobileTab === 'share' }"
         @click="mobileTab = 'share'"
       >
-        <Share2 /><span>共享</span></button
+        <Send /><em>99</em><span>共享</span></button
       ><button
         :class="{ active: mobileTab === 'profile' }"
         @click="mobileTab = 'profile'"
@@ -1052,7 +1063,7 @@ onUnmounted(() => {
   <div class="drive-shell desktop-drive">
     <nav class="desktop-rail">
       <BrandLogo /><button class="active"><Cloud /><span>首页</span></button
-      ><button><Upload /><span>传输</span></button
+      ><button @click="showTransfers = true"><Upload /><span>传输</span></button
       ><button><UserRound /><span>好友</span></button><i></i
       ><button><Share2 /><span>同步空间</span></button
       ><button><HardDrive /><span>APP下载</span></button

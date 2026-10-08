@@ -53,11 +53,25 @@ export async function cancelShare(shareId: string): Promise<void> {
   await http.delete(`/shares/${encodeURIComponent(shareId)}`);
 }
 
+export async function saveSharedFile(
+  token: string,
+  parentId: string | null = null,
+): Promise<DriveItemResponse> {
+  const { data } = await http.post<DriveItemResponse>(
+    `/shares/${encodeURIComponent(token)}/save`,
+    { parentId },
+    { timeout: 0 },
+  );
+  return data;
+}
+
 export async function getPublicShare(
   token: string,
+  signal?: AbortSignal,
 ): Promise<ShareAccessResponse> {
   const { data } = await publicHttp.get<ShareAccessResponse>(
     `/shares/${encodeURIComponent(token)}`,
+    { signal },
   );
   return data;
 }
@@ -68,11 +82,18 @@ export async function downloadPublicShare(
 ): Promise<void> {
   const response = await publicHttp.get<Blob>(
     `/shares/${encodeURIComponent(token)}/download`,
-    {
-      responseType: "blob",
-      timeout: 0,
-    },
-  );
+    { responseType: "blob", timeout: 0 },
+  ).catch(async (error: unknown) => {
+    // Axios returns JSON error responses as Blob when responseType is blob.
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+      try {
+        const data: unknown = JSON.parse(await error.response.data.text());
+        if (typeof data === "object" && data !== null && "code" in data)
+          error.response.data = data;
+      } catch { /* Keep the original status and fallback message for non-JSON errors. */ }
+    }
+    throw error;
+  });
   const disposition = response.headers["content-disposition"] as
     string | undefined;
   const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
@@ -96,6 +117,13 @@ export function shareErrorMessage(error: unknown, fallback: string): string {
       return "文件不存在或无权分享";
     case "SHARE_NOT_FOUND":
       return "分享链接不存在、已过期或已取消";
+    case "NAME_CONFLICT":
+      return "我的网盘中已有同名文件，请先重命名后再转存";
+    case "FOLDER_NOT_SHAREABLE":
+      return "目前只支持分享单个文件";
+    case "STORAGE_UNAVAILABLE":
+    case "SHARE_UNAVAILABLE":
+      return "分享或文件存储服务暂不可用，请稍后重试";
     case "INVALID_INPUT":
       return "分享设置无效，请重试";
     case "UNAUTHORIZED":

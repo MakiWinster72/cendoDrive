@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,46 @@ public class DriveService {
     } catch (RuntimeException ex) {
       if (!synchronizedCleanup) deleteStorage("fastdfs", key);
       throw ex;
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public DriveFile shareableFile(User user, Long id) {
+    DriveFile file = requireActiveOwned(user, id);
+    if (file.isFolder())
+      fail(HttpStatus.BAD_REQUEST, "FOLDER_NOT_SHAREABLE", "Folder sharing is not supported");
+    Set<Long> visited = new HashSet<>();
+    visited.add(id);
+    Long parent = file.getParentId();
+    while (parent != null) {
+      if (!visited.add(parent))
+        fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
+      parent = requireFolder(user, parent).getParentId();
+    }
+    return file;
+  }
+
+  @Transactional(rollbackFor = IOException.class)
+  public FileResponse saveSharedFile(User recipient, User owner, Long fileId, Long parentId) throws IOException {
+    DriveFile source = shareableFile(owner, fileId);
+    String name = validateUploadTarget(recipient, source.getName(), parentId);
+    // Lock and check before copying; uploadStream rechecks the actual size under the same lock.
+    quota.check(recipient, source.getSize(), null);
+    // Stream via a temporary file: never retain the complete shared content in heap memory.
+    Path temp = Files.createTempFile("cendo-share-", ".tmp");
+    try {
+      Download content = download(owner, fileId);
+      try (var output = Files.newOutputStream(temp)) {
+        content.body().writeTo(output);
+      }
+      long size = Files.size(temp);
+      if (size != content.size())
+        throw new IOException("Shared content size mismatch");
+      try (var input = Files.newInputStream(temp)) {
+        return uploadStream(recipient, input, size, name, parentId, null);
+      }
+    } finally {
+      Files.deleteIfExists(temp);
     }
   }
 

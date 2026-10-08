@@ -200,37 +200,5 @@
   .my-shares-actions button:disabled {
     opacity: 0.5;
   }
-  .mobile-share-hub {
-    min-height: calc(100dvh - 74px);
-    padding: 25px 20px 100px;
-    background: #fff;
-    color: #26354d;
-  }
-  .mobile-share-hub h1 {
-    margin: 0 0 20px;
-    font-size: 22px;
-  }
-  .mobile-share-hub-tabs {
-    display: flex;
-    gap: 24px;
-    border-bottom: 1px solid #eef2f6;
-    color: #9ba7b9;
-    font-size: 14px;
-  }
-  .mobile-share-hub-tabs span {
-    padding-bottom: 13px;
-  }
-  .mobile-share-hub-tabs span:first-child {
-    border-bottom: 2px solid #3186fb;
-    color: #2677e5;
-    font-weight: 700;
-  }
-  .mobile-share-hub-empty {
-    display: grid;
-    place-items: center;
-    gap: 13px;
-    margin-top: 28vh;
-    color: #a0acbc;
-    font-size: 13px;
-  }
+
 }

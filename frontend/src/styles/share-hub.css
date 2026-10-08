@@ -1,0 +1,49 @@
+/* Reference uses a 393pt mobile canvas; system status chrome is left to the device. */
+@media (width < 768px) {
+  .mobile-share-hub {
+    --share-ink: #080e1c;
+    --share-muted: #a1a8bb;
+    min-height: calc(100dvh - var(--mobile-content-bottom));
+    padding: var(--mobile-page-top) var(--mobile-gutter) 0;
+    background: linear-gradient(#fff 85px, #fafbfc 178px, #fff 220px);
+    color: var(--share-ink);
+    font-family: inherit;
+  }
+  .mobile-share-hub button { border: 0; background: transparent; font-family: inherit; cursor: pointer; padding: 0; color: inherit; }
+  .mobile-share-hub button:focus-visible { outline: 2px solid #438aff; outline-offset: -2px; border-radius: 8px; }
+  .share-hub-header { display: flex; align-items: center; gap: 17px; padding: 0; height: 35px; }
+  .share-hub-tabs { display: flex; align-items: center; gap: 20px; flex: 1; min-width: 0; }
+  .share-hub-tabs button { white-space: nowrap; font-size: 18px; font-weight: 700; color: var(--share-muted); }
+  .share-hub-tabs button.selected { color: var(--share-ink); }
+  .share-hub-icon { display: grid; place-items: center; flex: 0 0 24px; }
+  .share-hub-icon svg { width: 24px; height: 24px; stroke-width: 2.3; }
+  .share-hub-shortcuts { display: grid; grid-template-columns: repeat(4, 1fr); padding: 28px 0 14px; gap: 14px; }
+  .share-hub-shortcuts button { display: flex; flex-direction: column; align-items: center; gap: 11px; white-space: nowrap; color: #50576a; font-size: 12px; font-weight: 600; }
+  .share-hub-shortcuts svg { width: 24px; height: 24px; color: var(--share-ink); }
+  .share-hub-messages { background: #fff; border-radius: 18px 18px 0 0; padding-top: 0; }
+  .share-hub-message { display: flex; align-items: center; width: 100%; height: 70px; gap: 12px; text-align: left; }
+  .share-hub-message.separated { border-top: 1px solid #f7f7f8; }
+  .share-message-avatar { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; display: grid; place-items: center; color: white; }
+  .share-message-avatar > svg { width: 30px; height: 30px; }
+  .share-message-avatar.mint { background: linear-gradient(135deg,#6beac6,#55cea6); }
+  .share-message-avatar.blue { background: linear-gradient(135deg,#55d4f5,#4099fd); }
+  .share-message-avatar.gold { background: linear-gradient(135deg,#fac746,#f5a239); }
+  .share-message-avatar.orange { background: linear-gradient(135deg,#f57628,#f48b32); }
+  .share-message-avatar.cream { background: #fdf6de; }
+  .share-message-avatar .filled-bell { width: 24px; height: 24px; fill: #fff; stroke-width: 1.7; }
+  .share-message-avatar .filled-mail { width: 25px; height: 25px; fill: white; stroke: #49b5f8; stroke-width: 1.6; }
+  .share-folder-icon { position: relative; display: grid; place-items: center; }
+  .share-folder-icon > svg:first-child { width: 25px; height: 25px; fill: #ffd15d; stroke: #f7bf42; stroke-width: 1.5; }
+  .share-folder-icon > svg:last-child { position: absolute; width: 17px; height: 17px; top: 6px; left: 5px; fill: #efa930; }
+  .share-message-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .share-message-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .share-message-title strong { font-size: var(--mobile-font-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .share-message-subtitle { color: var(--share-muted); font-size: var(--mobile-font-caption); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .share-service-tag { flex-shrink: 0; border-radius: 3px; padding: 2px 6px; font-size: 10px; font-weight: 600; color: #3885ff; background: #e5efff; }
+  .share-message-meta { display: flex; flex-direction: column; align-items: flex-end; align-self: stretch; padding-top: 15px; gap: 13px; }
+  .share-message-meta time { color: var(--share-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .share-unread { min-width: 16px; height: 17px; padding: 0 5px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: #f33061; font-size: 12px; box-shadow: 0 2px 2px #f3306126; }
+  .share-hub-end { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 13px 0 0; color: var(--share-muted); font-size: 12px; font-weight: 600; }
+  .share-hub-end span { width: 20px; height: 1px; background: var(--share-muted); }
+  @media (width < 370px) { .share-hub-tabs { gap: 13px; } .share-hub-tabs button { font-size: 16px; } .share-hub-header { gap: 12px; } .share-message-title strong { font-size: 14px; } .share-message-meta time { font-size: 10px; } }
+}

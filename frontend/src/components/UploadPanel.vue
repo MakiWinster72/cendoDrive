@@ -2,16 +2,10 @@
 import { computed, nextTick, ref, watch } from "vue";
 import {
   Check,
-  FilePlus2,
   FileText,
-  FolderPlus,
-  Image,
   LoaderCircle,
-  Music2,
   RotateCcw,
   Trash2,
-  UploadCloud,
-  Video,
   X,
 } from "lucide-vue-next";
 import {
@@ -23,7 +17,10 @@ import {
   shouldUseChunkedUpload,
   uploadFileInChunks,
 } from "../api/chunkedUpload";
+import UploadActionIcon from "./UploadActionIcon.vue";
+import { ChevronRight, ShieldCheck } from "lucide-vue-next";
 import type { DriveItem } from "../stores/drive";
+import { useTransfers } from "../stores/transfers";
 
 interface FolderOption {
   id: string | null;
@@ -40,7 +37,7 @@ const props = withDefaults(
     initialFolderId: null,
   },
 );
-const emit = defineEmits<{ close: []; uploaded: [item: DriveItem] }>();
+const emit = defineEmits<{ close: []; createFolder: []; uploaded: [item: DriveItem] }>();
 type UploadType = "image" | "video" | "document" | "audio" | "other";
 type UploadStatus =
   "waiting" | "preparing" | "uploading" | "success" | "failed" | "cancelled";
@@ -55,9 +52,45 @@ interface UploadTask {
   error?: string;
 }
 
+const panel = ref<HTMLElement>();
 const fileInput = ref<HTMLInputElement>();
+let previousFocus: HTMLElement | null = null;
+watch(() => props.open, async (open) => {
+  if (open) {
+    previousFocus = document.activeElement as HTMLElement | null;
+    await nextTick();
+    panel.value?.focus();
+  } else {
+    previousFocus?.focus();
+  }
+}, { immediate: true });
+
+function handleDialogKey(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    emit("close");
+  }
+  if (event.key !== "Tab") return;
+  const buttons = [...(panel.value?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") || [])];
+  const first = buttons[0];
+  const last = buttons.at(-1);
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.value)) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.value)) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
 const accept = ref("*/*");
 const uploadTasks = ref<UploadTask[]>([]);
+const transfers = useTransfers();
+watch(uploadTasks, (tasks) => {
+  for (const task of tasks) transfers.syncUpload({
+    id: task.id, name: task.file.name, size: task.file.size,
+    status: task.status, progress: task.progress, error: task.error,
+  });
+}, { deep: true, flush: "sync" });
 const selectedType = ref<UploadType | null>(null);
 const selectedFolderId = ref<string | null>(props.initialFolderId);
 const folderPickerOpen = ref(false);
@@ -144,6 +177,7 @@ function removeFile(fileId: string) {
   const task = uploadTasks.value.find(({ id }) => id === fileId);
   if (!task || task.status === "uploading" || task.status === "success") return;
   uploadTasks.value = uploadTasks.value.filter(({ id }) => id !== fileId);
+  transfers.removeUpload(fileId);
 }
 
 function formatSize(size: number) {
@@ -248,6 +282,7 @@ function statusText(task: UploadTask) {
 </script>
 
 <template>
+  <Transition name="upload-sheet" appear>
   <div
     v-if="open"
     class="upload-overlay"
@@ -255,86 +290,56 @@ function statusText(task: UploadTask) {
     @click.self="emit('close')"
   >
     <section
+      ref="panel"
       class="upload-panel"
+      tabindex="-1"
+      @keydown="handleDialogKey"
       role="dialog"
       aria-modal="true"
       aria-labelledby="upload-title"
     >
-      <header class="upload-header">
-        <div>
-          <span class="upload-eyebrow">CendoDrive · 文件中心</span>
-          <h2 id="upload-title">上传文件</h2>
-        </div>
-        <button
-          class="close-button"
-          type="button"
-          aria-label="关闭上传面板"
-          @click="emit('close')"
-        >
-          <X :size="20" />
-        </button>
-      </header>
-
-      <div class="desktop-dropzone">
-        <span class="dropzone-icon"><UploadCloud :size="28" /></span
-        ><strong>把文件拖到这里</strong>
-        <p>也可以选择下方的文件类型开始上传</p>
+      <div class="backup-banner">
+        <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
+        <span>开启相册备份，节省手机空间</span>
+        <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
       </div>
-
-      <div class="upload-section-heading">
-        <span>选择上传内容</span><small>可多选文件</small>
-      </div>
-      <div class="upload-options">
-        <button
-          class="upload-option option-image"
-          type="button"
-          @click="chooseType('image', '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg')"
-        >
-          <span><Image :size="21" /></span><b>照片</b><small>JPG、PNG</small>
+      <div class="upload-content">
+        <button class="scan-entry" type="button" aria-label="扫码登录、AI识别等（暂未开放）">
+          <UploadActionIcon kind="scan" /><b>扫码登录、AI识别等</b>
         </button>
-        <button
-          class="upload-option option-video"
-          type="button"
-          @click="chooseType('video', '.mp4,.mov,.mkv,.avi,.webm')"
-        >
-          <span><Video :size="21" /></span><b>视频</b><small>MP4、MOV</small>
-        </button>
-        <button
-          class="upload-option option-document"
-          type="button"
-          @click="
-            chooseType(
-              'document',
-              '.pdf,.doc,.docx,.txt,.md,.xls,.xlsx,.ppt,.pptx',
-            )
-          "
-        >
-          <span><FileText :size="21" /></span><b>文档</b
-          ><small>PDF、Word</small>
-        </button>
-        <button
-          class="upload-option option-audio"
-          type="button"
-          @click="chooseType('audio', '.mp3,.wav,.flac,.aac,.m4a')"
-        >
-          <span><Music2 :size="21" /></span><b>音频</b><small>MP3、WAV</small>
-        </button>
-        <button
-          class="upload-option option-other"
-          type="button"
-          @click="chooseType('other', '*/*')"
-        >
-          <span><UploadCloud :size="21" /></span><b>其他文件</b
-          ><small>全部类型</small>
-        </button>
-        <div class="upload-option option-folder">
-          <span><FolderPlus :size="21" /></span><b>新建文件夹</b
-          ><small>整理文件</small>
+        <h2 id="upload-title">上传文件</h2>
+        <div class="upload-options">
+          <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
+            <span class="action-art"><span class="action-badge live-badge">Live 原图</span><UploadActionIcon kind="photo" /></span><span>照片</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('video', 'video/*')">
+            <span class="action-art"><span class="action-badge vip-badge">SVIP</span><UploadActionIcon kind="video" /></span><span>视频</span>
+          </button>
+          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
+            <span class="action-art"><UploadActionIcon kind="file" /></span><span>文件</span>
+          </button>
+          <button class="upload-option" type="button" aria-label="微信文件（暂未开放）">
+            <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
+          </button>
+          <button class="upload-option" type="button" @click="emit('createFolder')">
+            <span class="action-art"><UploadActionIcon kind="folder" /></span><span>新建文件夹</span>
+          </button>
+          <button class="upload-option" type="button" aria-label="新建笔记（暂未开放）">
+            <span class="action-art"><UploadActionIcon kind="note" /></span><span>新建笔记</span>
+          </button>
         </div>
-        <div class="upload-option option-note">
-          <span><FilePlus2 :size="21" /></span><b>新建文档</b
-          ><small>稍后开放</small>
+        <h2 class="ai-heading">智能生成</h2>
+        <div class="ai-options">
+          <button v-for="action in [
+            { kind: 'camera', label: 'AI相机' },
+            { kind: 'mic', label: 'AI录音速记' },
+            { kind: 'ai-video', label: 'AI视频笔记' },
+            { kind: 'story', label: 'AI照片故事' },
+          ]" :key="action.kind" class="upload-option" type="button" :aria-label="`${action.label}（暂未开放）`">
+            <span class="action-art"><UploadActionIcon :kind="action.kind" /></span><span>{{ action.label }}</span>
+          </button>
         </div>
+        <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>千度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
       </div>
 
       <div v-if="uploadTasks.length" class="selected-files">
@@ -456,7 +461,7 @@ function statusText(task: UploadTask) {
         multiple
         @change="handleFileSelection"
       />
-      <footer class="upload-footer">
+      <footer v-if="uploadTasks.length" class="upload-footer">
         <template v-if="uploadTasks.length">
           <button
             class="destination-button"
@@ -486,6 +491,7 @@ function statusText(task: UploadTask) {
       </footer>
     </section>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -496,164 +502,48 @@ function statusText(task: UploadTask) {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(17, 29, 52, 0.42);
-  backdrop-filter: blur(5px);
+  background: rgb(0 0 0 / 70%);
 }
 .upload-panel {
   width: min(560px, 100%);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 26px 80px rgba(22, 44, 83, 0.24);
-  color: #19243a;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 100% 65%, #f0f9ff, transparent 45%), linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
+  color: #080f1e;
+  outline: none;
 }
-.upload-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 28px 30px 22px;
-  border-bottom: 1px solid #edf1f7;
-}
-.upload-eyebrow {
-  display: block;
-  margin-bottom: 8px;
-  color: #6e7b91;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.upload-header h2 {
-  margin: 0;
-  font-size: 25px;
-  letter-spacing: -0.03em;
-}
-.close-button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 11px;
-  background: #f3f6fb;
-  color: #64728a;
-}
-.close-button:hover {
-  background: #e8eef9;
-  color: #2868ed;
-}
-.desktop-dropzone {
-  margin: 24px 30px 22px;
-  padding: 25px 20px;
-  border: 1px dashed #b8caec;
-  border-radius: 17px;
-  background: linear-gradient(135deg, #f7faff, #eef5ff);
-  text-align: center;
-}
-.dropzone-icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin: 0 auto 12px;
-  border-radius: 16px;
-  background: #dce9ff;
-  color: #2868ed;
-}
-.desktop-dropzone strong {
-  display: block;
-  font-size: 15px;
-}
-.desktop-dropzone p {
-  margin: 7px 0 0;
-  color: #8895a9;
-  font-size: 12px;
-}
-.upload-section-heading {
+.upload-panel button { font: inherit; cursor: pointer; }
+.upload-panel button:focus-visible { outline: 2px solid #438aff; outline-offset: 4px; }
+.backup-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 30px 12px;
-  color: #26344d;
-  font-size: 13px;
-  font-weight: 700;
-}
-.upload-section-heading small {
-  color: #a0a9b8;
-  font-size: 11px;
-  font-weight: 500;
-}
-.upload-options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  padding: 0 30px 24px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #eaf0f5;
+  font-size: 16px;
+  font-weight: 600;
+  color: #50596b;
 }
-.upload-option {
-  min-height: 91px;
-  padding: 14px 12px;
-  border: 1px solid #edf0f5;
-  border-radius: 15px;
-  background: #fff;
-  color: #19243a;
-  text-align: left;
-}
-.upload-option button {
-  cursor: pointer;
-}
-.upload-option:hover {
-  border-color: #9db9ef;
-  background: #f7faff;
-}
-.upload-option > span {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 8px;
-  border-radius: 10px;
-}
-.upload-option b,
-.upload-option small {
-  display: block;
-}
-.upload-option b {
-  font-size: 12px;
-}
-.upload-option small {
-  margin-top: 3px;
-  color: #9aa5b5;
-  font-size: 10px;
-}
-.option-image > span {
-  background: #e7f1ff;
-  color: #4285ed;
-}
-.option-video > span {
-  background: #e9f8f0;
-  color: #21a96a;
-}
-.option-document > span {
-  background: #fff0e7;
-  color: #ef8238;
-}
-.option-audio > span {
-  background: #f0ebff;
-  color: #8469df;
-}
-.option-other > span {
-  background: #e8f7ff;
-  color: #2793cf;
-}
-.option-folder > span {
-  background: #fff7de;
-  color: #d69921;
-}
-.option-note > span {
-  background: #f1f3f6;
-  color: #8e98a8;
-}
+.backup-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: white; }
+.backup-icon svg { width: 21px; height: 21px; }
+.backup-banner button { margin-left: auto; padding: 10px 12px; flex-shrink: 0; border: 0; border-radius: 9px; background: #e4eeff; color: #4185ff; font-weight: 600; }
+.upload-content { padding: 17px 17px 40px; }
+.scan-entry { display: flex; align-items: center; gap: 14px; width: 100%; height: 68px; padding: 0 24px; border: 0; border-radius: 18px; background: rgb(255 255 255 / 80%); text-align: left; color: inherit; font-size: 17px !important; }
+.scan-entry svg { width: 38px; height: 38px; }
+.upload-content h2 { margin: 26px 9px 21px; font-size: 21px; line-height: 1.3; font-weight: 700; }
+.upload-options, .ai-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0; row-gap: 19px; }
+.upload-option { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px 0 0; border: 0; background: transparent; color: inherit; font-size: 17px !important; white-space: nowrap; }
+.action-art { position: relative; display: block; width: 51px; height: 51px; }
+.action-art > svg { width: 100%; height: 100%; }
+.action-badge { position: absolute; z-index: 1; top: -19px; left: 36px; padding: 2px 8px; border-radius: 20px; font-size: 14px; line-height: 1.25; white-space: nowrap; }
+.live-badge { background: #4287ff; color: white; }
+.vip-badge { background: #35251f; color: #fce1bb; font-style: italic; font-weight: 700; }
+.upload-content .ai-heading { margin-top: 37px; margin-bottom: 22px; }
+.ai-options .action-art { width: 48px; height: 48px; }
+.ai-options .upload-option { gap: 17px; }
+.security-caption { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 23px; color: #4185ff; font-size: 16px; font-weight: 500; }
+
 .selected-files {
   margin: 0 30px 24px;
   padding: 16px;
@@ -889,80 +779,65 @@ function statusText(task: UploadTask) {
   border-color: #50afe8 !important;
   background: #68c0f1 !important;
 }
+
 @media (width < 768px) {
-  .upload-overlay {
-    align-items: end;
-    padding: 0;
-    background: rgba(17, 29, 52, 0.48);
-  }
-  .upload-panel {
-    width: 100%;
-    border-radius: 25px 25px 0 0;
-    box-shadow: 0 -18px 55px rgba(22, 44, 83, 0.18);
-    animation: upload-sheet-in 0.22s ease-out;
-  }
-  .upload-header {
-    padding: 22px 22px 17px;
-  }
-  .upload-header h2 {
-    font-size: 22px;
-  }
-  .desktop-dropzone {
-    display: none;
-  }
-  .upload-section-heading {
-    padding: 20px 22px 12px;
-  }
-  .upload-options {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 9px;
-    padding: 0 22px 20px;
-  }
-  .upload-option {
-    min-height: 84px;
-    padding: 12px 9px;
-  }
-  .selected-files {
-    margin: 0 22px 20px;
-  }
-  .folder-picker {
-    margin: 0 22px 16px;
-  }
-  .upload-footer {
-    padding: 14px 22px max(14px, env(safe-area-inset-bottom));
-    margin: 0;
-  }
-  .upload-footer span {
-    max-width: 200px;
-    line-height: 1.5;
-  }
-  .destination-button {
-    padding-left: 0;
-    padding-right: 0;
-  }
-  .start-upload-button {
-    flex: 0 0 auto;
-    padding-inline: 17px !important;
-  }
+  .upload-overlay { align-items: end; padding: 0; }
+  .upload-panel { width: 100%; max-height: 100dvh; border-radius: 0; }
+  .backup-banner { padding: 9px 18px; gap: 7px; font-size: 12px; min-height: 49px; box-sizing: border-box; }
+  .backup-icon { width: 24px; height: 24px; }
+  .backup-icon svg { width: 16px; height: 16px; }
+  .backup-banner button { padding: 7px 8px; border-radius: 7px; }
+  .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
+  .scan-entry { height: 48px; padding: 0 18px; gap: 10px; border-radius: 13px; font-size: 12px !important; }
+  .scan-entry svg { width: 26px; height: 26px; }
+  .upload-content h2 { margin: 18px 6px 14px; font-size: 14px; }
+  .upload-options { row-gap: 0; }
+  .upload-option { gap: 9px; padding-top: 0; font-size: 12px !important; line-height: 1.25; }
+  .action-art { width: 36px; height: 36px; }
+  .action-badge { top: -13px; left: 25px; padding: 1px 6px; font-size: 10px; }
+  .upload-content .ai-heading { margin-top: 25px; margin-bottom: 13px; }
+  .ai-options .action-art { width: 34px; height: 34px; }
+  .ai-options .upload-option { gap: 12px; }
+  .security-caption { gap: 4px; margin-top: 16px; font-size: 12px; }
+  .security-caption svg { width: 14px; height: 14px; }
+  .selected-files { margin: 0 18px 16px; }
+  .folder-picker { margin: 0 18px 16px; }
+  .upload-footer { padding: 14px 18px max(14px, env(safe-area-inset-bottom)); }
 }
-@keyframes upload-sheet-in {
-  from {
-    transform: translateY(22px);
-    opacity: 0.6;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.upload-sheet-enter-active,
+.upload-sheet-leave-active {
+  transition: opacity 280ms ease;
 }
-@keyframes upload-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.upload-sheet-enter-active .upload-panel,
+.upload-sheet-leave-active .upload-panel {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+.upload-sheet-leave-active {
+  pointer-events: none;
+  transition-duration: 220ms;
+}
+.upload-sheet-leave-active .upload-panel {
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+.upload-sheet-enter-from,
+.upload-sheet-leave-to {
+  opacity: 0;
+}
+.upload-sheet-enter-from .upload-panel,
+.upload-sheet-leave-to .upload-panel {
+  transform: translateY(100%);
+}
+@keyframes upload-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .upload-panel {
-    animation: none;
-  }
+  .spin { animation: none; }
+  .progress-track span,
+  .upload-sheet-enter-active,
+  .upload-sheet-leave-active,
+  .upload-sheet-enter-active .upload-panel,
+  .upload-sheet-leave-active .upload-panel { transition: none; }
+  .upload-sheet-enter-from .upload-panel,
+  .upload-sheet-leave-to .upload-panel { transform: none; }
 }
+
 </style>

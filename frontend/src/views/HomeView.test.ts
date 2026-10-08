@@ -10,7 +10,7 @@ vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<type
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
 const wrappers: ReturnType<typeof mount>[] = [];
 async function open() {
-  const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } }); wrappers.push(wrapper); await flushPromises();
+  const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true, TransferPage: true } } }); wrappers.push(wrapper); await flushPromises();
   await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "文件")!.trigger("click"); await flushPromises(); return wrapper;
 }
 async function startCreate(wrapper: ReturnType<typeof mount>) {
@@ -144,6 +144,25 @@ describe("mobile file management wiring", () => {
     expect(wrapper.find('.transfer-task').text()).toContain(file.name);
     expect(wrapper.find('.transfer-task').text()).toContain('已下载至：浏览器下载目录');
   });
+  it("closes the upload panel and creates a folder inline through its event", async () => {
+    const wrapper = await open();
+    await wrapper.find(".m-fab").trigger("click");
+    const panel = wrapper.findComponent({ name: "UploadPanel" });
+    expect(panel.props("open")).toBe(true);
+    panel.vm.$emit("createFolder"); await flushPromises();
+    expect(panel.props("open")).toBe(false);
+    expect(wrapper.find(".m-file-list .inline-name-input").exists()).toBe(true);
+    expect(api.createFolder).not.toHaveBeenCalled();
+    const created = { ...file, id: "99", name: "上传菜单目录", kind: "folder" as const, size: 0 };
+    vi.mocked(api.createFolder).mockResolvedValue(created);
+    vi.mocked(api.listFiles).mockResolvedValue([file, created]);
+    await wrapper.find(".m-file-list .inline-name-input").setValue(created.name);
+    await wrapper.find(".m-file-list .inline-name-editor").trigger("submit"); await flushPromises();
+    expect(api.createFolder).toHaveBeenCalledWith(created.name, null);
+    expect(wrapper.find(".m-file-list .inline-name-editor").exists()).toBe(false);
+    expect(wrapper.find(".m-file-list").text()).toContain(created.name);
+  });
+
   it("offers folder creation in the mobile file page", async () => {
     const wrapper = await open();
     expect(wrapper.find('.mobile-app button[aria-label="新建文件夹"]').exists()).toBe(false);

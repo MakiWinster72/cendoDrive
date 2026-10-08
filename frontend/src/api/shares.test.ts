@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
-import { cancelShare, createShare, listShares } from "./shares";
+import { cancelShare, createShare, listShares, saveSharedFile } from "./shares";
 
 vi.mock("./http", () => ({
   default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
@@ -33,6 +33,19 @@ describe("share owner API contract", () => {
       expiresInSeconds: 604800,
     });
     expect(http.get).toHaveBeenCalledWith("/shares");
+  });
+
+  it("saves into the recipient root with the authenticated client", async () => {
+    const file = { id: "100", name: "project.pdf", kind: "file", size: 120, parentId: null };
+    vi.mocked(http.post).mockResolvedValue({ data: file });
+    await expect(saveSharedFile("token/51")).resolves.toEqual(file);
+    expect(http.post).toHaveBeenCalledWith("/shares/token%2F51/save", { parentId: null }, { timeout: 0 });
+  });
+
+  it("can save into a specified recipient folder", async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: {} });
+    await saveSharedFile("token", "12");
+    expect(http.post).toHaveBeenCalledWith("/shares/token/save", { parentId: "12" }, { timeout: 0 });
   });
 
   it("cancels a share by its owner-side share id", async () => {
