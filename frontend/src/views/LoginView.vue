@@ -98,7 +98,7 @@ async function submit() {
         <p class="welcome">{{ recoveryMode ? '仅可在申请注销后的 7 天内恢复，旧分享不会恢复。' : '登录 CendoDrive，畅享美好生活' }}</p>
         <p v-if="recovered" class="success" role="status">账号已恢复，请重新登录。</p>
         <p v-if="route.query.passwordChanged==='1'" class="success" role="status">密码已修改，所有设备已退出，请重新登录。</p>
-        <p v-if="route.query.accountDeleted==='1'" class="success" role="status">账号已标记注销，7 天后彻底删除。7 天内可验证密码恢复。</p>
+        <p v-if="!recovered && route.query.accountDeleted==='1'" class="success" role="status">账号已标记注销，7 天后彻底删除。7 天内可验证密码恢复。</p>
         <p v-if="route.query.registered === '1'" class="success">
           注册成功，请登录。
         </p>
