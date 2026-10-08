@@ -3,9 +3,11 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import HomeView from "./HomeView.vue";
 import * as api from "../api/drive";
+import { getHomeContent, getSplashAd } from "../api/content";
 import { useDrive, type DriveItem } from "../stores/drive";
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn(), push: routerPush }) }));
+vi.mock("../api/content", () => ({ getHomeContent: vi.fn(), getSplashAd: vi.fn() }));
 vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
 vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), searchFiles: vi.fn(), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
@@ -24,6 +26,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
+  vi.mocked(getHomeContent).mockRejectedValue(new Error("内容接口未接入")); vi.mocked(getSplashAd).mockResolvedValue(null);
   vi.mocked(api.searchFiles).mockResolvedValue({ items: [], total: 0, page: 0, size: 20 });
   vi.mocked(api.listFiles).mockResolvedValue([file]); vi.mocked(api.listTrash).mockResolvedValue([]); vi.mocked(api.listFavorites).mockResolvedValue([{ ...file, favorite: true }]); vi.mocked(api.listHidden).mockResolvedValue([{ ...file, hidden: true }]); vi.mocked(api.trashFiles).mockResolvedValue([{ ...file, deletedAt: "today" }]);
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
@@ -291,7 +294,7 @@ describe("mobile profile unavailable destinations", () => {
     const wrapper = await open();
     await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
     await wrapper.find(selector).trigger("click");
-    expect(routerPush).toHaveBeenCalledWith({ name: routeName });
+    expect(routerPush).toHaveBeenCalledWith(selector === ".profile-promo > button" ? "/membership" : { name: routeName });
   });
 
   it("opens the game center from the free download voucher", async () => {
@@ -319,8 +322,24 @@ describe("mobile profile unavailable destinations", () => {
 });
 
 describe("mobile home media shortcuts", () => {
+  it("renders home promotion fields returned by the content endpoint", async () => {
+    vi.mocked(getHomeContent).mockResolvedValueOnce({
+      membershipEntry: { title: "服务端会员入口", subtitle: "后端返回副标题", targetUrl: "/membership" },
+      profileCampaign: { id: "campaign-live", title: "服务端活动", subtitle: "活动内容由接口返回", buttonText: "查看活动", targetUrl: "/membership", imageUrl: null },
+    });
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "首页")!.trigger("click");
+    expect(wrapper.find(".m-vip").text()).toContain("服务端会员入口");
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
+    expect(wrapper.find(".profile-promo").text()).toContain("服务端活动");
+    expect(wrapper.find(".profile-promo").text()).toContain("查看活动");
+  });
+
   it("shows the novel shortcut and routes video and novel entries to their hubs", async () => {
     const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "首页")!.trigger("click");
+    expect(getHomeContent).toHaveBeenCalledOnce();
+    expect(wrapper.find(".m-vip").text()).toContain("会员免费领");
     await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "首页")!.trigger("click");
     const shortcuts = wrapper.findAll(".m-tools button");
     const video = shortcuts.find(button => button.text() === "视频");

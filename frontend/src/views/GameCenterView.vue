@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ChevronLeft, ChevronRight, Coins, Ellipsis, Gift, RefreshCw, Trophy } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
+import { getGameCenterContent, type GameContentItem } from "../api/content";
+import { demoGameCenterContent } from "../api/contentDemo";
 import "../styles/mobile-media.css";
 import "../styles/game-center.css";
 
 const router = useRouter();
 const notice = ref("");
 const activeCategory = ref("热门");
-const categories = ["热门", "休闲益智", "模拟经营", "角色扮演", "放置挂机"];
+const contentSource = ref<"demo" | "backend">("demo");
+const categories = ref([...demoGameCenterContent.categories]);
 const rewardSteps = [
   { reward: "100MB", icon: "⬡", task: "1个任务" },
   { reward: "30s", icon: "ϟ", task: "2个任务" },
@@ -17,15 +20,32 @@ const rewardSteps = [
   { reward: "500MB", icon: "⬡", task: "6个任务" },
   { reward: "5分", icon: "ϟ", task: "8个任务" },
 ];
-const games = [
-  { name: "卡皮巴拉小餐厅", tagline: "指尖魔法畅享休闲", category: "模拟经营", emoji: "🐻", tone: "peach" },
-  { name: "JJ斗地主", tagline: "各路高手都在这", category: "休闲益智", emoji: "🧧", tone: "blue" },
-  { name: "寻道大千", tagline: "砍树爆装，挂机修仙", category: "放置挂机", emoji: "🐼", tone: "mint" },
-  { name: "我的花园世界", tagline: "玩游戏赢真实花礼", category: "模拟经营", emoji: "🌺", tone: "rose" },
-  { name: "兵法三十七计", tagline: "封疆扩张，攻城略地", category: "角色扮演", emoji: "🗡️", tone: "sand" },
-  { name: "哈拉小铺", tagline: "助力一场探索神秘", category: "休闲益智", emoji: "🐑", tone: "lavender" },
-];
-const filteredGames = computed(() => activeCategory.value === "热门" ? games : games.filter(game => game.category === activeCategory.value));
+type DisplayGame = GameContentItem & { tagline: string; emoji?: string; tone: string };
+const tones = ["peach", "blue", "mint", "rose", "sand", "lavender"];
+const emojis = ["🐻", "🧧", "🐼", "🌺", "🗡️", "🐑"];
+const games = ref<DisplayGame[]>(demoGameCenterContent.games.map((game, index) => ({
+  ...game,
+  tagline: game.description,
+  emoji: emojis[index % emojis.length],
+  tone: tones[index % tones.length]!,
+})));
+const filteredGames = computed(() => activeCategory.value === "热门" ? games.value : games.value.filter(game => game.category === activeCategory.value));
+
+onMounted(async () => {
+  try {
+    const content = await getGameCenterContent();
+    categories.value = content.categories;
+    games.value = content.games.map((game, index) => ({
+      ...game,
+      tagline: game.description,
+      tone: tones[index % tones.length]!,
+    }));
+    contentSource.value = "backend";
+    if (!categories.value.includes(activeCategory.value)) activeCategory.value = categories.value[0] ?? "";
+  } catch {
+    // Keep the clearly marked local demo content until the backend endpoint is available.
+  }
+});
 
 function goBack() {
   if (window.history.state?.back) router.back();
@@ -33,6 +53,31 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
+}
+function openGame(targetUrl: string | null) {
+  if (!targetUrl) {
+    showNotice("游戏详情及下载暂未接入");
+    return;
+  }
+  try {
+    const target = new URL(targetUrl, window.location.origin);
+    if (target.origin === window.location.origin) {
+      void router.push(`${target.pathname}${target.search}${target.hash}`);
+    } else if (target.protocol === "https:") {
+      window.open(target.href, "_blank", "noopener,noreferrer");
+    } else {
+      showNotice("游戏跳转地址无效");
+    }
+  } catch {
+    showNotice("游戏跳转地址无效");
+  }
+}
+function refreshRecommendations() {
+  if (contentSource.value === "demo") {
+    showNotice("推荐内容接口暂未接入");
+    return;
+  }
+  if (games.value.length > 1) games.value = [...games.value.slice(1), games.value[0]!];
 }
 </script>
 
@@ -54,7 +99,7 @@ function showNotice(message: string) {
         <span class="balance-glow"></span>
       </section>
 
-      <section class="game-task-card">
+      <section v-if="contentSource === 'demo'" class="game-task-card">
         <div class="game-task-heading"><h2>做任务 <span>领权益</span></h2><small>完成游戏任务，领取累积奖励</small></div>
         <p class="task-progress-copy">今日已完成 <strong>0</strong> 个任务</p>
         <div class="task-rewards">
@@ -66,12 +111,13 @@ function showNotice(message: string) {
       </section>
 
       <section class="game-recommend-section">
-        <div class="game-section-heading"><h2>精品推荐 <small class="game-demo-tag">演示内容</small></h2><button aria-label="换一换" @click="showNotice('推荐内容暂未接入')">换一换 <RefreshCw :size="14" /></button></div>
+        <div class="game-section-heading"><h2>精品推荐 <small v-if="contentSource === 'demo'" class="game-demo-tag">演示内容</small></h2><button aria-label="换一换" @click="refreshRecommendations">换一换 <RefreshCw :size="14" /></button></div>
         <div class="featured-games">
-          <button v-for="(game, index) in games" :key="game.name" class="featured-game" @click="showNotice('游戏详情及下载暂未接入')">
-            <span class="game-art" :class="game.tone"><i>{{ game.emoji }}</i><small>{{ index % 2 === 0 ? '精选' : '热门' }}</small></span>
+          <button v-for="(game, index) in games" :key="game.id" class="featured-game" @click="openGame(game.targetUrl)">
+            <span class="game-art" :class="game.tone"><img v-if="game.coverUrl" :src="game.coverUrl" :alt="game.name" /><i v-else>{{ game.emoji || '🎮' }}</i><small>{{ index % 2 === 0 ? '精选' : '热门' }}</small></span>
             <strong>{{ game.name }}</strong><small>{{ game.tagline }}</small>
           </button>
+          <p v-if="!games.length" class="game-empty-state">暂无游戏推荐</p>
         </div>
       </section>
 
@@ -81,14 +127,15 @@ function showNotice(message: string) {
           <button v-for="category in categories" :key="category" :class="{ active: activeCategory === category }" @click="activeCategory = category">{{ category }}</button>
         </div>
         <div class="more-game-list">
-          <button v-for="game in filteredGames" :key="game.name" class="more-game-row" @click="showNotice('游戏详情及下载暂未接入')">
-            <span class="more-game-icon" :class="game.tone">{{ game.emoji }}</span>
+          <button v-for="game in filteredGames" :key="game.id" class="more-game-row" @click="openGame(game.targetUrl)">
+            <span class="more-game-icon" :class="game.tone"><img v-if="game.coverUrl" :src="game.coverUrl" :alt="game.name" /><template v-else>{{ game.emoji || '🎮' }}</template></span>
             <span class="more-game-copy"><strong>{{ game.name }}</strong><small>{{ game.category }} · {{ game.tagline }}</small></span>
             <span class="game-open-button">打开</span>
           </button>
+          <p v-if="!filteredGames.length" class="game-empty-state">该分类暂无游戏</p>
         </div>
       </section>
-      <p class="media-demo-note"><Trophy :size="13" /> 游戏推荐与任务为前端演示，游戏数据和奖励服务尚未接入</p>
+      <p class="media-demo-note"><Trophy :size="13" />{{ contentSource === "demo" ? "游戏内容接口尚未接入，当前展示演示数据；任务和奖励服务也未接入" : "游戏推荐由内容接口返回；任务和奖励服务尚未接入" }}</p>
     </div>
     <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>

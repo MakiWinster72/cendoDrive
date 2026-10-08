@@ -1,0 +1,26 @@
+.splash-ad-overlay {
+  position: fixed;
+  z-index: 10001;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background: #101825;
+}
+.splash-ad-content {
+  position: relative;
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: #26364d;
+  color: #fff;
+  text-align: left;
+}
+.splash-ad-content img { width: 100%; height: 100%; object-fit: cover; }
+.splash-ad-content span { position: absolute; inset: auto 0 0; padding: 34px 18px 20px; background: linear-gradient(transparent,#0e1724d9); font-size: 17px; font-weight: 700; }
+.splash-ad-skip { align-self: flex-end; min-width: 78px; min-height: 34px; margin-top: 12px; padding: 0 13px; border: 1px solid #ffffff80; border-radius: 18px; background: #0005; color: #fff; font-size: 12px; }
+.splash-ad-skip:disabled { border-color: #ffffff50; color: #ffffffc9; }
