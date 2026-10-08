@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.driver-class-name=org.h2.Driver","spring.datasource.username=sa","spring.datasource.password=",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect","spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true","cendo.upload.cleanup-delay-ms=86400000",
-    "cendo.storage.cleanup-delay-ms=86400000"})
+    "cendo.storage.cleanup-delay-ms=86400000","cendo.ai.worker-delay-ms=86400000"})
 @AutoConfigureMockMvc
 class FileManagementIntegrationTest {
   static final Path STAGING=staging();
@@ -53,11 +53,13 @@ class FileManagementIntegrationTest {
   @Autowired DriveService drive;
   @Autowired FileQuotaService quota;
   @Autowired AiIndexTaskRepository indexTasks;
+  @Autowired AiIndexWorker indexWorker;
   @Autowired StorageCleanupTaskRepository cleanupTasks;
   @Autowired StorageCleanupWorker cleanupWorker;
   @Autowired TransactionTemplate transactions;
   @MockBean AuthService auth;
   @MockBean FileStorage storage;
+  @MockBean AiIndexClient indexClient;
   User owner,other;
   Map<String,byte[]> blobs=new ConcurrentHashMap<>();
   Map<String,Long> sizes=new ConcurrentHashMap<>();
@@ -68,6 +70,7 @@ class FileManagementIntegrationTest {
     other=users.saveAndFlush(new User("other","test-hash","用户二"));
     when(auth.authenticate("owner")).thenReturn(owner);
     when(auth.authenticate("other")).thenReturn(other);
+    when(indexClient.configured()).thenReturn(true);
     when(storage.upload(any(),anyLong(),anyString())).thenAnswer(call -> {
       InputStream input=call.getArgument(0); long size=call.getArgument(1);
       String key="group1/"+UUID.randomUUID();
@@ -276,6 +279,23 @@ class FileManagementIntegrationTest {
     cleanupWorker.cleanup();
     assertEquals(StorageCleanupTask.Status.SUCCEEDED,cleanupTasks.findById(task.getId()).orElseThrow().getStatus());
     assertFalse(sizes.containsKey(key)); verify(storage,times(2)).delete(key);
+  }
+
+  @Test void indexDeliveryDoesNotChangeQuotaOrBlockFileTraffic() throws Exception {
+    byte[] content="index isolation".getBytes();
+    JsonNode uploaded=upload("isolated.txt",content,null,201);
+    verify(indexClient,never()).deliver(any());
+    JsonNode before=usage();
+    doThrow(new AiIndexClient.RetryableDeliveryException("Anna unavailable"))
+        .when(indexClient).deliver(any(AiIndexTask.class));
+    indexWorker.deliver();
+    AiIndexTask task=indexTasks.findAll().getFirst();
+    assertEquals(AiIndexTask.Status.RETRY,task.getStatus()); assertEquals(1,task.getAttempts());
+    JsonNode after=usage();
+    assertEquals(before.path("usedBytes").asLong(),after.path("usedBytes").asLong());
+    assertEquals(before.path("availableBytes").asLong(),after.path("availableBytes").asLong());
+    assertEquals(before.path("reservedBytes").asLong(),after.path("reservedBytes").asLong());
+    download(uploaded.path("id").asText(),content);
   }
 
   @Test void recursiveCopyPreservesHiddenFlagsButUsesIndependentContentAndQuota() throws Exception {
