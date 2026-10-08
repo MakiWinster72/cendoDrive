@@ -28,6 +28,8 @@ describe("file tools workflows", () => {
     const created = folder("9", "新目标", "1"); vi.mocked(api.createFolder).mockResolvedValue(created);
     vi.mocked(api.listFolders).mockResolvedValue([folder("1", "资料"), created]);
     await button(wrapper, "新建文件夹").trigger("click");
+    expect(wrapper.findAll("dialog")).toHaveLength(1);
+    expect(button(wrapper, action === "move" ? "确认移动" : "确认复制").attributes("disabled")).toBeDefined();
     await wrapper.find('.target-draft-row .inline-name-input').setValue("新目标");
     await wrapper.find('.target-draft-row .inline-name-editor').trigger("submit"); await flushPromises();
     expect(api.createFolder).toHaveBeenCalledWith("新目标", "1");
@@ -38,7 +40,7 @@ describe("file tools workflows", () => {
     expect(action === "move" ? api.moveFiles : api.copyFiles).toHaveBeenCalledWith(["42"], "9");
     wrapper.unmount(); expect(document.body.style.overflow).toBe("auto");
   });
-  it("cancels nested creation without closing the move dialog or losing its target", async () => {
+  it("cancels inline creation without closing the move dialog or losing its target", async () => {
     const wrapper = await open("move"); await wrapper.find("select").setValue("2");
     await button(wrapper, "新建文件夹").trigger("click"); await wrapper.find(".target-draft-row input").trigger("keydown", { key: "Escape" });
     expect(api.createFolder).not.toHaveBeenCalled(); expect(wrapper.emitted("close")).toBeUndefined();

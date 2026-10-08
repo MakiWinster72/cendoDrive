@@ -69,6 +69,58 @@ describe("mobile file management wiring", () => {
     const wrapper = await open(); await wrapper.find('.m-file-row input[type="checkbox"]').setValue(true); await wrapper.findAll(".m-selection-actions button").find(button => button.text() === label)!.trigger("click");
     expect(wrapper.findComponent({ name: "FileTools" }).props("initialAction")).toBe(action);
   });
+  it("renames the mobile row without any dialog and selects only the stem", async () => {
+    const wrapper = await open(); vi.mocked(api.renameFile).mockResolvedValue({ ...file, name: "新说明.txt" });
+    await wrapper.find('.m-file-row input[type="checkbox"]').setValue(true);
+    await wrapper.findAll('.m-selection-actions button').find(button => button.text() === "重命名")!.trigger("click"); await flushPromises();
+    const input = wrapper.find('.m-file-list .inline-name-input').element as HTMLInputElement;
+    expect(document.activeElement).toBe(input); expect(input.selectionStart).toBe(0); expect(input.selectionEnd).toBe(2);
+    expect(wrapper.find("dialog").exists()).toBe(false); expect(wrapper.findAll(".inline-name-editor")).toHaveLength(1);
+    await wrapper.find('.m-file-list .inline-name-input').setValue("新说明.txt"); await wrapper.find('.m-file-list .inline-name-editor').trigger("submit"); await flushPromises();
+    expect(api.renameFile).toHaveBeenCalledWith("42", "新说明.txt"); expect(wrapper.find('.m-file-list').text()).toContain("新说明.txt");
+    expect(wrapper.find('.inline-name-editor').exists()).toBe(false);
+  });
+  it("cancels mobile rename without changing the item or opening its preview", async () => {
+    const wrapper = await open(); await wrapper.find('.m-file-row input[type="checkbox"]').setValue(true);
+    await wrapper.findAll('.m-selection-actions button').find(button => button.text() === "重命名")!.trigger("click");
+    await wrapper.find('.m-file-list .inline-name-input').setValue("未保存.txt"); await wrapper.find('.m-file-list .inline-name-input').trigger("keydown", { key: "Escape" });
+    expect(api.renameFile).not.toHaveBeenCalled(); expect(wrapper.find('.m-file-list').text()).toContain("说明.txt"); expect(wrapper.find('.inline-name-editor').exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "FilePreview" }).exists()).toBe(false);
+  });
+  it.each(["list", "grid"])("starts desktop %s rename with F2 and retries a server conflict in place", async view => {
+    window.innerWidth = 1280; const wrapper = await open();
+    if (view === "grid") await wrapper.findAll('.view-switch button')[1]!.trigger("click");
+    await wrapper.find(view === "grid" ? ".file-grid article" : ".file-row").trigger("keydown", { key: "F2" }); await flushPromises();
+    expect(wrapper.findAll('.inline-name-editor')).toHaveLength(1); expect(wrapper.find('.mobile-app .inline-name-editor').exists()).toBe(false);
+    expect(wrapper.find('dialog').exists()).toBe(false);
+    const input = wrapper.find('.desktop-drive .inline-name-input'); await input.setValue("冲突.txt");
+    vi.mocked(api.renameFile).mockRejectedValueOnce(new Error("同名冲突")); await wrapper.find('.desktop-drive .inline-name-editor').trigger("submit"); await flushPromises();
+    expect(wrapper.find('.desktop-drive [role="alert"]').text()).toContain("同名冲突"); expect(useDrive().get("42")?.name).toBe("说明.txt");
+    expect(document.activeElement).toBe(input.element);
+    vi.mocked(api.renameFile).mockResolvedValue({ ...file, name: "重试.txt" }); await input.setValue("重试.txt"); await wrapper.find('.desktop-drive .inline-name-editor').trigger("submit"); await flushPromises();
+    expect(api.renameFile).toHaveBeenCalledTimes(2); expect(wrapper.find('.desktop-drive').text()).toContain("重试.txt");
+  });
+  it("creates in desktop grid and cancels an unsaved draft on navigation", async () => {
+    window.innerWidth = 1280; const wrapper = await open(); await wrapper.findAll('.view-switch button')[1]!.trigger("click");
+    await wrapper.findAll('.tool-left button').find(button => button.text() === "新建文件夹")!.trigger("click"); await flushPromises();
+    expect(wrapper.find('.file-grid .draft-folder-row .inline-name-editor').exists()).toBe(true);
+    expect((wrapper.find('.file-grid input').element as HTMLInputElement).value).toBe("新建文件夹");
+    await wrapper.findAll('.m-filter button').find(button => button.text() === "我的收藏")!.trigger("click"); await flushPromises();
+    expect(wrapper.find('.inline-name-editor').exists()).toBe(false); expect(api.createFolder).not.toHaveBeenCalled();
+  });
+  it("can create after switching from favorites back to all files", async () => {
+    const wrapper = await open(); await wrapper.findAll('.m-filter button').find(button => button.text() === "我的收藏")!.trigger("click"); await flushPromises();
+    await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click"); await flushPromises();
+    expect(wrapper.find('.m-file-list .inline-name-editor').exists()).toBe(true); expect(wrapper.find('.m-filter button.active').text()).toBe("全部");
+  });
+  it("preserves the draft and mounts only the visible editor when resizing across 768px", async () => {
+    const wrapper = await open(); await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
+    await wrapper.find('.m-file-list .inline-name-input').setValue("跨屏草稿"); window.innerWidth = 768; window.dispatchEvent(new Event("resize")); await flushPromises();
+    expect(wrapper.findAll('.inline-name-editor')).toHaveLength(1); expect(wrapper.find('.mobile-app .inline-name-editor').exists()).toBe(false);
+    expect((wrapper.find('.desktop-drive .inline-name-input').element as HTMLInputElement).value).toBe("跨屏草稿");
+    window.innerWidth = 767; window.dispatchEvent(new Event("resize")); await flushPromises(); expect(wrapper.findAll('.inline-name-editor')).toHaveLength(1);
+    expect((wrapper.find('.m-file-list .inline-name-input').element as HTMLInputElement).value).toBe("跨屏草稿"); expect(api.createFolder).not.toHaveBeenCalled();
+  });
   it("does not leak cached descendants of hidden or trashed folders", async () => {
     const wrapper = await open(), drive = useDrive();
     drive.state.files.push({ ...file, id: "1", kind: "folder", hidden: true }, { ...file, id: "2", parentId: "1", name: "秘密.txt" }, { ...file, id: "3", kind: "folder", deletedAt: "today" }, { ...file, id: "4", parentId: "3", name: "已删.txt" }); await flushPromises();
