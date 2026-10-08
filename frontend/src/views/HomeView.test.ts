@@ -22,6 +22,86 @@ beforeEach(() => {
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
+describe("folder navigation and screenshot layout", () => {
+  const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
+  const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };
+  async function inside() {
+    vi.mocked(api.listFiles).mockImplementation(async id => id === "7" ? [child] : id === "8" ? [{ ...file, parentId: "8" }] : [parent]);
+    const wrapper = await open();
+    await wrapper.find('.m-file-row').trigger("click"); await flushPromises(); return wrapper;
+  }
+  it("shows the reference folder header, breadcrumb, blue folder, sorting and white panel instead of root filters", async () => {
+    const wrapper = await inside();
+    expect(wrapper.find('.m-folder-head button[aria-label="返回上一级"]').exists()).toBe(true);
+    expect(wrapper.find('.m-folder-search input').attributes('placeholder')).toBe("支持文档全文、图中文字搜索啦");
+    expect(wrapper.find('.m-folder-breadcrumb').text()).toContain("我的网盘/U鱼游戏 S1-S3 三季");
+    expect(wrapper.find('.m-folder-breadcrumb [aria-current="page"]').text()).toBe(parent.name);
+    expect(wrapper.find('.m-folder-files .folder-sheet-icon').exists()).toBe(true);
+    expect(wrapper.find('.m-filter').exists()).toBe(false); expect(wrapper.find('.m-capacity').exists()).toBe(false);
+    expect(wrapper.find('.m-folder-toolbar select').exists()).toBe(true);
+  });
+  it("returns one level at a time, not directly from a nested folder to root", async () => {
+    const wrapper = await inside(); await wrapper.find('.m-file-row').trigger("click"); await flushPromises();
+    expect(wrapper.find('.m-folder-breadcrumb').text()).toContain("S01");
+    await wrapper.find('.m-folder-head button[aria-label="返回上一级"]').trigger("click"); await flushPromises();
+    expect(api.listFiles).toHaveBeenLastCalledWith("7");
+    expect(wrapper.find('.m-folder-breadcrumb [aria-current]').text()).toBe(parent.name);
+    await wrapper.find('.m-folder-head button[aria-label="返回上一级"]').trigger("click"); await flushPromises();
+    expect(api.listFiles).toHaveBeenLastCalledWith(null); expect(wrapper.find('.m-folder-head').exists()).toBe(false);
+    expect(wrapper.find('.m-filter').exists()).toBe(true);
+  });
+  it("breadcrumb ancestor navigation clears search and selection without saving an unfinished draft", async () => {
+    const wrapper = await inside(); await wrapper.find('.m-file-row').trigger("click"); await flushPromises();
+    await wrapper.find('.m-folder-head button[aria-label="文件夹更多操作"]').trigger("click");
+    await wrapper.find('.m-folder-menu .m-new-folder').trigger("click"); await flushPromises();
+    await wrapper.find('.m-file-list .inline-name-input').setValue("未保存目录");
+    await wrapper.findAll('.m-folder-breadcrumb button').find(button => button.text() === parent.name)!.trigger("click"); await flushPromises();
+    expect(api.createFolder).not.toHaveBeenCalled(); expect(wrapper.find('.inline-name-editor').exists()).toBe(false);
+    await wrapper.find('.m-folder-search input').setValue("S01");
+    await wrapper.find('.m-file-row input[type="checkbox"]').setValue(true);
+    await wrapper.find('.m-folder-breadcrumb button').trigger("click"); await flushPromises();
+    expect(wrapper.find('.m-selection-sheet').exists()).toBe(false);
+    expect((wrapper.find('.mobile-app .m-search input').element as HTMLInputElement).value).toBe("");
+    expect(wrapper.find('.m-file-row b').text()).toBe(parent.name);
+  });
+  it("keeps the current folder on failed parent loading and allows an explicit retry", async () => {
+    const wrapper = await inside(); vi.mocked(api.listFiles).mockRejectedValueOnce(new Error("目录加载失败"));
+    await wrapper.find('.m-folder-head button[aria-label="返回上一级"]').trigger("click"); await flushPromises();
+    expect(wrapper.find('.m-folder-breadcrumb [aria-current]').text()).toBe(parent.name);
+    expect(wrapper.find('.m-file-row b').text()).toBe(child.name); expect(alert).toHaveBeenCalled();
+    await wrapper.find('.m-folder-head button[aria-label="返回上一级"]').trigger("click"); await flushPromises();
+    expect(wrapper.find('.m-folder-head').exists()).toBe(false);
+  });
+  it("blocks duplicate or stale navigation while a parent request is pending", async () => {
+    const wrapper = await inside(); let finish!: (items: DriveItem[]) => void;
+    vi.mocked(api.listFiles).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const count = vi.mocked(api.listFiles).mock.calls.length;
+    await wrapper.find('.m-folder-head button[aria-label="返回上一级"]').trigger("click");
+    expect(wrapper.find('.m-folder-head button[aria-label="返回上一级"]').attributes('disabled')).toBeDefined();
+    await wrapper.find('.m-file-row').trigger("click");
+    await wrapper.find('.m-folder-breadcrumb button').trigger("click");
+    expect(api.listFiles).toHaveBeenCalledTimes(count + 1);
+    finish([parent]); await flushPromises(); expect(wrapper.find('.m-folder-head').exists()).toBe(false);
+  });
+  it("sorts files by name and toggles the actual mobile grid", async () => {
+    const wrapper = await inside();
+    useDrive().state.files.push({ ...child, id: "9", name: "S03" }, { ...child, id: "10", name: "S02" });
+    await wrapper.find('.m-folder-toolbar select').setValue("name");
+    expect(wrapper.findAll('.m-folder-files b').map(row => row.text())).toEqual(["S01", "S02", "S03"]);
+    await wrapper.find('.m-folder-toolbar button').trigger("click");
+    expect(wrapper.find('.m-folder-files').classes()).toContain("is-grid");
+    expect(wrapper.find('.m-folder-toolbar button').attributes('aria-label')).toBe("切换列表视图");
+  });
+  it("also offers desktop parent and ancestor navigation", async () => {
+    window.innerWidth = 1280; const wrapper = await inside();
+    await wrapper.find('.desktop-drive .file-row').trigger("dblclick"); await flushPromises();
+    expect(wrapper.find('.desktop-drive .breadcrumb [aria-current]').text()).toBe(child.name);
+    await wrapper.find('.desktop-drive .breadcrumb button[aria-label="返回上一级"]').trigger("click"); await flushPromises();
+    expect(api.listFiles).toHaveBeenLastCalledWith("7");
+    await wrapper.findAll('.desktop-drive .breadcrumb button').find(button => button.text() === '全部文件')!.trigger("click"); await flushPromises();
+    expect(api.listFiles).toHaveBeenLastCalledWith(null); expect(wrapper.find('.breadcrumb').exists()).toBe(false);
+  });
+});
 describe("mobile file management wiring", () => {
   it("offers folder creation in the mobile file page", async () => {
     const wrapper = await open();
@@ -44,6 +124,7 @@ describe("mobile file management wiring", () => {
     const folder = { ...file, id: "7", name: "工作", kind: "folder" as const, size: 0 };
     vi.mocked(api.listFiles).mockResolvedValue([folder]); const wrapper = await open();
     vi.mocked(api.listFiles).mockResolvedValue([]); await wrapper.find('.m-file-row').trigger("click"); await flushPromises();
+    await wrapper.find('.m-folder-head button[aria-label="文件夹更多操作"]').trigger("click");
     await wrapper.find('.mobile-app button[aria-label="新建文件夹"]').trigger("click");
     await wrapper.find('.m-file-list .inline-name-input').setValue("../bad"); await wrapper.find('.m-file-list .inline-name-editor').trigger("submit");
     expect(api.createFolder).not.toHaveBeenCalled();
