@@ -4,7 +4,7 @@
     background: #f0f2f8;
   }
   .profile-page {
-    max-width: 520px;
+    width: 100%;
     margin: auto;
     padding: 26px var(--mobile-gutter) 0;
     color: #10182c;

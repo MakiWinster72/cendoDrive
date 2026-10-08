@@ -13,6 +13,14 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("applies share gutters once at the page boundary", () => {
+    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(hub).not.toContain("!important");
+    expect(share).not.toContain(".mobile-share-hub");
+    expect(hub.match(/var\(--mobile-gutter\)/g)).toHaveLength(1);
+    expect(profile).not.toContain("max-width: 520px");
+  });
+
   it("inherits one font family across all mobile tabs and controls", () => {
     expect(main).toContain("font-family: var(--app-font-family)");
     expect(layout).toContain("font-family: var(--app-font-family)");
@@ -39,7 +47,7 @@ describe("responsive style ownership", () => {
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
-    expect(hub).toContain("padding: 25px 0 0");
+    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
   });
   it.each([main, home, profile, share, files, selection, upload, layout, hub])(
     "uses the same exclusive mobile boundary",

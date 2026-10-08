@@ -4,24 +4,24 @@
     --share-ink: #080e1c;
     --share-muted: #a1a8bb;
     min-height: calc(100dvh - var(--mobile-content-bottom));
-    padding: 25px 0 0;
+    padding: var(--mobile-page-top) var(--mobile-gutter) 0;
     background: linear-gradient(#fff 85px, #fafbfc 178px, #fff 220px);
     color: var(--share-ink);
     font-family: inherit;
   }
   .mobile-share-hub button { border: 0; background: transparent; font-family: inherit; cursor: pointer; padding: 0; color: inherit; }
   .mobile-share-hub button:focus-visible { outline: 2px solid #438aff; outline-offset: -2px; border-radius: 8px; }
-  .share-hub-header { display: flex; align-items: center; gap: 17px; padding: 0 var(--mobile-gutter); height: 35px; }
+  .share-hub-header { display: flex; align-items: center; gap: 17px; padding: 0; height: 35px; }
   .share-hub-tabs { display: flex; align-items: center; gap: 20px; flex: 1; min-width: 0; }
   .share-hub-tabs button { white-space: nowrap; font-size: 18px; font-weight: 700; color: var(--share-muted); }
   .share-hub-tabs button.selected { color: var(--share-ink); }
   .share-hub-icon { display: grid; place-items: center; flex: 0 0 24px; }
   .share-hub-icon svg { width: 24px; height: 24px; stroke-width: 2.3; }
-  .share-hub-shortcuts { display: grid; grid-template-columns: repeat(4, 1fr); padding: 28px var(--mobile-gutter) 14px; gap: 14px; }
+  .share-hub-shortcuts { display: grid; grid-template-columns: repeat(4, 1fr); padding: 28px 0 14px; gap: 14px; }
   .share-hub-shortcuts button { display: flex; flex-direction: column; align-items: center; gap: 11px; white-space: nowrap; color: #50576a; font-size: 12px; font-weight: 600; }
   .share-hub-shortcuts svg { width: 24px; height: 24px; color: var(--share-ink); }
-  .share-hub-messages { background: #fff; border-radius: 26px 26px 0 0; padding-top: 0; }
-  .share-hub-message { display: flex; align-items: center; width: 100%; height: 70px; gap: 12px; text-align: left; padding: 0 var(--mobile-gutter) !important; }
+  .share-hub-messages { background: #fff; border-radius: 18px 18px 0 0; padding-top: 0; }
+  .share-hub-message { display: flex; align-items: center; width: 100%; height: 70px; gap: 12px; text-align: left; }
   .share-hub-message.separated { border-top: 1px solid #f7f7f8; }
   .share-message-avatar { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; display: grid; place-items: center; color: white; }
   .share-message-avatar > svg { width: 30px; height: 30px; }
