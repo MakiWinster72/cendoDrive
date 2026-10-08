@@ -88,9 +88,20 @@ class ShareSecurityTest {
     mvc.perform(asyncDispatch(result)).andExpect(status().isOk()).andExpect(content().string("hello"));
   }
 
+  @Test void acceptsPermanentExpiryThroughHttpValidation() throws Exception {
+    User owner = mock(User.class);
+    when(auth.authenticate("owner-token")).thenReturn(owner);
+    when(shares.create(owner, new ShareDtos.CreateShareRequest(42L, 0L)))
+        .thenReturn(new ShareDtos.ShareResponse("51", TOKEN, "42", "hello.txt", "file", 5,
+            "2026-10-01T12:00:00Z", ShareLink.PERMANENT_EXPIRY.toString(), "ACTIVE", false));
+    mvc.perform(post("/api/shares").header("Authorization", "Bearer owner-token")
+        .contentType(MediaType.APPLICATION_JSON).content("{\"fileId\":42,\"expiresInSeconds\":0}"))
+        .andExpect(status().isCreated()).andExpect(jsonPath("$.expiresAt").value("9999-12-31T23:59:59Z"));
+  }
+
   @Test void rejectsInvalidExpiryAndDestinationBeforeService() throws Exception {
     when(auth.authenticate("owner-token")).thenReturn(mock(User.class));
-    for (String input : List.of("{}", "{\"fileId\":42,\"expiresInSeconds\":0}",
+    for (String input : List.of("{}", "{\"fileId\":42,\"expiresInSeconds\":-1}",
         "{\"fileId\":42,\"expiresInSeconds\":2592001}"))
       mvc.perform(post("/api/shares").header("Authorization", "Bearer owner-token")
           .contentType(MediaType.APPLICATION_JSON).content(input)).andExpect(status().isBadRequest());

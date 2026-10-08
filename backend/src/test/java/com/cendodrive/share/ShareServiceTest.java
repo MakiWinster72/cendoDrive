@@ -69,6 +69,26 @@ class ShareServiceTest {
     verify(access).enable(any(), eq(NOW));
   }
 
+  @Test void zeroSecondsCreatesPermanentButRevocableShare() {
+    DriveFile file = DriveFile.uploaded(7L, null, "hello.txt", 5, "original");
+    ReflectionTestUtils.setField(file, "id", 42L);
+    when(drive.shareableFile(owner, 42L)).thenReturn(file);
+    when(links.saveAndFlush(any())).thenAnswer(call -> {
+      ShareLink value = call.getArgument(0);
+      ReflectionTestUtils.setField(value, "id", 51L);
+      assertTrue(value.isPermanent());
+      assertTrue(value.isActiveAt(NOW.plusSeconds(2592001)));
+      return value;
+    });
+    ShareResponse response = service.create(owner, new CreateShareRequest(42L, 0L));
+    assertEquals(ShareLink.PERMANENT_EXPIRY.toString(), response.expiresAt());
+    assertEquals("ACTIVE", response.status());
+    ShareLink permanent = link(0);
+    permanent.cancel();
+    assertFalse(permanent.isActiveAt(NOW));
+    verify(access).enable(any(), eq(NOW));
+  }
+
   @Test void cannotCreateFromAnotherOwnersFile() {
     when(drive.shareableFile(owner, 42L)).thenThrow(new DriveFailure(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "missing"));
     assertThrows(DriveFailure.class, () -> service.create(owner, new CreateShareRequest(42L, 60L)));
@@ -76,7 +96,7 @@ class ShareServiceTest {
   }
 
   @Test void refusesInvalidExpiriesWithoutStorageAccess() {
-    for (Long seconds : Arrays.asList(null, 0L, -1L, 2592001L))
+    for (Long seconds : Arrays.asList(null, -1L, 2592001L))
       assertThrows(DriveFailure.class, () -> service.create(owner, new CreateShareRequest(42L, seconds)));
     verifyNoInteractions(drive, links, access);
   }
@@ -103,7 +123,7 @@ class ShareServiceTest {
   }
 
   @Test void expiryAndCancellationFailEvenWithStaleRedisCredentials() {
-    ShareLink expired = link(0);
+    ShareLink expired = link(-1);
     resolve(expired);
     assertUnavailable();
     ShareLink cancelled = link(60);
