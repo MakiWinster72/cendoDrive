@@ -104,8 +104,10 @@ export function useDrive() {
   const emptyTrash = () => run(async () => {
     await api.emptyTrash(); removeCachedTree(state.files.filter(item => item.deletedAt).map(item => item.id));
   }, true);
-  const share = (id: string, expiresInSeconds: number) => run(async () => {
-    const record = await shareApi.createShare(id, expiresInSeconds); state.shares.unshift(record); return record;
+  const share = (id: string, expiresInSeconds: number, extractionCode?: string) => run(async () => {
+    const response = await shareApi.createShare(id, expiresInSeconds, extractionCode);
+    const record = extractionCode ? { ...response, extractionCode } : response;
+    state.shares.unshift(record); return record;
   });
   const cancelShare = (id: string) => run(async () => {
     await shareApi.cancelShare(id); const record = state.shares.find(item => item.id === id); if (record) record.status = "CANCELLED";

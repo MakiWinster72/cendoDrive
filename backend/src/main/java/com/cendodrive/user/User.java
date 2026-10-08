@@ -25,6 +25,10 @@ public class User {
   private long storageLimit = 1073741824L;
   @Column(name = "is_active", nullable = false)
   private boolean active = true;
+  @Column(name = "auth_version", nullable = false)
+  private long authVersion;
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
   @Column(name = "updated_at", nullable = false)
@@ -86,6 +90,13 @@ public class User {
   public boolean isActive() {
     return active;
   }
+
+  public long getAuthVersion() { return authVersion; }
+  public LocalDateTime getDeletedAt() { return deletedAt; }
+  public void setNickname(String value) { nickname=value; }
+  public void changePassword(String hash) { passwordHash=hash; authVersion++; }
+  public void markDeleted(LocalDateTime time) { active=false; deletedAt=time; authVersion++; }
+  public void restoreAccount() { active=true; deletedAt=null; authVersion++; }
 
   public LocalDateTime getCreatedAt() {
     return createdAt;

@@ -44,6 +44,13 @@ public class AuthController {
     return auth.login(request);
   }
 
+  @Operation(summary = "恢复待注销账号", description = "使用原用户名和密码在七天内恢复；旧会话和分享不会恢复。恢复后需重新登录。")
+  @PostMapping("/api/auth/restore")
+  ResponseEntity<Void> restore(@Valid @RequestBody LoginRequest request) {
+    auth.restore(request);
+    return ResponseEntity.noContent().build();
+  }
+
   @Operation(summary = "退出当前登录", description = "撤销当前 Bearer Token，不影响其他设备。")
   @SecurityRequirement(name = "bearerAuth")
   @ApiResponses({ @ApiResponse(responseCode = "204", description = "已退出", content = @Content),

@@ -39,6 +39,13 @@ beforeEach(() => {
   vi.stubGlobal("sessionStorage", storage());
 });
 
+it.each([true,false])("updates the nickname without extending expiry or switching storage (remember=%s)",async remember=>{
+  api.loginRequest.mockResolvedValue({token:"test-token",expiresInSeconds:86400,user});
+  const {useAuth}=await import("./auth");const auth=useAuth();await auth.login({username:"tester",password:"password123"},remember);
+  const target=remember ? localStorage : sessionStorage, other=remember ? sessionStorage : localStorage;
+  const before=JSON.parse(target.getItem(key)!);auth.updateNickname("新昵称");const after=JSON.parse(target.getItem(key)!);
+  expect(auth.user.value?.nickname).toBe("新昵称");expect(after.user.nickname).toBe("新昵称");expect(after.token).toBe(before.token);expect(after.expiresAt).toBe(before.expiresAt);expect(other.getItem(key)).toBeNull();
+});
 describe("auth session", () => {
   it("stores login only in sessionStorage unless remember is selected", async () => {
     api.loginRequest.mockResolvedValue({

@@ -9,7 +9,7 @@ const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const token = getToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && config.url !== "/auth/restore") config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -21,7 +21,8 @@ http.interceptors.response.use(
       error.response?.status === 401 &&
       request?.headers?.Authorization &&
       request.url !== "/user/me" &&
-      request.url !== "/auth/login"
+      request.url !== "/auth/login" &&
+      request.url !== "/auth/restore"
     ) {
       invalidateSession();
       if (location.pathname !== "/login" && location.pathname !== "/register") {
