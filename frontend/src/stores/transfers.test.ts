@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTransfers, isActive } from './transfers';
 const store = useTransfers();
-beforeEach(() => { store.tasks.splice(0); store.setDownloadLimit(2); });
+beforeEach(() => { store.reset(); store.setDownloadLimit(2); });
 describe('transfer queue', () => {
   it('synchronizes upload progress and retry without duplicate tasks', () => {
     const task = { id: 'u', name: 'test.zip', size: 1024, status: 'waiting' as const, progress: 0 };
@@ -44,6 +44,21 @@ describe('transfer queue', () => {
     await Promise.all([first, second]);
     expect(secondRun).toHaveBeenCalledOnce();
     expect(store.tasks.every(task => task.status === 'success' && task.progress === 100)).toBe(true);
+  });
+  it('clears account history and rejects queued work without restarting it after reset', async () => {
+    store.setDownloadLimit(1);
+    let finish!: () => void;
+    const active = store.enqueueDownload('private.txt', 1, async () => { await new Promise<void>(resolve => { finish = resolve; }); });
+    const waitingRun = vi.fn(async () => {});
+    const waiting = store.enqueueDownload('queued.txt', 1, waitingRun);
+    const cancelled = expect(waiting).rejects.toThrow('会话已重置，取消等待下载');
+    await Promise.resolve();
+    store.reset();
+    expect(store.tasks).toHaveLength(0);
+    finish();
+    await Promise.all([active, cancelled]);
+    expect(waitingRun).not.toHaveBeenCalled();
+    expect(store.tasks).toHaveLength(0);
   });
   it('records failure and keeps the queue moving', async () => {
     store.setDownloadLimit(1);

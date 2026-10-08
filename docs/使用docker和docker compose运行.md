@@ -34,40 +34,26 @@ git switch feat/preview
 
 ## 二、使用 Docker Compose
 
-### 2.1 补充本机访问配置
+### 2.1 前端服务与访问配置
 
-当前后端示例的 CORS 默认仅允许 `5173` 开发端口，前端 Nginx 未显式设置上传大小，默认限制为 1MB。容器前端从 `http://localhost` 访问，因此使用以下本地覆盖文件补充来源和上传限制，不需要修改仓库原配置：
+Compose 前端使用 Dockerfile 的 Node 构建阶段，运行 `vite preview` 提供构建后的页面；通过 `VITE_API_PROXY_TARGET=http://backend:8080` 将 `/api` 代理至后端。访问地址仍为 `http://localhost`，无需 Nginx 或 `compose.local.yaml`。
 
-```sh
-cat > compose.local.yaml <<'YAML'
-services:
-  backend:
-    environment:
-      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
-  frontend:
-    command:
-      - /bin/sh
-      - -c
-      - |
-        sed -i '/listen 80;/a client_max_body_size 100m;' /etc/nginx/conf.d/default.conf
-        exec nginx -g 'daemon off;'
-YAML
-```
+Vite Preview 仅用于本机开发/验收，不是生产服务器。页面与 API 同源访问，无需额外配置后端 CORS。
 
-这个文件是本地运行配置，可不要提交到仓库。后续 Compose 命令都要带上相同的两个 `-f` 参数，避免更新时漏掉覆盖配置。
+旧部署不要再加载 `compose.local.yaml` 中的 Nginx `command` 覆盖。以下命令只使用仓库配置；保留原项目名和环境变量。纯 Docker 方式仍使用第 3 节的 Nginx 方案；FastDFS 镜像不受本次前端调整影响。
 
 ### 2.2 构建并启动
 
 ```sh
-docker compose -f compose.yaml -f compose.local.yaml config --quiet
-docker compose -f compose.yaml -f compose.local.yaml up -d --build
+docker compose config --quiet
+docker compose up -d --build
 ```
 
 会启动：
 
 | 服务 | 作用 |
 | --- | --- |
-| frontend | Nginx 静态页面及 `/api/` 代理 |
+| frontend | Vite Preview 静态页面及 `/api/` 代理 |
 | backend | Spring Boot API、Flyway 数据库迁移 |
 | mysql | 账号与文件元数据 |
 | redis | 登录会话等 Redis 数据 |
@@ -81,10 +67,10 @@ MySQL 首次初始化会创建 `cendo` 数据库和 `cendo` 用户，不需要�
 ### 2.3 等待依赖就绪并访问
 
 ```sh
-docker compose -f compose.yaml -f compose.local.yaml ps
-docker compose -f compose.yaml -f compose.local.yaml logs --tail=100 backend
-docker compose -f compose.yaml -f compose.local.yaml exec redis redis-cli ping
-docker compose -f compose.yaml -f compose.local.yaml exec tracker fdfs_monitor /etc/fdfs/client.conf
+docker compose ps
+docker compose logs --tail=100 backend
+docker compose exec redis redis-cli ping
+docker compose exec tracker fdfs_monitor /etc/fdfs/client.conf
 ```
 
 确认：
@@ -99,18 +85,50 @@ docker compose -f compose.yaml -f compose.local.yaml exec tracker fdfs_monitor /
 
 ### 2.4 更新、停止与再次启动
 
+后端已挂载命名卷 `backend-storage` 到 `/app/storage`：
+
+| 环境变量 | 容器内路径 | 用途 |
+| --- | --- | --- |
+| `CENDO_STORAGE_ROOT` | `/app/storage` | 读取、删除历史本地存储文件 |
+| `CENDO_UPLOAD_ROOT` | `/app/storage/uploads` | 保存未完成上传的临时分片 |
+
+新文件最终存入 FastDFS，而不是 `CENDO_STORAGE_ROOT`。分片目录放在同一个卷中，重建后端容器不会丢失尚未过期的分片；上传会话元数据则保存在 MySQL 中。后端启动时由 Flyway 自动应用新增数据库迁移，更新前应先备份数据库和文件数据。
+
+**旧部署首次增加这个卷时，先迁移再重建。** 新卷不会自动继承旧容器可写层中的 `/app/storage`。如果有历史本地文件或未完成上传，停止上传并执行：
+
 ```sh
-# 更新代码后重新构建前后端：
-docker compose -f compose.yaml -f compose.local.yaml up -d --build
-
-# 暂停容器，保留容器和数据卷：
-docker compose -f compose.yaml -f compose.local.yaml stop
-
-# 恢复已暂停的容器：
-docker compose -f compose.yaml -f compose.local.yaml start
+docker compose stop backend
+# 备份目录应为空；备份可能包含用户文件，请妥善保管。
+mkdir -p backend-storage-backup
+old_backend=$(docker compose ps -aq backend)
+docker cp "$old_backend:/app/storage/." ./backend-storage-backup/
 ```
 
-`docker compose ... down` 会删除容器和网络，但默认保留命名卷。**不要执行 `down -v`**，它会删除数据库、Redis 和 FastDFS 数据卷。
+若 `docker cp` 报目录不存在，先确认旧配置是否使用其他路径；不要在未确认数据位置时直接重建。如果确认从未产生本地文件或分片，可跳过迁移。
+
+备份成功后，先创建但不启动新后端，将备份复制到它挂载的卷中，再执行下面的更新命令：
+
+```sh
+docker compose build backend
+docker compose create --no-deps backend
+new_backend=$(docker compose ps -aq backend)
+docker cp ./backend-storage-backup/. "$new_backend:/app/storage/"
+```
+
+以上操作必须使用原部署的项目名、Compose 文件和环境变量，避免意外创建另一套数据卷。纯 Docker 迁移时，将容器名换为 `cendo-backend`：先备份旧容器，再按 3.3 创建挂载 `cendo-backend-storage` 的新容器（暂用 `docker create` 替代 `docker run -d`），复制备份后用 `docker start cendo-backend` 启动。
+
+```sh
+# 更新代码后重新构建前后端：
+docker compose up -d --build
+
+# 暂停容器，保留容器和数据卷：
+docker compose stop
+
+# 恢复已暂停的容器：
+docker compose start
+```
+
+`docker compose ... down` 会删除容器和网络，但默认保留命名卷。**不要执行 `down -v`**，它会删除数据库、Redis、后端本地文件/分片和 FastDFS 数据卷。
 
 ## 三、只使用 Docker，不使用 Compose
 
@@ -190,6 +208,9 @@ docker run -d --name cendo-backend \
   -e DB_PASSWORD=cendo_dev_password \
   -e REDIS_HOST=cendo-redis \
   -e FASTDFS_TRACKER=cendo-tracker:22122 \
+  -e CENDO_STORAGE_ROOT=/app/storage \
+  -e CENDO_UPLOAD_ROOT=/app/storage/uploads \
+  -v cendo-backend-storage:/app/storage \
   -e 'CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1' \
   cendo-backend:local
 
@@ -230,6 +251,8 @@ docker start cendo-backend
 docker start cendo-frontend
 ```
 
+如果旧后端没有挂载本地存储卷，先按 2.4 的方法停止并备份 `/app/storage`，再将备份导入 `cendo-backend-storage` 卷；不要直接删除旧容器。
+
 更新前后端代码后，先重新执行对应的 `docker build`，再停止并删除**应用容器** `cendo-backend`、`cendo-frontend`，然后用 3.3、3.4 的完整参数重新 `docker run`。仅 `docker restart` 不会切换到新构建的镜像。不要删除数据库或 FastDFS 卷，也不要把删除应用容器的操作套用到不明来源的已有容器。
 
 ## 四、FastDFS 空间策略与常见问题
@@ -250,8 +273,8 @@ Compose 修改预留比例后，需要重建 tracker，并让 storage 重新获�
 
 ```sh
 # 例如临时设置为 10%；后续重建时也需保留同样设置，可写入本地 .env。
-FDFS_RESERVED_STORAGE_SPACE=10% docker compose -f compose.yaml -f compose.local.yaml up -d --no-deps tracker
-docker compose -f compose.yaml -f compose.local.yaml restart storage1 storage2 storage3
+FDFS_RESERVED_STORAGE_SPACE=10% docker compose up -d --no-deps tracker
+docker compose restart storage1 storage2 storage3
 ```
 
 纯 Docker 的环境变量在创建容器时设置。调整比例需用新的 `-e FDFS_RESERVED_STORAGE_SPACE=...` 重建 tracker 容器，继续挂载原 `cendo-tracker-data` 卷，再重启三个 storage。`docker restart` 本身不会修改环境变量。
@@ -267,13 +290,13 @@ docker compose -f compose.yaml -f compose.local.yaml restart storage1 storage2 s
 ### 登录返回 403，或上传返回 413
 
 - `403`：检查后端允许来源是否包含浏览器实际的协议、主机和端口。
-- `413`：检查 Nginx 的 `client_max_body_size` 和后端 multipart 限制。确保 Compose 使用了本地覆盖文件，或纯 Docker 前端采用了 3.4 的启动命令。
+- `413`：Compose 方式检查后端 multipart 限制；纯 Docker 方式还需检查 Nginx 的 `client_max_body_size`，并采用 3.4 的启动命令。
 
 ### 查看运行日志
 
 ```sh
 # Compose：
-docker compose -f compose.yaml -f compose.local.yaml logs --tail=100 backend tracker storage1
+docker compose logs --tail=100 backend tracker storage1
 
 # 纯 Docker：
 docker logs --tail=100 cendo-backend
@@ -285,7 +308,8 @@ docker logs --tail=100 cendo-storage1
 
 ## 五、数据保留与新设备迁移
 
-- 命名卷保存 MySQL、Redis、tracker 和三个 storage 的数据；普通停止容器不会删除它们。
+- 命名卷保存 MySQL、Redis、tracker、三个 storage 和后端本地存储的数据；普通停止容器不会删除它们。
+- 后端的 `backend-storage`（纯 Docker 为 `cendo-backend-storage`）保存历史本地文件与未完成上传的分片；迁移时也应备份。它不代替 FastDFS 数据卷。
 - 新设备首次启动会创建新数据，旧账号和文件不会随代码出现。
 - 搬迁已有数据时，需要迁移数据库与对应的 FastDFS 数据、配置及节点信息，而不只是复制源码或一个文件目录。跨主机/地址变更应结合 [FastDFS 跨主机 Storage 部署设计](FastDFS跨主机Storage部署设计.md) 制定方案。
 - Compose 和纯 Docker 示例使用不同的卷名，彼此不会自动复用数据。不要通过随意改卷名来尝试迁移。

@@ -18,6 +18,9 @@ import {
   ScanLine,
   TicketPercent,
   Wallet,
+  ChevronLeft,
+  ArrowDownUp,
+  ShieldCheck,
   ChevronDown,
   ChevronRight,
   CircleUserRound,
@@ -64,6 +67,8 @@ import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import TransferPage from "../components/TransferPage.vue";
 import FilePreview from "../components/FilePreview.vue";
+import FileSearchPanel from "../components/FileSearchPanel.vue";
+import type { FileSearchHit, SearchType } from "../api/drive";
 import FileTools from "../components/FileTools.vue";
 import InlineNameEditor from "../components/InlineNameEditor.vue";
 import { useNameEdit } from "../components/useNameEdit";
@@ -72,11 +77,14 @@ import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import { Send } from "lucide-vue-next";
 import "../styles/profile.css";
 import "../styles/home.css";
 import "../styles/selection.css";
 import "../styles/file-list.css";
+import "../styles/folder.css";
+import FolderGlyph from "../components/FolderGlyph.vue";
 
 import "../styles/share.css";
 import { useAuth } from "../stores/auth";
@@ -101,6 +109,8 @@ const router = useRouter(),
 const view = ref<"list" | "grid">("list"),
   mode = ref<Mode>("all"),
   currentFolder = ref<string | null>(null);
+const navigationFolders = ref<DriveItem[]>([]);
+function navigationFolder(id: string) { return drive.get(id) ?? navigationFolders.value.find(item => item.id === id); }
 const keyword = ref(""),
   checked = ref<string[]>([]),
   menuOpen = ref(false),
@@ -124,12 +134,21 @@ async function toolsChanged(message: string) {
   else await changeMode(mode.value);
 }
 
+const serverSearchEnabled = computed(() => ["all", "image", "video", "doc", "audio", "other"].includes(mode.value));
+const searchActive = computed(() => serverSearchEnabled.value && !!keyword.value.trim());
+const searchType = computed<SearchType>(() => mode.value === "all" ? "all" : ["image", "video", "doc", "audio", "other"].includes(mode.value) ? mode.value as SearchType : "all");
 const sortBy = ref<"name" | "time" | "size">("time"),
   notice = ref(""),
+  unavailableMessage = ref(""),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
+function openTransfers() {
+  folderMenuOpen.value = false;
+  showTransfers.value = true;
+}
 watch([currentFolder, mode, keyword, mobileTab], cancelName, { flush: "sync" });
 const showMyShares = ref(false);
 const mySharesError = ref("");
@@ -203,9 +222,26 @@ const modeNames: Record<Mode, string> = {
 };
 const title = computed(() =>
   currentFolder.value
-    ? drive.get(currentFolder.value)?.name || "文件夹"
+    ? navigationFolder(currentFolder.value)?.name || "文件夹"
     : modeNames[mode.value],
 );
+const folderMenuOpen = ref(false);
+watch([currentFolder, mobileTab], () => { folderMenuOpen.value = false; });
+const folderCrumbs = computed(() => {
+  const crumbs: DriveItem[] = [], seen = new Set<string>();
+  let id = currentFolder.value;
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const folder = navigationFolder(id);
+    if (!folder) break;
+    crumbs.unshift(folder);
+    id = folder.parentId;
+  }
+  return crumbs;
+});
+const folderDateText = (date: string) => new Date(date).toLocaleString("sv-SE", {
+  year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+});
 const folders = computed(() =>
   drive.state.files.filter((item) => item.kind === "folder" && !item.deletedAt),
 );
@@ -247,7 +283,7 @@ const filteredFiles = computed(() => {
     );
   }
   items = items.filter((item) =>
-    item.name.toLowerCase().includes(keyword.value.toLowerCase()) &&
+    item.name.toLowerCase().includes(keyword.value.trim().toLowerCase()) &&
     (mode.value === "trash" || !drive.isDeleted(item)) &&
     (mode.value === "trash" || mode.value === "hidden" ||
       (mode.value === "all" && currentFolder.value && drive.get(currentFolder.value) && drive.isHidden(drive.get(currentFolder.value)!)) || !drive.isHidden(item)),
@@ -276,6 +312,9 @@ const dateText = (date: string) =>
 function flash(text: string) {
   notice.value = text;
   window.setTimeout(() => (notice.value = ""), 2200);
+}
+function showUnavailable(message: string) {
+  unavailableMessage.value = message;
 }
 async function changeMode(next: Mode) {
   mode.value = next;
@@ -309,20 +348,41 @@ async function loadFolder(parentId: string | null) {
     alert(drive.state.error);
   }
 }
+async function openSearchHit(hit: FileSearchHit, locate = false) {
+  if (drive.state.loading || nameSaving.value) return;
+  if (!locate && hit.file.kind === "file") { previewTarget.value = hit.file; return; }
+  const target = locate ? hit.file.parentId : hit.file.id;
+  const query = keyword.value;
+  try {
+    await drive.load(target);
+    if (keyword.value !== query) return;
+    navigationFolders.value = [...hit.ancestors, ...(hit.file.kind === "folder" ? [hit.file] : [])];
+    cancelName(); checked.value = []; folderMenuOpen.value = false;
+    mode.value = "all"; currentFolder.value = target; keyword.value = ""; mobileTab.value = "files";
+  } catch { alert(drive.state.error); }
+}
 async function openItem(item: DriveItem) {
-  if (mode.value === "trash") return;
+  if (mode.value === "trash" || drive.state.loading || nameSaving.value) return;
   if (item.kind === "folder") {
-    mode.value = "all";
-    checked.value = [];
-    await loadFolder(item.id);
+    await navigateFolder(item.id);
   } else {
     previewTarget.value = item;
   }
 }
-async function goRoot() {
-  mode.value = "all";
+async function navigateFolder(parentId: string | null) {
+  if (drive.state.loading || nameSaving.value) return;
+  cancelName();
   checked.value = [];
-  await loadFolder(null);
+  keyword.value = "";
+  folderMenuOpen.value = false;
+  mode.value = "all";
+  await loadFolder(parentId);
+}
+async function goParent() {
+  await navigateFolder(currentFolder.value ? navigationFolder(currentFolder.value)?.parentId ?? null : null);
+}
+async function goRoot() {
+  await navigateFolder(null);
 }
 async function createFolder() {
   if (nameSaving.value) return;
@@ -472,6 +532,13 @@ async function openProfileShortcut(label: string) {
   else if (label === "我的分享") await openMyShares();
   else if (label === "转存与下载") showTransfers.value = true;
 }
+function openProfileService(label: string) {
+  if (label === "免费领会员") {
+    void router.push({ name: "membership" });
+    return;
+  }
+  showUnavailable(`${label}服务暂未开放。`);
+}
 async function downloadSelected() {
   if (downloading.value) return;
   const files = checked.value.filter((id) => drive.get(id)?.kind !== "folder");
@@ -549,6 +616,11 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <UnavailableFeatureDialog
+    :open="Boolean(unavailableMessage)"
+    :message="unavailableMessage"
+    @close="unavailableMessage = ''"
+  />
   <TransferPage v-if="showTransfers" @back="showTransfers = false" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
@@ -589,7 +661,7 @@ onUnmounted(() => {
             <button aria-label="传输列表" @click="showTransfers = true">
               <Download />
             </button>
-            <button aria-label="签到" @click="flash('签到功能即将上线')">
+            <button aria-label="签到" @click="showUnavailable('签到功能暂未开放。')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">
               <HardDrive /></button
@@ -611,12 +683,15 @@ onUnmounted(() => {
           <button @click="openHomeCategory('image')">
             <span class="m-tool-icon"><HomeToolIcon name="photo" /></span
             ><span>相册</span></button
-          ><button @click="openHomeCategory('video')">
+          ><button @click="router.push({ name: 'videos' })">
             <span class="m-tool-icon"><HomeToolIcon name="video" /></span
             ><span>视频</span></button
-          ><button @click="flash('更多功能即将上线')">
+          ><button @click="showUnavailable('求职服务暂未开放。')">
             <span class="m-tool-icon"><HomeToolIcon name="career" /></span
             ><span>求职</span></button
+          ><button @click="router.push({ name: 'novels' })">
+            <span class="m-tool-icon"><HomeToolIcon name="novel" /></span
+            ><span>小说</span></button
           ><button @click="openHomeCategory('doc')">
             <span class="m-tool-icon"><HomeToolIcon name="document" /></span
             ><span>文档</span></button
@@ -712,7 +787,7 @@ onUnmounted(() => {
       <section class="m-memory">
         <div class="m-panel-title">
           <h2>推荐 <span>创意</span></h2>
-          <button aria-label="更多推荐" @click="flash('更多内容即将上线')">
+          <button aria-label="更多推荐" @click="showUnavailable('更多推荐内容暂未接入。')">
             <MoreHorizontal :size="22" />
           </button>
         </div>
@@ -720,7 +795,7 @@ onUnmounted(() => {
           <button @click="openHomeCategory('image')">
             <span class="m-discover-art photo"><Image :size="38" /></span
             ><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button
-          ><button @click="openHomeCategory('video')">
+          ><button @click="router.push({ name: 'videos' })">
             <span class="m-discover-art film"><Video :size="38" /></span
             ><b>收藏精彩视频</b><small>你的回忆都在这里</small>
           </button>
@@ -728,7 +803,18 @@ onUnmounted(() => {
       </section>
     </template>
     <template v-else-if="mobileTab === 'files'">
-      <header class="m-file-head">
+      <header v-if="currentFolder && !checked.length" class="m-folder-head" @keydown.esc="folderMenuOpen = false">
+        <button type="button" aria-label="返回上一级" :disabled="drive.state.loading || nameSaving" @click="goParent"><ChevronLeft :size="24" /></button>
+        <label class="m-folder-search"><Search :size="21" /><input v-model="keyword" aria-label="搜索当前文件夹" placeholder="按文件名搜索" maxlength="100" /></label>
+        <button type="button" class="m-transfer-button" aria-label="传输列表" @click="openTransfers"><ArrowDownUp :size="16" /></button>
+        <button type="button" aria-label="文件夹更多操作" :aria-expanded="folderMenuOpen" aria-controls="folder-menu" @click="folderMenuOpen = !folderMenuOpen"><MoreHorizontal :size="25" /></button>
+        <div v-if="folderMenuOpen" id="folder-menu" class="m-folder-menu" @keydown.esc="folderMenuOpen = false">
+          <button type="button" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="folderMenuOpen = false; createFolder()"><Folder :size="18" />新建文件夹</button>
+          <button type="button" :disabled="!filteredFiles.length" @click="allVisibleSelected = true; folderMenuOpen = false"><CheckSquare :size="18" />选择文件</button>
+        </div>
+      </header>
+      <header v-else class="m-file-head" @keydown.esc="folderMenuOpen = false">
+
         <template v-if="checked.length && mode !== 'trash'"
           ><button
             class="m-selection-close"
@@ -746,13 +832,20 @@ onUnmounted(() => {
           </button></template
         ><template v-else
           ><h1>{{ title }}</h1>
-          <div><button v-if="mode !== 'trash'" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="createFolder"><Folder :size="20" />新建文件夹</button><MoreHorizontal :size="24" /></div
+          <div class="m-file-head-actions">
+            <button type="button" class="m-transfer-button" aria-label="传输列表" @click="openTransfers"><ArrowDownUp :size="16" /></button>
+            <button type="button" aria-label="文件更多操作" :aria-expanded="folderMenuOpen" aria-controls="folder-menu" @click="folderMenuOpen = !folderMenuOpen"><MoreHorizontal :size="24" /></button>
+            <div v-if="folderMenuOpen" id="folder-menu" class="m-folder-menu">
+              <button v-if="mode !== 'trash'" type="button" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="folderMenuOpen = false; createFolder()"><Folder :size="18" />新建文件夹</button>
+              <button type="button" :disabled="!filteredFiles.length" @click="allVisibleSelected = true; folderMenuOpen = false"><CheckSquare :size="18" />选择文件</button>
+            </div>
+          </div
         ></template>
       </header>
-      <div class="m-search">
+      <div v-if="!currentFolder" class="m-search">
         <Search :size="19" /><input
           v-model="keyword"
-          placeholder="搜索网盘文件"
+          :placeholder="serverSearchEnabled ? '按文件名搜索全网盘' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
         />
       </div>
       <div v-if="mode === 'trash'" class="m-trash-actions">
@@ -778,14 +871,23 @@ onUnmounted(() => {
           清空
         </button>
       </div>
-      <div class="m-filter">
+      <nav v-if="currentFolder" class="m-folder-breadcrumb" aria-label="文件夹路径">
+        <button type="button" :disabled="drive.state.loading || nameSaving" @click="goRoot">我的网盘</button>
+        <template v-for="crumb in folderCrumbs" :key="crumb.id"><span class="path-separator" aria-hidden="true">/</span><span v-if="crumb.id === currentFolder" aria-current="page">{{ crumb.name }}</span><button v-else type="button" :disabled="drive.state.loading || nameSaving" @click="navigateFolder(crumb.id)">{{ crumb.name }}</button></template>
+      </nav>
+      <div v-if="currentFolder" class="m-folder-toolbar">
+        <label class="m-folder-sort-label">{{ sortBy === 'time' ? '智能排序' : sortBy === 'name' ? '名称排序' : '大小排序' }}<ChevronDown :size="16" /><select v-model="sortBy" aria-label="文件夹排序"><option value="time">智能排序（修改时间）</option><option value="name">名称排序</option><option value="size">大小排序</option></select></label>
+        <button type="button" :aria-label="view === 'list' ? '切换网格视图' : '切换列表视图'" @click="view = view === 'list' ? 'grid' : 'list'"><LayoutGrid v-if="view === 'list'" :size="19" /><List v-else :size="19" /></button>
+      </div>
+      <div v-if="!currentFolder" class="m-filter">
         <button>智能排序 <SlidersHorizontal :size="15" /></button
         ><button :class="{ active: mode === 'all' }" @click="goRoot">全部</button><button :class="{ active: mode === 'favorites' }" @click="openHomeCategory('favorites')">我的收藏</button><button :class="{ active: mode === 'hidden' }" @click="openHomeCategory('hidden')">隐藏空间</button>
       </div>
-      <p v-if="drive.state.usage" class="m-capacity">已用 {{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }} · 可用 {{ formatBytes(drive.state.usage.availableBytes) }}</p>
-      <p v-if="drive.state.usageError" class="m-capacity" role="alert">{{ drive.state.usageError }} <button @click="drive.loadUsage">重试</button></p>
-      <div class="m-file-list">
-        <div v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="m-file-row is-editing draft-folder-row"><span class="m-folder"><Folder /></span><div><InlineNameEditor v-if="mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></div></div>
+      <p v-if="!currentFolder && drive.state.usage" class="m-capacity">已用 {{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }} · 可用 {{ formatBytes(drive.state.usage.availableBytes) }}</p>
+      <p v-if="!currentFolder && drive.state.usageError" class="m-capacity" role="alert">{{ drive.state.usageError }} <button @click="drive.loadUsage">重试</button></p>
+      <FileSearchPanel v-if="searchActive && mobileViewport" :query="keyword" :parent-id="currentFolder" :initial-type="searchType" :sort="sortBy" :busy="drive.state.loading || nameSaving" @open="openSearchHit" @locate="openSearchHit($event, true)" @clear="keyword = ''" />
+      <div v-if="!searchActive" class="m-file-list" :class="{ 'm-folder-files': currentFolder, 'is-grid': currentFolder && view === 'grid' }">
+        <div v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="m-file-row is-editing draft-folder-row"><span class="m-folder"><FolderGlyph v-if="currentFolder" /><Folder v-else /></span><div><InlineNameEditor v-if="mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></div></div>
         <div
           v-for="item in filteredFiles"
           :key="item.id"
@@ -799,13 +901,13 @@ onUnmounted(() => {
               : openItem(item)
           "
         >
-          <span class="m-folder"><component :is="iconForFile(item)" /></span>
+          <span class="m-folder"><FolderGlyph v-if="currentFolder && item.kind === 'folder'" /><component v-else :is="iconForFile(item)" /></span>
           <div>
             <InlineNameEditor v-if="mobileViewport && nameEdit?.kind === 'rename' && nameEdit.item.id === item.id" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" :select-stem="item.kind === 'file'" @save="saveName" @cancel="cancelName" /><b v-else>{{ item.name }}</b
             ><small
               >{{ item.kind === "folder" ? "" : formatSize(item.size) + "　"
               }}{{
-                dateText(
+                currentFolder ? folderDateText(item.updatedAt) : dateText(
                   mode === "trash" ? item.deletedAt! : item.updatedAt,
                 ).slice(0, 16)
               }}</small
@@ -815,10 +917,12 @@ onUnmounted(() => {
             v-model="checked"
             type="checkbox"
             :value="item.id"
+            :aria-label="`选择 ${item.name}`"
             @click.stop
           />
         </div>
         <p v-if="!filteredFiles.length && !nameEdit" class="m-empty">这里还没有文件</p>
+        <p v-if="currentFolder && filteredFiles.length && !checked.length" class="m-folder-security"><ShieldCheck :size="16" />cendoDrive 保障你的数据安全 <ChevronRight :size="16" /></p>
       </div>
       <section
         v-if="checked.length && mode !== 'trash'"
@@ -868,9 +972,9 @@ onUnmounted(() => {
             <p>您还不是超级会员 <ChevronRight :size="17" /></p>
           </div>
           <div class="profile-header-actions">
-            <button aria-label="设备" type="button">
+            <button aria-label="设备" type="button" @click="showUnavailable('设备管理功能暂未开放。')">
               <MonitorSmartphone /></button
-            ><button aria-label="签到" type="button"><CalendarDays /></button>
+            ><button aria-label="签到" type="button" @click="showUnavailable('签到功能暂未开放。')"><CalendarDays /></button>
           </div>
         </header>
         <section class="profile-membership">
@@ -887,13 +991,13 @@ onUnmounted(() => {
               <div><HardDrive /><span>5T 空间</span></div>
               <div><Gift /><span>等级福利</span></div>
             </div>
-            <button type="button" class="membership-cta">
+            <button type="button" class="membership-cta" @click="router.push({ name: 'membership' })">
               立即解锁 <ChevronRight :size="19" />
             </button>
           </div>
           <div class="membership-links">
-            <button type="button">我的 AI 点数</button><i></i
-            ><button type="button">我的资产</button>
+            <button type="button" @click="router.push({ name: 'ai-points' })">我的 AI 点数</button><i></i
+            ><button type="button" @click="router.push({ name: 'my-assets' })">我的资产</button>
           </div>
         </section>
         <section class="profile-shortcuts" aria-label="常用工具">
@@ -913,12 +1017,12 @@ onUnmounted(() => {
           <section class="profile-storage">
             <div><strong>1.6T / 2T</strong><span>79%</span></div>
             <div class="storage-track"><i></i></div>
-            <button type="button">管理空间 <ChevronRight :size="17" /></button>
+            <button type="button" @click="showUnavailable('容量管理功能暂未开放。')">管理空间 <ChevronRight :size="17" /></button>
           </section>
           <section class="profile-missions">
             <div class="mission-orb"><Crown /></div>
             <strong>任务系统</strong
-            ><button type="button">领 奖 励 <ChevronRight :size="17" /></button>
+            ><button type="button" @click="showUnavailable('任务奖励功能暂未开放。')">领 奖 励 <ChevronRight :size="17" /></button>
           </section>
         </div>
         <section class="profile-services" aria-label="更多服务">
@@ -927,6 +1031,7 @@ onUnmounted(() => {
             :key="service.label"
             type="button"
             :class="service.tone"
+            @click="openProfileService(service.label)"
           >
             <component :is="service.icon" /><span>{{ service.label }}</span>
           </button>
@@ -934,15 +1039,15 @@ onUnmounted(() => {
         <section class="profile-promo">
           <div class="promo-gift"><Gift :size="52" /></div>
           <div>
-            <strong>网盘 <em>SVIP</em> 会员免费送</strong>
-            <p>限时活动 · 领 90 天会员</p>
+            <strong>网盘 <em>SVIP</em> 会员活动</strong>
+            <p>活动领取能力暂未开放</p>
           </div>
-          <button type="button">立即抢</button>
+          <button type="button" @click="router.push({ name: 'membership' })">查看方案</button>
         </section>
         <section class="profile-game">
           <div>
             <h2>游戏中心</h2>
-            <button type="button">
+            <button type="button" @click="router.push({ name: 'game-center' })">
               免费下载券 <ChevronRight :size="18" />
             </button>
           </div>
@@ -982,7 +1087,7 @@ onUnmounted(() => {
         "
       >
         <Folder /><span>文件</span></button
-      ><button class="genflow" type="button" @click="flash('库库 AI 即将上线')">
+      ><button class="genflow" type="button" @click="showUnavailable('库库 AI 功能暂未开放。')">
         <i><Sparkles /></i><span>库库 AI</span></button
       ><button
         :class="{ active: mobileTab === 'share' }"
@@ -1061,7 +1166,7 @@ onUnmounted(() => {
         <div class="search">
           <Search :size="18" /><input
             v-model="keyword"
-            placeholder="搜索我的文件"
+            :placeholder="serverSearchEnabled ? '按文件名搜索' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
           /><kbd>⌘ K</kbd>
         </div>
         <div class="top-actions">
@@ -1085,7 +1190,7 @@ onUnmounted(() => {
         <div class="content-title">
           <div>
             <h1>{{ title }}</h1>
-            <p>共 {{ filteredFiles.length }} 个项目</p>
+            <p>{{ searchActive ? "按文件名搜索" : `共 ${filteredFiles.length} 个项目` }}</p>
           </div>
           <select v-model="sortBy" class="sort-select">
             <option value="time">按时间排序</option>
@@ -1093,10 +1198,11 @@ onUnmounted(() => {
             <option value="size">按大小排序</option>
           </select>
         </div>
-        <div v-if="currentFolder" class="breadcrumb">
-          <button @click="goRoot">全部文件</button
-          ><ChevronRight :size="14" /><span>{{ title }}</span>
-        </div>
+        <nav v-if="currentFolder" class="breadcrumb" aria-label="文件夹路径">
+          <button type="button" aria-label="返回上一级" :disabled="drive.state.loading || nameSaving" @click="goParent"><ChevronLeft :size="16" />返回上一级</button>
+          <button type="button" :disabled="drive.state.loading || nameSaving" @click="goRoot">全部文件</button>
+          <template v-for="crumb in folderCrumbs" :key="crumb.id"><ChevronRight :size="14" /><span v-if="crumb.id === currentFolder" aria-current="page">{{ crumb.name }}</span><button v-else type="button" :disabled="drive.state.loading || nameSaving" @click="navigateFolder(crumb.id)">{{ crumb.name }}</button></template>
+        </nav>
         <ShareList
           v-if="mode === 'shares'"
           :shares="drive.state.shares"
@@ -1105,6 +1211,8 @@ onUnmounted(() => {
           @cancel="cancelShareRecord"
         />
         <template v-else>
+          <FileSearchPanel v-if="searchActive && !mobileViewport" :query="keyword" :parent-id="currentFolder" :initial-type="searchType" :sort="sortBy" :busy="drive.state.loading || nameSaving" @open="openSearchHit" @locate="openSearchHit($event, true)" @clear="keyword = ''" />
+          <template v-if="!searchActive">
           <div class="toolbar">
             <div v-if="mode !== 'trash'" class="tool-left">
               <button @click="chooseFiles"><Upload :size="17" />上传</button
@@ -1247,6 +1355,7 @@ onUnmounted(() => {
               ><input v-model="checked" type="checkbox" :value="item.id" />
             </article>
           </div>
+          </template>
         </template>
       </section>
     </main>

@@ -47,5 +47,10 @@ export function useTransfers() {
     if (index >= 0) tasks.splice(index, 1);
   }
   function setDownloadLimit(value: number) { if ([1, 2, 3, 5].includes(value)) { settings.downloadLimit = value; pump(); } }
-  return { tasks, settings, syncUpload, enqueueDownload, clearFinished, removeUpload, setDownloadLimit, activeCount: computed(() => tasks.filter(isActive).length) };
+  function reset() {
+    for (const entry of pending.splice(0)) entry.reject(new Error('会话已重置，取消等待下载'));
+    tasks.splice(0);
+    clearedUploads.clear();
+  }
+  return { tasks, settings, syncUpload, enqueueDownload, clearFinished, removeUpload, setDownloadLimit, reset, activeCount: computed(() => tasks.filter(isActive).length) };
 }

@@ -7,8 +7,14 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-cendo_dev_password}
       REDIS_HOST: redis
       FASTDFS_TRACKER: tracker:22122
+      CENDO_STORAGE_ROOT: /app/storage
+      CENDO_UPLOAD_ROOT: /app/storage/uploads
+      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
+
+    volumes:
+      - backend-storage:/app/storage
     ports:
-      - "127.0.0.1:8080:8080"
+      - "8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -24,7 +30,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "127.0.0.1:80:80"
+      - "80:80"
     depends_on:
       - backend
 
@@ -69,7 +75,7 @@ services:
     environment:
       FDFS_RESERVED_STORAGE_SPACE: ${FDFS_RESERVED_STORAGE_SPACE:-5%}
     ports:
-      - "127.0.0.1:22122:22122"
+      - "22122:22122"
     volumes:
       - tracker-data:/var/fdfs
       - ./infra/fastdfs/tracker-entrypoint.sh:/cendo/tracker-entrypoint.sh:ro
@@ -82,8 +88,8 @@ services:
     depends_on:
       - tracker
     ports:
-      - "127.0.0.1:23000:23000"
-      - "127.0.0.1:10001:8080"
+      - "23000:23000"
+      - "10001:8080"
     volumes:
       - storage1-data:/var/fdfs
 
@@ -94,8 +100,8 @@ services:
     depends_on:
       - tracker
     ports:
-      - "127.0.0.1:23001:23000"
-      - "127.0.0.1:10002:8080"
+      - "23001:23000"
+      - "10002:8080"
     volumes:
       - storage2-data:/var/fdfs
 
@@ -106,12 +112,13 @@ services:
     depends_on:
       - tracker
     ports:
-      - "127.0.0.1:23002:23000"
-      - "127.0.0.1:10003:8080"
+      - "23002:23000"
+      - "10003:8080"
     volumes:
       - storage3-data:/var/fdfs
 
 volumes:
+  backend-storage:
   mysql-data:
   redis-data:
   tracker-data:

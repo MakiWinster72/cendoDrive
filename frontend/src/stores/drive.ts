@@ -1,7 +1,7 @@
 import { computed, reactive } from "vue";
 import * as api from "../api/drive";
-import * as shareApi from "../api/shares";
 import { useTransfers } from "./transfers";
+import * as shareApi from "../api/shares";
 
 export type FileKind = api.FileKind;
 export interface DriveItem extends api.DriveItemResponse {}
@@ -111,6 +111,7 @@ export function useDrive() {
     await shareApi.cancelShare(id); const record = state.shares.find(item => item.id === id); if (record) record.status = "CANCELLED";
   });
   const reset = () => {
+    useTransfers().reset();
     state.files = []; state.shares = []; state.favorites = []; state.hidden = [];
     state.usage = null; state.usageError = ""; state.error = "";
   };

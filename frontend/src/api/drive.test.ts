@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
 import {
   getUsage, listFavorites, listHidden, listFolders, getFileDetails, setFavorite, setHidden, moveFiles, copyFiles, organizeFiles,
+  searchFiles,
   createFolder,
   deleteFilesForever,
   emptyTrash,
@@ -20,6 +21,14 @@ vi.mock("./http", () => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe("drive API contract", () => {
+  it("passes filename search scope pagination and abort signal without client owner identifiers", async () => {
+    const data = { items: [], total: 0, page: 1, size: 20 };
+    vi.mocked(http.get).mockResolvedValue({ data });
+    const signal = new AbortController().signal;
+    const params = { q: "100%_合同", scope: "folder" as const, parentId: "7", type: "doc" as const, sort: "time" as const, page: 1, size: 20 };
+    expect(await searchFiles(params, signal)).toEqual(data);
+    expect(http.get).toHaveBeenCalledWith("/files/search", { params, signal });
+  });
   it("lists root and child directories with the expected query", async () => {
     vi.mocked(http.get).mockResolvedValue({ data: [] });
     await listFiles(null);

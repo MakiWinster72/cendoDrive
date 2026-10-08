@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  name: "photo" | "video" | "career" | "document" | "scan" | "audio";
+  name: "photo" | "video" | "career" | "document" | "scan" | "audio" | "novel";
 }>();
 </script>
 
@@ -115,6 +115,14 @@ defineProps<{
         d="M70 46c-8 3-14 8-17 15-1 3 0 5 2 6 9-6 15-13 15-21Z"
         fill="#347df2"
       />
+    </g>
+    <g v-else-if="name === 'novel'">
+      <path d="M12 18c10-5 20-4 28 2v47c-8-6-18-7-28-2Z" fill="url(#tool-blue)" />
+      <path d="M68 18c-10-5-20-4-28 2v47c8-6 18-7 28-2Z" fill="#367ff2" />
+      <path d="M15 26c7-3 14-2 20 1v4c-6-3-13-4-20-1Zm0 11c7-3 14-2 20 1v4c-6-3-13-4-20-1Z" fill="#fff" opacity=".92" />
+      <path d="M43 27c6-3 13-4 20-1v4c-7-3-14-2-20 1Z" fill="#d9f5ff" />
+      <path d="M8 15c0-4 3-7 7-7h5v9h-5c-2 0-3 1-3 3v34l-4 5Z" fill="url(#tool-pink)" />
+      <path d="M66 50h8v12c0 4-3 7-7 7h-6v-9h3c1 0 2-1 2-2Z" fill="url(#tool-pink)" />
     </g>
   </svg>
 </template>

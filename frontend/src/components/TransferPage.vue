@@ -477,7 +477,7 @@ function status(task: TransferTask) {
   color: #baab89;
   margin-left: 5px
 }
-@media(min-width:700px) {
+@media (width >= 768px) {
   .transfer-header,.transfer-tabs {
     padding-left: 40px;
     padding-right: 40px
