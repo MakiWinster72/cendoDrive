@@ -18,7 +18,7 @@ DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/
 
 ## 切换分支后的迁移校验
 
-若启动提示 `Detected applied migration not resolved locally: 5.`，表示数据库已经执行 V5，但当前运行代码缺少该迁移。此分支保留原始 `src/main/resources/db/migration/V5__create_share_links.sql`，用于兼容已经执行过分享迁移的数据库；保留表结构不代表此分支已实现分享接口。
+若启动提示 `Detected applied migration not resolved locally: 5.`，表示数据库已经执行 V5，但当前运行代码缺少该迁移。此分支保留原始 `src/main/resources/db/migration/V5__create_share_links.sql`，用于兼容已经执行过分享迁移的数据库；当前已实现分享接口，V9 在此表追加可选提取码散列。
 
 已应用迁移应在各分支保留原始文件和校验和；不要改写旧 SQL、删除 `flyway_schema_history` 记录或关闭校验来绕过错误，也不要仅因切换分支就运行 `repair`。先确认代码中包含原始迁移，再清理旧编译产物并重新启动：
 
@@ -27,7 +27,7 @@ DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn clean spring-boot:run
 ```
 
-`FlywayMigrationTest` 使用独立 H2 数据库覆盖全新建库，以及历史 V1～V7 已执行后的校验和分享数据保留，不连接或修改开发数据库。
+`FlywayMigrationTest` 使用独立 H2 数据库覆盖全新建库，以及历史 V1～V7 已执行后补齐 V8/V9、校验和分享数据保留，不连接或修改开发数据库。
 
 ## 文件名搜索
 
@@ -73,6 +73,20 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 
 `UserAccountIntegrationTest` 使用 H2 执行真实 Flyway / JPA / MockMvc 流程，隔离替身模拟 Redis、时钟和文件存储；覆盖七天边界、跨用户隔离、会话撤销、失败重试及物理清理顺序。它不是生产 MySQL / Redis / FastDFS 联调。
 
+## 真实基础设施验收
+
+先确认本机现有 MySQL（默认容器 `cendo-mysql-local`）、Redis 6379、FastDFS tracker 22122 及存储节点正常，再执行：
+
+```sh
+sh scripts/verify-real-stack.sh
+```
+
+脚本读取容器现有 `MYSQL_ROOT_PASSWORD`，不打印密码，使用 Java 21，在 MySQL 新建 `cendo_acceptance_<时间>_<进程>` 数据库。`RealStackAcceptanceTest` 额外检查数据库前缀和 MySQL 类型，绝不连接默认开发库。通过真实 HTTP 和实际 Redis/FastDFS 验证账号资料/头像/全端改密、七天注销恢复与物理清理、分片上传/下载/跨用户隔离/配额、分享可选码的三入口/真实限流/过期/撤销和独立副本。只有测试账号会调整删除时间来覆盖到期边界。
+
+成功时先清理生成的用户、FastDFS 文件及精确的测试 Redis Key，再删除临时数据库和空分片目录；不使用 FLUSHDB/SCAN、不修改用户已有账号。失败保留数据库和暂存路径，输出位置用于诊断，避免丢失未清理文件的存储键。`CENDO_MYSQL_CONTAINER` 可覆盖容器名，`CENDO_ACCEPTANCE_KEEP_DB=1` 可保留成功验收后的空库。其他服务连接仍由常规环境变量配置。
+
+默认 `mvn test` 跳过需要外部依赖的验收；请勿把跳过误认为实栈通过。真实清理后的文件下载负向断言可能打印 FastDFS“找不到节点或文件”，这是确认物理删除的预期结果。FastDFS 多节点之间异步复制删除记录，因此物理下载负向断言最多等待 10 秒，不假定所有副本在删除确认瞬间已同步。
+
 ## 分享与转存
 
 | 接口 | 访问条件 / 行为 |
@@ -85,7 +99,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 | `POST /api/shares/{token}/save` | 登录；`{"parentId":null}` 保存到根目录，或指定本人的目标目录，返回 201 |
 
 - 仅支持单文件分享，有效期为 1–2592000 秒（最长 30 天）。MySQL 保存归属和历史；Redis `share:access:<token>` 保存访问凭据并设置剩余有效期 TTL。访问同时校验数据库时间、撤销状态和 Redis 凭据；Redis Key 缺失不会被自动重建，按失效处理。
-- 创建、列表和撤销按用户隔离；他人不能直接访问原文件的私有接口。持有有效链接的人可匿名查看/下载，无提取码。分享取消、到期、原文件删除或所在目录进入回收站后返回 `404 / SHARE_NOT_FOUND`。
+- 创建、列表和撤销按用户隔离；他人不能直接访问原文件的私有接口。创建者可选择提取码（4–16 位字母或数字），数据库仅存 BCrypt 散列、响应只给 `hasExtractionCode`。未设置码时持有效链接即可匿名访问；设置后详情、下载和转存都要求 `X-Share-Code`，缺失/错误返回 403，按链接与直接来源 IP 累计 5 次错误锁定 15 分钟（429 / Retry-After）。分享取消、到期、原文件删除或所在目录进入回收站后返回 `404 / SHARE_NOT_FOUND`。
 - 转存创建接收者自己的元数据和独立存储副本；原作者随后撤销分享或永久删除原文件，不影响已转存的副本。流式下载到临时文件再上传，不将整份内容放入内存；重名返回 `409 / NAME_CONFLICT`，不覆盖原文件。前端目前转存到根目录，接口支持目标目录。
 - 当前已有注册、登录、会话和数据隔离；尚无管理员用户管理界面或文件夹分享。上传、复制和分享转存统一检查账户配额，并计入未完成上传的预留容量。生产环境还应设置分享/转存限流及访问审计；链接属于访问凭据，不要记录完整 Token。
 
@@ -101,4 +115,4 @@ CENDO_TEST_REDIS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/j
 DB_PASSWORD=cendo_dev_password RUN_INTEGRATION_TESTS=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn -Dtest=AuthIntegrationTest test
 ```
 
-生产环境仍需部署层加固：由反向代理/负载均衡终止 TLS 并强制 HTTPS；同源反向代理无需开放 CORS，确需跨源部署时设置 `CORS_ALLOWED_ORIGINS` 为逗号分隔的**精确**前端 Origin（如 `https://app.example.com`）。默认留空，不允许跨域；仅 `/api/**` 接受已配置来源的 GET、POST、PUT、DELETE、OPTIONS 及 Authorization、Content-Type 请求头，不使用 Cookie 凭证。开发环境继续使用 Vite 同源代理。Redis 只开放给应用内网，设置 ACL 账户及密码、限制密钥权限，并通过环境变量/密钥管理注入凭据。当前本地开发配置不等于生产安全配置。
+生产环境仍需部署层加固：由反向代理/负载均衡终止 TLS 并强制 HTTPS；同源反向代理无需开放 CORS，确需跨源部署时设置 `CORS_ALLOWED_ORIGINS` 为逗号分隔的**精确**前端 Origin（如 `https://app.example.com`）。默认留空，不允许跨域；仅 `/api/**` 接受已配置来源的 GET、POST、PUT、DELETE、OPTIONS 及 Authorization、Content-Type、X-Share-Code 请求头，不使用 Cookie 凭证。开发环境继续使用 Vite 同源代理。Redis 只开放给应用内网，设置 ACL 账户及密码、限制密钥权限，并通过环境变量/密钥管理注入凭据。当前本地开发配置不等于生产安全配置。
