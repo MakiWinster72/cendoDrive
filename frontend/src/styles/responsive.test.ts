@@ -13,6 +13,15 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("inherits one font family across all mobile tabs and controls", () => {
+    expect(main).toContain("font-family: var(--app-font-family)");
+    expect(layout).toContain("font-family: var(--app-font-family)");
+    expect(layout).toContain("line-height: 1.5");
+    expect(hub).toContain("font-family: inherit");
+    expect(hub).not.toContain("BlinkMacSystemFont");
+    expect(hub).toContain("font-size: var(--mobile-font-body)");
+  });
+
   it("keeps bottom navigation in one shared stylesheet", () => {
     for (const source of [main, home, profile, hub]) {
       expect(source).not.toContain(".m-bottom-nav");

@@ -1,10 +1,19 @@
 /* Shared mobile geometry. Page styles must not override the bottom navigation. */
 @media (width < 768px) {
   .mobile-app {
+    font-family: var(--app-font-family);
+    font-size: var(--mobile-font-body);
+    line-height: 1.5;
+    --mobile-font-body: 14px;
+    --mobile-font-caption: 12px;
     --mobile-gutter: 18px;
     --mobile-nav-height: calc(72px + max(18px, env(safe-area-inset-bottom)));
     --mobile-content-bottom: calc(var(--mobile-nav-height) + 16px);
   }
+  .mobile-app button,
+  .mobile-app input,
+  .mobile-app select,
+  .mobile-app textarea { font-family: inherit; line-height: inherit; }
   .m-bottom-nav {
     position: fixed;
     z-index: 10;

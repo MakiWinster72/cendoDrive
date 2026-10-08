@@ -7,7 +7,7 @@
     padding: 25px 0 0;
     background: linear-gradient(#fff 85px, #fafbfc 178px, #fff 220px);
     color: var(--share-ink);
-    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: inherit;
   }
   .mobile-share-hub button { border: 0; background: transparent; font-family: inherit; cursor: pointer; padding: 0; color: inherit; }
   .mobile-share-hub button:focus-visible { outline: 2px solid #438aff; outline-offset: -2px; border-radius: 8px; }
@@ -37,8 +37,8 @@
   .share-folder-icon > svg:last-child { position: absolute; width: 17px; height: 17px; top: 6px; left: 5px; fill: #efa930; }
   .share-message-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   .share-message-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
-  .share-message-title strong { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .share-message-subtitle { color: var(--share-muted); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .share-message-title strong { font-size: var(--mobile-font-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .share-message-subtitle { color: var(--share-muted); font-size: var(--mobile-font-caption); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .share-service-tag { flex-shrink: 0; border-radius: 3px; padding: 2px 6px; font-size: 10px; font-weight: 600; color: #3885ff; background: #e5efff; }
   .share-message-meta { display: flex; flex-direction: column; align-items: flex-end; align-self: stretch; padding-top: 15px; gap: 13px; }
   .share-message-meta time { color: var(--share-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }

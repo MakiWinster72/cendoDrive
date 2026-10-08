@@ -1,8 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap");
 
 :root {
-  font-family:
-    Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --app-font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--app-font-family);
   color: #1d2129;
   background: #f7f8fa;
   font-synthesis: none;
