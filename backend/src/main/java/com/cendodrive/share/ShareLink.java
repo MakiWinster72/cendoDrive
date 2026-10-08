@@ -20,6 +20,9 @@ public class ShareLink {
   @Column(nullable = false) private boolean cancelled;
   @Column(name = "extraction_code_hash", length = 100) private String extractionCodeHash;
 
+  // MySQL DATETIME-compatible sentinel preserves the existing non-null expiry schema.
+  static final Instant PERMANENT_EXPIRY = Instant.parse("9999-12-31T23:59:59Z");
+
   protected ShareLink() {}
 
   static ShareLink create(Long ownerId, Long fileId, String token, String name, long size,
@@ -31,7 +34,7 @@ public class ShareLink {
     link.fileName = name;
     link.size = size;
     link.createdAt = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
-    link.expiresAt = LocalDateTime.ofInstant(now.plusSeconds(seconds), ZoneOffset.UTC);
+    link.expiresAt = LocalDateTime.ofInstant(seconds == 0 ? PERMANENT_EXPIRY : now.plusSeconds(seconds), ZoneOffset.UTC);
     return link;
   }
 
@@ -44,6 +47,7 @@ public class ShareLink {
   public Instant getCreatedAt() { return createdAt.toInstant(ZoneOffset.UTC); }
   public Instant getExpiresAt() { return expiresAt.toInstant(ZoneOffset.UTC); }
   public boolean isCancelled() { return cancelled; }
+  boolean isPermanent() { return getExpiresAt().equals(PERMANENT_EXPIRY); }
   public boolean isActiveAt(Instant now) { return !cancelled && now.isBefore(getExpiresAt()); }
   boolean hasExtractionCode() { return extractionCodeHash != null; }
   String getExtractionCodeHash() { return extractionCodeHash; }

@@ -7,7 +7,7 @@ public final class ShareDtos {
   private ShareDtos() {}
 
   public record CreateShareRequest(@NotNull @Positive Long fileId,
-      @NotNull @Min(1) @Max(2592000) Long expiresInSeconds,
+      @NotNull @Min(0) @Max(2592000) Long expiresInSeconds,
       @Pattern(regexp="[A-Za-z0-9]{4,16}") String extractionCode) {
     public CreateShareRequest(Long fileId, Long expiresInSeconds) { this(fileId, expiresInSeconds, null); }
   }
