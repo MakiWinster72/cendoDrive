@@ -18,7 +18,22 @@ const icon = (name: string, kind: "folder" | "file" = "file") =>
 
 describe("iconForFile", () => {
   it.each([
+    ["report.doc", FileType2],
     ["report.docx", FileType2],
+    ["slides.ppt", Presentation],
+    ["budget.xls", FileSpreadsheet],
+    ["archive.zip", FileArchive],
+    ["archive.rar", FileArchive],
+    ["archive.7z", FileArchive],
+    ["archive.tar", FileArchive],
+    ["archive.bz2", FileArchive],
+    ["archive.xz", FileArchive],
+    ["archive.tgz", FileArchive],
+    ["photo.jpg", FileImage],
+    ["photo.webp", FileImage],
+    ["clip.mkv", FileVideo],
+    ["clip.webm", FileVideo],
+    ["README.markdown", FileCode2],
     ["slides.PPTX", Presentation],
     ["budget.xlsx", FileSpreadsheet],
     ["notes.txt", FileText],
