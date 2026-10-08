@@ -7,6 +7,10 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-cendo_dev_password}
       REDIS_HOST: redis
       FASTDFS_TRACKER: tracker:22122
+      CENDO_STORAGE_ROOT: /app/storage
+      CENDO_UPLOAD_ROOT: /app/storage/uploads
+    volumes:
+      - backend-storage:/app/storage
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -112,6 +116,7 @@ services:
       - storage3-data:/var/fdfs
 
 volumes:
+  backend-storage:
   mysql-data:
   redis-data:
   tracker-data:

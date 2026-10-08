@@ -99,6 +99,38 @@ docker compose -f compose.yaml -f compose.local.yaml exec tracker fdfs_monitor /
 
 ### 2.4 更新、停止与再次启动
 
+后端已挂载命名卷 `backend-storage` 到 `/app/storage`：
+
+| 环境变量 | 容器内路径 | 用途 |
+| --- | --- | --- |
+| `CENDO_STORAGE_ROOT` | `/app/storage` | 读取、删除历史本地存储文件 |
+| `CENDO_UPLOAD_ROOT` | `/app/storage/uploads` | 保存未完成上传的临时分片 |
+
+新文件最终存入 FastDFS，而不是 `CENDO_STORAGE_ROOT`。分片目录放在同一个卷中，重建后端容器不会丢失尚未过期的分片；上传会话元数据则保存在 MySQL 中。后端启动时由 Flyway 自动应用新增数据库迁移，更新前应先备份数据库和文件数据。
+
+**旧部署首次增加这个卷时，先迁移再重建。** 新卷不会自动继承旧容器可写层中的 `/app/storage`。如果有历史本地文件或未完成上传，停止上传并执行：
+
+```sh
+docker compose -f compose.yaml -f compose.local.yaml stop backend
+# 备份目录应为空；备份可能包含用户文件，请妥善保管。
+mkdir -p backend-storage-backup
+old_backend=$(docker compose -f compose.yaml -f compose.local.yaml ps -aq backend)
+docker cp "$old_backend:/app/storage/." ./backend-storage-backup/
+```
+
+若 `docker cp` 报目录不存在，先确认旧配置是否使用其他路径；不要在未确认数据位置时直接重建。如果确认从未产生本地文件或分片，可跳过迁移。
+
+备份成功后，先创建但不启动新后端，将备份复制到它挂载的卷中，再执行下面的更新命令：
+
+```sh
+docker compose -f compose.yaml -f compose.local.yaml build backend
+docker compose -f compose.yaml -f compose.local.yaml create --no-deps backend
+new_backend=$(docker compose -f compose.yaml -f compose.local.yaml ps -aq backend)
+docker cp ./backend-storage-backup/. "$new_backend:/app/storage/"
+```
+
+以上操作必须使用原部署的项目名、Compose 文件和环境变量，避免意外创建另一套数据卷。纯 Docker 迁移时，将容器名换为 `cendo-backend`：先备份旧容器，再按 3.3 创建挂载 `cendo-backend-storage` 的新容器（暂用 `docker create` 替代 `docker run -d`），复制备份后用 `docker start cendo-backend` 启动。
+
 ```sh
 # 更新代码后重新构建前后端：
 docker compose -f compose.yaml -f compose.local.yaml up -d --build
@@ -110,7 +142,7 @@ docker compose -f compose.yaml -f compose.local.yaml stop
 docker compose -f compose.yaml -f compose.local.yaml start
 ```
 
-`docker compose ... down` 会删除容器和网络，但默认保留命名卷。**不要执行 `down -v`**，它会删除数据库、Redis 和 FastDFS 数据卷。
+`docker compose ... down` 会删除容器和网络，但默认保留命名卷。**不要执行 `down -v`**，它会删除数据库、Redis、后端本地文件/分片和 FastDFS 数据卷。
 
 ## 三、只使用 Docker，不使用 Compose
 
@@ -190,6 +222,9 @@ docker run -d --name cendo-backend \
   -e DB_PASSWORD=cendo_dev_password \
   -e REDIS_HOST=cendo-redis \
   -e FASTDFS_TRACKER=cendo-tracker:22122 \
+  -e CENDO_STORAGE_ROOT=/app/storage \
+  -e CENDO_UPLOAD_ROOT=/app/storage/uploads \
+  -v cendo-backend-storage:/app/storage \
   -e 'CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1' \
   cendo-backend:local
 
@@ -229,6 +264,8 @@ docker start cendo-backend
 # 后端就绪后：
 docker start cendo-frontend
 ```
+
+如果旧后端没有挂载本地存储卷，先按 2.4 的方法停止并备份 `/app/storage`，再将备份导入 `cendo-backend-storage` 卷；不要直接删除旧容器。
 
 更新前后端代码后，先重新执行对应的 `docker build`，再停止并删除**应用容器** `cendo-backend`、`cendo-frontend`，然后用 3.3、3.4 的完整参数重新 `docker run`。仅 `docker restart` 不会切换到新构建的镜像。不要删除数据库或 FastDFS 卷，也不要把删除应用容器的操作套用到不明来源的已有容器。
 
@@ -285,7 +322,8 @@ docker logs --tail=100 cendo-storage1
 
 ## 五、数据保留与新设备迁移
 
-- 命名卷保存 MySQL、Redis、tracker 和三个 storage 的数据；普通停止容器不会删除它们。
+- 命名卷保存 MySQL、Redis、tracker、三个 storage 和后端本地存储的数据；普通停止容器不会删除它们。
+- 后端的 `backend-storage`（纯 Docker 为 `cendo-backend-storage`）保存历史本地文件与未完成上传的分片；迁移时也应备份。它不代替 FastDFS 数据卷。
 - 新设备首次启动会创建新数据，旧账号和文件不会随代码出现。
 - 搬迁已有数据时，需要迁移数据库与对应的 FastDFS 数据、配置及节点信息，而不只是复制源码或一个文件目录。跨主机/地址变更应结合 [FastDFS 跨主机 Storage 部署设计](FastDFS跨主机Storage部署设计.md) 制定方案。
 - Compose 和纯 Docker 示例使用不同的卷名，彼此不会自动复用数据。不要通过随意改卷名来尝试迁移。
