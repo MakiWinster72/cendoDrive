@@ -20,11 +20,13 @@ class DriveShareCopyTest {
   @Mock FileStorage storage;
   @Mock User owner;
   @Mock User recipient;
+  @Mock FileQuotaService quota;
   DriveService drive;
   DriveFile original;
 
   @BeforeEach void setup() {
-    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test");
+    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test", quota);
+    lenient().when(quota.check(eq(recipient), anyLong(), isNull())).thenReturn(recipient);
     lenient().when(owner.getId()).thenReturn(7L);
     lenient().when(recipient.getId()).thenReturn(8L);
     original = DriveFile.uploaded(7L, null, "hello.txt", 5, "original");
@@ -59,6 +61,18 @@ class DriveShareCopyTest {
     });
     assertEquals("100", drive.saveSharedFile(recipient, owner, 42L, null).id());
     verify(storage, never()).delete("original");
+    verify(quota, times(2)).check(recipient, 5L, null);
+    verify(quota).refresh(recipient);
+  }
+
+  @Test void rejectsQuotaBeforeReadingOrWritingStorage() {
+    when(quota.check(recipient, 5L, null)).thenThrow(new DriveFailure(
+        org.springframework.http.HttpStatus.INSUFFICIENT_STORAGE, "QUOTA_EXCEEDED", "Storage quota exceeded"));
+    assertEquals("QUOTA_EXCEEDED", assertThrows(DriveFailure.class,
+        () -> drive.saveSharedFile(recipient, owner, 42L, null)).code());
+    verifyNoInteractions(storage);
+    verify(files, never()).saveAndFlush(any());
+    verify(quota, never()).refresh(any());
   }
 
   @Test void rejectsForeignDestinationFolderBeforeDownloading() {

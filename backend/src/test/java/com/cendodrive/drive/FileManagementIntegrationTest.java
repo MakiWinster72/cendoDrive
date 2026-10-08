@@ -75,6 +75,29 @@ class FileManagementIntegrationTest {
     doAnswer(call -> { blobs.remove(call.getArgument(0)); sizes.remove(call.getArgument(0)); return null; }).when(storage).delete(anyString());
   }
 
+  @Test void sharedCopiesRespectRecipientReservationsAndRefreshUsage() throws Exception {
+    byte[] content="hello".getBytes();
+    var source=drive.upload(other,new MockMultipartFile("file","shared.txt","text/plain",content),null);
+    limit(9);
+    byte[] pending=new byte[5];
+    String reservation=init("owner","pending.bin",5,md5(pending),null,5,1,201).path("uploadId").asText();
+    clearInvocations(storage);
+    assertEquals("QUOTA_EXCEEDED",assertThrows(DriveFailure.class,
+        () -> drive.saveSharedFile(owner,other,Long.valueOf(source.id()),null)).code());
+    verifyNoInteractions(storage);
+    assertEquals(0,usage().path("usedBytes").asLong());
+    assertEquals(5,usage().path("reservedBytes").asLong());
+    sessions.deleteById(reservation);
+    var copy=drive.saveSharedFile(owner,other,Long.valueOf(source.id()),null);
+    assertEquals(5,usage().path("usedBytes").asLong());
+    assertEquals(5,users.findById(owner.getId()).orElseThrow().getStorageUsed());
+    var original=files.findById(Long.valueOf(source.id())).orElseThrow();
+    var copied=files.findById(Long.valueOf(copy.id())).orElseThrow();
+    assertNotEquals(original.getStorageKey(),copied.getStorageKey());
+    download(copy.id(),content);
+    assertArrayEquals(content,blobs.get(original.getStorageKey()));
+  }
+
   @Test void chunksResumeOutOfOrderRetryAndMergeExactlyOnce() throws Exception {
     byte[] bytes="hello-world".getBytes(); String hash=md5(bytes);
     JsonNode initial=init("owner","hello.txt",bytes.length,hash,null,4,3,201);
