@@ -7,7 +7,7 @@ import {
   RotateCcw,
   Trash2,
   X,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import {
   isUploadCancelled,
   uploadErrorMessage,
@@ -18,7 +18,7 @@ import {
   uploadFileInChunks,
 } from "../api/chunkedUpload";
 import UploadActionIcon from "./UploadActionIcon.vue";
-import { ChevronRight, ShieldCheck } from "lucide-vue-next";
+import { ChevronRight, ShieldCheck } from "@lucide/vue";
 import type { DriveItem } from "../stores/drive";
 import { useTransfers } from "../stores/transfers";
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { ChevronLeft, ChevronRight, Ellipsis, X } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, Ellipsis, X } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import { getNovelHubContent, type NovelContentItem } from "../api/content";

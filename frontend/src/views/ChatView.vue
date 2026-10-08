@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ChevronLeft, Send } from 'lucide-vue-next';
+import { ChevronLeft, Send } from '@lucide/vue';
 import { listRooms, getMessages, sendMessage, type Room, type Message } from '../api/chat';
 import { useAuth } from '../stores/auth';
 import '../styles/chat.css';

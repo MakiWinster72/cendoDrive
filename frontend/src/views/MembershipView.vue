@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ChevronLeft, ChevronRight, CircleHelp, Crown, ShieldCheck, Sparkles } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, CircleHelp, Crown, ShieldCheck, Sparkles } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import { getMembershipContent, type MembershipContentResponse } from "../api/content";

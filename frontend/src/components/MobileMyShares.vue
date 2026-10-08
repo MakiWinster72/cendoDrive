@@ -8,7 +8,7 @@ import {
   Link2,
   Share2,
   XCircle,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import type { ShareRecord } from "../api/shares";
 
 type Filter = "all" | "active" | "expired" | "cancelled";

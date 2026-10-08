@@ -12,9 +12,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lucide/vue": "^1.53.0",
     "axios": "^1.12.2",
     "dompurify": "^3.4.16",
-    "lucide-vue-next": "^0.468.0",
     "mammoth": "^1.13.0",
     "marked": "^18.1.0",
     "pdfjs-dist": "^6.4.299",

@@ -10,7 +10,7 @@ import {
   FileVideo,
   Folder,
   Presentation,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { fileCategory, iconForFile } from "./fileIcon";
 
 const icon = (name: string, kind: "folder" | "file" = "file") =>

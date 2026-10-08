@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ChevronLeft, ChevronRight, Coins, Ellipsis, Gift, RefreshCw, Trophy } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, Coins, Ellipsis, Gift, RefreshCw, Trophy } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import { getGameCenterContent, type GameContentItem } from "../api/content";

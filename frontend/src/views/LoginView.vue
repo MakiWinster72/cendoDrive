@@ -9,7 +9,7 @@ import {
   FolderOpen,
   Image,
   ShieldCheck,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { authErrorMessage } from "../api/auth";
 import BrandLogo from "../components/BrandLogo.vue";
 import { useAuth } from "../stores/auth";

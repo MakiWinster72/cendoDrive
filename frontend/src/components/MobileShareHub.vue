@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, Cloud, UserRound, Folder, Mail, MoreHorizontal, Search, UserRoundPlus, UsersRound } from 'lucide-vue-next';
+import { Bell, Cloud, UserRound, Folder, Mail, MoreHorizontal, Search, UserRoundPlus, UsersRound } from '@lucide/vue';
 import '../styles/share-hub.css';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';

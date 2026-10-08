@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { ChevronLeft, ChevronRight, FolderInput, X } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, FolderInput, X } from "@lucide/vue";
 import { iconForFile } from "./fileIcon";
 import { formatBytes } from "../stores/drive";
 import { useFileSearch } from "./useFileSearch";

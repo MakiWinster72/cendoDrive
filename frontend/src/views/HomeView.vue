@@ -60,7 +60,7 @@ import {
   LockKeyhole,
   Pencil,
   FolderInput,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import BrandLogo from "../components/BrandLogo.vue";
 import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
@@ -79,7 +79,7 @@ import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import SplashAdOverlay from "../components/SplashAdOverlay.vue";
-import { Send } from "lucide-vue-next";
+import { Send } from "@lucide/vue";
 import "../styles/profile.css";
 import "../styles/home.css";
 import "../styles/selection.css";

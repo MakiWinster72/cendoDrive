@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, useId, watch } from "vue";
-import { Check, X } from "lucide-vue-next";
+import { Check, X } from "@lucide/vue";
 import "../styles/inline-name.css";
 
 const props = defineProps<{

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
 import { iconForFile } from './fileIcon';
-import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from 'lucide-vue-next';
+import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
 const emit = defineEmits<{ back: [] }>();
 const tab = ref<'download' | 'upload'>('download');
 const promo = ref(true), coupon = ref(true);

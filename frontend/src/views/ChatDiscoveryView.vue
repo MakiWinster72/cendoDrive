@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChevronLeft, Search, ScanLine, ContactRound, Tag, ChevronRight } from 'lucide-vue-next';
+import { ChevronLeft, Search, ScanLine, ContactRound, Tag, ChevronRight } from '@lucide/vue';
 import { searchUsers, searchGroups, openDirect, joinGroup, type Person, type Room } from '../api/chat';
 import { useAuth } from '../stores/auth';
 import '../styles/chat.css';

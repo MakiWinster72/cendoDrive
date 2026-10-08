@@ -7,7 +7,7 @@ import {
   CloudDownload,
   LoaderCircle,
   ShieldCheck,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import BrandLogo from "../components/BrandLogo.vue";
 import { formatSize } from "../stores/drive";
 import {

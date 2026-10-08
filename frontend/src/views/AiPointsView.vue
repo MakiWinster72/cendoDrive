@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Gem, Sparkles } from "lucide-vue-next";
+import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Gem, Sparkles } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import "../styles/mobile-commerce.css";
