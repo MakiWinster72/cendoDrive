@@ -78,6 +78,7 @@ import { useNameEdit } from "../components/useNameEdit";
 import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
+import ShareSettingsDialog from "../components/ShareSettingsDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
@@ -92,7 +93,7 @@ import FolderGlyph from "../components/FolderGlyph.vue";
 import "../styles/share.css";
 import { useAuth } from "../stores/auth";
 import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
-import { shareErrorMessage, type ShareRecord } from "../api/shares";
+import { shareClipboardText, shareErrorMessage, type ShareRecord } from "../api/shares";
 
 type Mode =
   | "all"
@@ -120,6 +121,7 @@ const keyword = ref(""),
   mobileNavOpen = ref(false),
   uploadPanelOpen = ref(false);
 const createdShare = ref<ShareRecord | null>(null);
+const shareTarget = ref<DriveItem | null>(null);
 const previewTarget = ref<DriveItem | null>(null);
 const toolsTarget = ref<{ action: ToolAction; items: DriveItem[] } | null>(null);
 const mobileViewport = ref(window.innerWidth < 768);
@@ -479,19 +481,10 @@ async function shareSelected() {
   if (checked.value.length !== 1) return alert("请选择一个文件进行分享");
   const item = drive.get(checked.value[0]!);
   if (!item || item.kind === "folder") return alert("目前只支持分享单个文件");
-  const daysInput = prompt("分享有效天数（1、7 或 30）", "7");
-  if (daysInput === null) return;
-  const days = Number(daysInput);
-  if (![1, 7, 30].includes(days)) return alert("有效天数请选择 1、7 或 30");
-  try {
-    createdShare.value = await drive.share(item.id, days * 86400);
-    flash("分享链接已创建");
-  } catch (error) {
-    alert(shareErrorMessage(error, "分享创建失败"));
-  }
+  shareTarget.value = item;
 }
 async function copyShareLink(share: ShareRecord) {
-  const link = `${location.origin}/share/${encodeURIComponent(share.token)}`;
+  const link = shareClipboardText(share, location.origin);
   try {
     await navigator.clipboard.writeText(link);
     flash("分享链接已复制");
@@ -502,7 +495,7 @@ async function copyShareLink(share: ShareRecord) {
 async function copyShareLinks(shares: ShareRecord[]) {
   const links = shares
     .map(
-      (share) => `${location.origin}/share/${encodeURIComponent(share.token)}`,
+      (share) => shareClipboardText(share, location.origin),
     )
     .join("\n");
   try {
@@ -660,6 +653,7 @@ onUnmounted(() => {
       createFolder();
     "
   />
+  <ShareSettingsDialog v-if="shareTarget" :file="shareTarget" @close="shareTarget = null" @created="createdShare = $event; shareTarget = null; flash('分享链接已创建')" />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
 
 
