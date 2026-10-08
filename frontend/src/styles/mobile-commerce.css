@@ -125,6 +125,7 @@
   color: #a1a7b2;
   font-size: 10px;
 }
+.demo-inline { margin: 8px 14px 0; color: #969daa; text-align: center; font-size: 9px; }
 
 /* Membership purchase preview */
 .membership-page { background: #f2f3f6; }
@@ -270,6 +271,7 @@
 .asset-statuses button { flex: none; min-height: 32px; padding: 0 13px; border: 0; border-radius: 18px; background: #fff; color: #9ca5b4; font-size: 12px; }
 .asset-statuses button.active { color: #667080; box-shadow: 0 1px 4px #1d2c4208; }
 .asset-hint { margin: 4px 12px 0; color: #939cab; font-size: 12px; }
+.asset-data-note { margin: 8px 12px 0; color: #a8afbb; font-size: 10px; }
 .asset-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; padding-bottom: 54px; color: #a6afbe; }
 .ticket-stack { display: grid; width: 44px; height: 36px; place-items: center; color: #67aefb; filter: drop-shadow(5px -3px 0 #b9dcff); }
 .ticket-stack svg { stroke: #68aefb; }

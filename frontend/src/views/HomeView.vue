@@ -75,6 +75,7 @@ import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import { Send } from "lucide-vue-next";
 import "../styles/profile.css";
 import "../styles/home.css";
@@ -131,6 +132,7 @@ async function toolsChanged(message: string) {
 
 const sortBy = ref<"name" | "time" | "size">("time"),
   notice = ref(""),
+  unavailableMessage = ref(""),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
@@ -302,6 +304,9 @@ const dateText = (date: string) =>
 function flash(text: string) {
   notice.value = text;
   window.setTimeout(() => (notice.value = ""), 2200);
+}
+function showUnavailable(message: string) {
+  unavailableMessage.value = message;
 }
 async function changeMode(next: Mode) {
   mode.value = next;
@@ -506,6 +511,13 @@ async function openProfileShortcut(label: string) {
   else if (label === "我的分享") await openMyShares();
   else if (label === "转存与下载") showTransfers.value = true;
 }
+function openProfileService(label: string) {
+  if (label === "免费领会员") {
+    void router.push({ name: "membership" });
+    return;
+  }
+  showUnavailable(`${label}服务暂未开放。`);
+}
 async function downloadSelected() {
   if (downloading.value) return;
   const files = checked.value.filter((id) => drive.get(id)?.kind !== "folder");
@@ -583,6 +595,11 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <UnavailableFeatureDialog
+    :open="Boolean(unavailableMessage)"
+    :message="unavailableMessage"
+    @close="unavailableMessage = ''"
+  />
   <TransferPage v-if="showTransfers" @back="showTransfers = false" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
@@ -623,7 +640,7 @@ onUnmounted(() => {
             <button aria-label="传输列表" @click="showTransfers = true">
               <Download />
             </button>
-            <button aria-label="签到" @click="flash('签到功能即将上线')">
+            <button aria-label="签到" @click="showUnavailable('签到功能暂未开放。')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">
               <HardDrive /></button
@@ -648,7 +665,7 @@ onUnmounted(() => {
           ><button @click="router.push({ name: 'videos' })">
             <span class="m-tool-icon"><HomeToolIcon name="video" /></span
             ><span>视频</span></button
-          ><button @click="flash('更多功能即将上线')">
+          ><button @click="showUnavailable('求职服务暂未开放。')">
             <span class="m-tool-icon"><HomeToolIcon name="career" /></span
             ><span>求职</span></button
           ><button @click="router.push({ name: 'novels' })">
@@ -749,7 +766,7 @@ onUnmounted(() => {
       <section class="m-memory">
         <div class="m-panel-title">
           <h2>推荐 <span>创意</span></h2>
-          <button aria-label="更多推荐" @click="flash('更多内容即将上线')">
+          <button aria-label="更多推荐" @click="showUnavailable('更多推荐内容暂未接入。')">
             <MoreHorizontal :size="22" />
           </button>
         </div>
@@ -933,9 +950,9 @@ onUnmounted(() => {
             <p>您还不是超级会员 <ChevronRight :size="17" /></p>
           </div>
           <div class="profile-header-actions">
-            <button aria-label="设备" type="button">
+            <button aria-label="设备" type="button" @click="showUnavailable('设备管理功能暂未开放。')">
               <MonitorSmartphone /></button
-            ><button aria-label="签到" type="button"><CalendarDays /></button>
+            ><button aria-label="签到" type="button" @click="showUnavailable('签到功能暂未开放。')"><CalendarDays /></button>
           </div>
         </header>
         <section class="profile-membership">
@@ -978,12 +995,12 @@ onUnmounted(() => {
           <section class="profile-storage">
             <div><strong>1.6T / 2T</strong><span>79%</span></div>
             <div class="storage-track"><i></i></div>
-            <button type="button">管理空间 <ChevronRight :size="17" /></button>
+            <button type="button" @click="showUnavailable('容量管理功能暂未开放。')">管理空间 <ChevronRight :size="17" /></button>
           </section>
           <section class="profile-missions">
             <div class="mission-orb"><Crown /></div>
             <strong>任务系统</strong
-            ><button type="button">领 奖 励 <ChevronRight :size="17" /></button>
+            ><button type="button" @click="showUnavailable('任务奖励功能暂未开放。')">领 奖 励 <ChevronRight :size="17" /></button>
           </section>
         </div>
         <section class="profile-services" aria-label="更多服务">
@@ -992,6 +1009,7 @@ onUnmounted(() => {
             :key="service.label"
             type="button"
             :class="service.tone"
+            @click="openProfileService(service.label)"
           >
             <component :is="service.icon" /><span>{{ service.label }}</span>
           </button>
@@ -999,10 +1017,10 @@ onUnmounted(() => {
         <section class="profile-promo">
           <div class="promo-gift"><Gift :size="52" /></div>
           <div>
-            <strong>网盘 <em>SVIP</em> 会员免费送</strong>
-            <p>限时活动 · 领 90 天会员</p>
+            <strong>网盘 <em>SVIP</em> 会员活动</strong>
+            <p>活动领取能力暂未开放</p>
           </div>
-          <button type="button" @click="router.push({ name: 'membership' })">立即抢</button>
+          <button type="button" @click="router.push({ name: 'membership' })">查看方案</button>
         </section>
         <section class="profile-game">
           <div>
@@ -1047,7 +1065,7 @@ onUnmounted(() => {
         "
       >
         <Folder /><span>文件</span></button
-      ><button class="genflow" type="button" @click="flash('库库 AI 即将上线')">
+      ><button class="genflow" type="button" @click="showUnavailable('库库 AI 功能暂未开放。')">
         <i><Sparkles /></i><span>库库 AI</span></button
       ><button
         :class="{ active: mobileTab === 'share' }"

@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Gem, Sparkles } from "lucide-vue-next";
 import { useRouter } from "vue-router";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import "../styles/mobile-commerce.css";
 
 const router = useRouter();
@@ -19,7 +20,6 @@ const showHistory = ref(false);
 const agreed = ref(true);
 const notice = ref("");
 const selectedPack = computed(() => packs[selectedPackIndex.value]!);
-let noticeTimer: number | undefined;
 
 function goBack() {
   if (window.history.state?.back) router.back();
@@ -27,8 +27,6 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
-  if (noticeTimer) window.clearTimeout(noticeTimer);
-  noticeTimer = window.setTimeout(() => (notice.value = ""), 2600);
 }
 function pay() {
   if (!agreed.value) {
@@ -70,7 +68,7 @@ function pay() {
           <span>¥ {{ pack.price }}</span>
           <del>¥ {{ pack.original }}</del>
         </button>
-        <p>购买后立即生效，有效期为1年</p>
+        <p>页面套餐为演示数据；充值及支付服务暂未接入</p>
       </section>
 
       <button class="points-member-link" @click="router.push({ name: 'membership' })"><Gem :size="16" />免费获得250点/月 <span>开通SVIP <ChevronRight :size="15" /></span></button>
@@ -82,9 +80,9 @@ function pay() {
 
       <section class="points-description">
         <h2>点数说明</h2>
-        <p>AI点数是百度网盘平台会员的虚拟货币，用于兑换AI增值服务。</p>
-        <p>AI点数有效期1年，过期失效。</p>
-        <p>AI点数充值成功后，不支持退款、转赠及提现。</p>
+        <p>AI点数用于兑换AI增值服务，具体规则将在服务开放后说明。</p>
+        <p>当前余额和充值档位为演示数据。</p>
+        <p>充值及支付服务暂未接入。</p>
       </section>
       <p class="demo-caption points-demo"><CircleHelp :size="14" />演示页面：充值和支付接口尚未接入</p>
     </div>
@@ -93,6 +91,6 @@ function pay() {
       <button class="primary-pay" @click="pay">¥ {{ selectedPack.price }} 确认协议并支付</button>
       <label><input v-model="agreed" type="checkbox" /> 我已阅读并同意 <button @click.prevent="showNotice('充值协议暂未提供')">充值协议</button></label>
     </footer>
-    <div v-if="notice" class="commerce-toast" role="status">{{ notice }}</div>
+    <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>
 </template>

@@ -39,6 +39,7 @@ function goBack() {
       <button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button>
     </div>
     <p class="asset-hint">{{ description }}</p>
+    <p class="asset-data-note">资产列表接口尚未接入，当前为演示空状态</p>
 
     <section class="asset-empty" aria-live="polite">
       <div class="ticket-stack"><Ticket :size="31" fill="currentColor" /></div>

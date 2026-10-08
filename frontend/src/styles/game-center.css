@@ -31,6 +31,7 @@
 .game-recommend-section,.more-games-section { margin-top: 12px; }
 .game-section-heading { display: flex; min-height: 30px; align-items: center; justify-content: space-between; padding: 0 2px; }
 .game-section-heading h2 { position: relative; margin: 0; color: #152334; font-size: 15px; font-weight: 800; }
+.game-demo-tag { margin-left: 4px; color: #8998a6; font-size: 9px; font-weight: 500; }
 .game-section-heading h2::after { position: absolute; bottom: 0; left: 0; z-index: -1; width: 37px; height: 5px; transform: rotate(-3deg); border-radius: 4px; background: #8bcfff; content: ""; }
 .game-section-heading > button { display: flex; align-items: center; gap: 2px; padding: 4px 0; border: 0; background: transparent; color: #8b99a7; font-size: 10px; }
 .featured-games { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px 7px; padding: 7px 0 0; }

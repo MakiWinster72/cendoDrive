@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { ChevronLeft, ChevronRight, CircleHelp, Crown, ShieldCheck, Sparkles } from "lucide-vue-next";
 import { useRouter } from "vue-router";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import "../styles/mobile-commerce.css";
 
 const router = useRouter();
@@ -15,7 +16,6 @@ const paymentMethod = ref<"alipay" | "wechat">("alipay");
 const agreed = ref(true);
 const notice = ref("");
 const activePlan = computed(() => plans[selectedPlan.value]!);
-let noticeTimer: number | undefined;
 
 function goBack() {
   if (window.history.state?.back) router.back();
@@ -23,8 +23,6 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
-  if (noticeTimer) window.clearTimeout(noticeTimer);
-  noticeTimer = window.setTimeout(() => (notice.value = ""), 2600);
 }
 function pay() {
   if (!agreed.value) {
@@ -57,6 +55,7 @@ function pay() {
         </div>
       </section>
 
+      <p class="demo-inline">套餐、价格与会员权益为演示数据；购买服务尚未接入</p>
       <section class="plan-section" aria-label="选择会员套餐">
         <button
           v-for="(plan, index) in plans"
@@ -70,7 +69,7 @@ function pay() {
           <strong>{{ plan.name }}</strong>
           <span class="plan-price"><small>¥</small>{{ plan.price }}<small>{{ plan.suffix }}</small></span>
           <del>¥{{ plan.original }}</del>
-          <span class="plan-renew">立即开通 ›</span>
+          <span class="plan-renew">选择此套餐 ›</span>
         </button>
       </section>
 
@@ -96,7 +95,7 @@ function pay() {
       </section>
 
       <section class="privilege-section">
-        <div class="section-heading"><h2>SVIP尊享权益</h2><button @click="showNotice('权益说明')">特权对比 <ChevronRight :size="15" /></button></div>
+        <div class="section-heading"><h2>SVIP尊享权益</h2><button @click="showNotice('会员权益对比暂未提供')">特权对比 <ChevronRight :size="15" /></button></div>
         <div class="privilege-table">
           <div class="privilege-row table-head"><strong>AI智能服务</strong><b>SVIP</b><b>VIP</b><b>普通用户</b></div>
           <button class="privilege-row" @click="router.push({ name: 'ai-points' })"><span>AI点数充值</span><b>赠送点数</b><i>—</i><i>—</i></button>
@@ -119,6 +118,6 @@ function pay() {
       <label><input v-model="agreed" type="checkbox" /> 我已阅读并同意 <button @click.prevent="showNotice('会员服务协议暂未提供')">《会员服务协议》</button></label>
       <button class="primary-pay" @click="pay">立即支付 ¥{{ activePlan.price }}{{ activePlan.suffix }}</button>
     </footer>
-    <div v-if="notice" class="commerce-toast" role="status">{{ notice }}</div>
+    <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>
 </template>

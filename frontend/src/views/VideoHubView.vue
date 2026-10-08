@@ -59,7 +59,7 @@ onMounted(() => { void loadVideos(); });
 
     <div class="media-scroll">
       <section class="recent-video-section">
-        <div class="media-section-title"><h2>最近观看</h2><button @click="activeTab = 'mine'">查看更多 <ChevronRight :size="15" /></button></div>
+        <div class="media-section-title"><h2>最近视频</h2><button @click="activeTab = 'mine'">查看更多 <ChevronRight :size="15" /></button></div>
         <div v-if="recentVideos.length" class="recent-video-strip">
           <button v-for="(video, index) in recentVideos" :key="video.id" class="recent-video-card" :class="`video-tone-${index % 4}`" @click="preview = video">
             <span class="recent-video-art"><Video :size="39" /></span>

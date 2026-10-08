@@ -102,6 +102,7 @@
 .novel-scroll { padding-bottom: 18px; }
 .novel-local-section,.novel-bookshelf-section { min-height: 174px; padding: 15px 17px; background: #fff; }
 .novel-local-section h2,.novel-bookshelf-section h2,.novel-recommend-section h2 { margin: 0; color: #151a22; font-size: 17px; font-weight: 750; }
+.novel-demo-tag { margin-left: 5px; color: #a5acb7; font-size: 9px; font-weight: 500; }
 .novel-empty-action { display: flex; width: 100%; min-height: 112px; align-items: center; justify-content: center; gap: 3px; border: 0; background: transparent; color: #a9a9ad !important; font-size: 12px; }
 .novel-empty-action svg { color: #b9bbc0; }
 .novel-bookshelf-section { min-height: 132px; margin-top: 1px; }

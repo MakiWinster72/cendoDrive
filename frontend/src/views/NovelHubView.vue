@@ -2,11 +2,11 @@
 import { ref } from "vue";
 import { ChevronLeft, ChevronRight, Ellipsis, X } from "lucide-vue-next";
 import { useRouter } from "vue-router";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import "../styles/mobile-media.css";
 
 const router = useRouter();
 const notice = ref("");
-let noticeTimer: number | undefined;
 const recommendations = [
   { title: "我，修仙，一开始就无敌", author: "画江山", tone: "ink" },
   { title: "替嫁宠妃：残疾大佬…", author: "糖果可可", tone: "mist" },
@@ -25,8 +25,6 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
-  if (noticeTimer) window.clearTimeout(noticeTimer);
-  noticeTimer = window.setTimeout(() => (notice.value = ""), 2500);
 }
 </script>
 
@@ -53,7 +51,7 @@ function showNotice(message: string) {
       <button class="novel-promo" aria-label="小说推荐活动" @click="showNotice('书城活动暂未开放')"><span>云端阅读 · 好书常伴</span><i>BOOKS</i></button>
 
       <section class="novel-recommend-section">
-        <h2>你可能在找</h2>
+        <h2>你可能在找 <small class="novel-demo-tag">演示推荐</small></h2>
         <p class="novel-quote">“ 爆款小说免费读，真香预警！”</p>
         <div class="novel-card-strip">
           <button v-for="book in recommendations" :key="book.title" class="novel-book-card" @click="showNotice('书籍详情暂未接入')">
@@ -74,6 +72,6 @@ function showNotice(message: string) {
       </section>
       <p class="media-demo-note">书城推荐为页面演示内容，书籍数据及阅读服务尚未接入</p>
     </div>
-    <div v-if="notice" class="media-toast" role="status">{{ notice }}</div>
+    <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>
 </template>

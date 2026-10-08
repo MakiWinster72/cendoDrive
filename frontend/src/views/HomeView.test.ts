@@ -290,6 +290,22 @@ describe("mobile profile unavailable destinations", () => {
     await wrapper.find(".profile-game button").trigger("click");
     expect(routerPush).toHaveBeenCalledWith({ name: "game-center" });
   });
+
+  it("marks unavailable profile services and reward actions explicitly", async () => {
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
+    await wrapper.findAll(".profile-services button").find(button => button.text().includes("借钱"))!.trigger("click");
+    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain("借钱服务暂未开放");
+    await wrapper.find(".profile-missions button").trigger("click");
+    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain("任务奖励功能暂未开放");
+  });
+
+  it("routes free membership to the membership page", async () => {
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
+    await wrapper.findAll(".profile-services button").find(button => button.text().includes("免费领会员"))!.trigger("click");
+    expect(routerPush).toHaveBeenCalledWith({ name: "membership" });
+  });
 });
 
 describe("mobile home media shortcuts", () => {

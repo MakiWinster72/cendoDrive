@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { ChevronLeft, ChevronRight, Coins, Ellipsis, Gift, RefreshCw, Trophy } from "lucide-vue-next";
 import { useRouter } from "vue-router";
+import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
 import "../styles/mobile-media.css";
 import "../styles/game-center.css";
 
@@ -25,7 +26,6 @@ const games = [
   { name: "哈拉小铺", tagline: "助力一场探索神秘", category: "休闲益智", emoji: "🐑", tone: "lavender" },
 ];
 const filteredGames = computed(() => activeCategory.value === "热门" ? games : games.filter(game => game.category === activeCategory.value));
-let noticeTimer: number | undefined;
 
 function goBack() {
   if (window.history.state?.back) router.back();
@@ -33,8 +33,6 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
-  if (noticeTimer) window.clearTimeout(noticeTimer);
-  noticeTimer = window.setTimeout(() => (notice.value = ""), 2600);
 }
 </script>
 
@@ -68,7 +66,7 @@ function showNotice(message: string) {
       </section>
 
       <section class="game-recommend-section">
-        <div class="game-section-heading"><h2>精品推荐</h2><button aria-label="换一换" @click="showNotice('推荐内容暂未接入')">换一换 <RefreshCw :size="14" /></button></div>
+        <div class="game-section-heading"><h2>精品推荐 <small class="game-demo-tag">演示内容</small></h2><button aria-label="换一换" @click="showNotice('推荐内容暂未接入')">换一换 <RefreshCw :size="14" /></button></div>
         <div class="featured-games">
           <button v-for="(game, index) in games" :key="game.name" class="featured-game" @click="showNotice('游戏详情及下载暂未接入')">
             <span class="game-art" :class="game.tone"><i>{{ game.emoji }}</i><small>{{ index % 2 === 0 ? '精选' : '热门' }}</small></span>
@@ -92,6 +90,6 @@ function showNotice(message: string) {
       </section>
       <p class="media-demo-note"><Trophy :size="13" /> 游戏推荐与任务为前端演示，游戏数据和奖励服务尚未接入</p>
     </div>
-    <div v-if="notice" class="media-toast" role="status">{{ notice }}</div>
+    <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>
 </template>
