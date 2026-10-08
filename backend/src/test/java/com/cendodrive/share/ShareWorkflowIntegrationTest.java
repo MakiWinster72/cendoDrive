@@ -90,6 +90,24 @@ class ShareWorkflowIntegrationTest {
         .andReturn().getResponse().getContentAsString();
   }
 
+  @Test void permanentShareSurvivesDatabaseRoundTripAndCanBeRevoked() throws Exception {
+    String bearer = login().get("token").asText();
+    String fileId = request(multipart("/api/files/upload")
+        .file(new MockMultipartFile("file", "permanent.txt", "text/plain", "permanent".getBytes()))
+        .header("Authorization", "Bearer " + bearer)).get("id").asText();
+    JsonNode created = share(bearer, fileId, 0);
+    String token = created.get("token").asText(), url = "/api/shares/" + token;
+    assertEquals("9999-12-31T23:59:59Z", created.get("expiresAt").asText());
+    assertTrue(links.findById(created.get("id").asLong()).orElseThrow().isPermanent());
+    assertEquals(-1L, redis.getExpire(ShareAccessStore.key(token)));
+    assertEquals("permanent.txt", request(get(url)).get("file").get("name").asText());
+    assertEquals("permanent", download(url + "/download", null));
+    mvc.perform(delete("/api/shares/" + created.get("id").asText())
+        .header("Authorization", "Bearer " + bearer)).andExpect(status().isNoContent());
+    mvc.perform(get(url)).andExpect(status().isNotFound());
+    assertFalse(Boolean.TRUE.equals(redis.hasKey(ShareAccessStore.key(token))));
+  }
+
   @Test void twoUsersShareAndSaveWithoutLosingIsolationOrCopyAfterDeletion() throws Exception {
     JsonNode alice = login(), bob = login();
     String a = alice.get("token").asText(), b = bob.get("token").asText();
