@@ -64,13 +64,19 @@ services:
 
   tracker:
     image: ygqygq2/fastdfs-nginx:latest
+    entrypoint: ["/bin/sh", "/cendo/tracker-entrypoint.sh"]
+    command: ["tracker"]
+    environment:
+      FDFS_RESERVED_STORAGE_SPACE: ${FDFS_RESERVED_STORAGE_SPACE:-5%}
     ports:
       - "127.0.0.1:22122:22122"
     volumes:
       - tracker-data:/var/fdfs
+      - ./infra/fastdfs/tracker-entrypoint.sh:/cendo/tracker-entrypoint.sh:ro
 
   storage1:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: &storage-env
       TRACKER_SERVER: tracker:22122
     depends_on:
@@ -83,6 +89,7 @@ services:
 
   storage2:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: *storage-env
     depends_on:
       - tracker
@@ -94,6 +101,7 @@ services:
 
   storage3:
     image: ygqygq2/fastdfs-nginx:latest
+    command: ["storage"]
     environment: *storage-env
     depends_on:
       - tracker

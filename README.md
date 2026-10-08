@@ -71,6 +71,22 @@ npm run dev
 > [!NOTE]
 > Compose 面向本机开发，不提供生产级 HTTPS、访问控制或备份；默认密码不适用于生产。
 
+### FastDFS 上传空间不足
+
+节点 `ACTIVE` 只说明在线，不保证允许上传。镜像默认预留磁盘的 20%；低于阈值时 SDK 会报 `错误码：28，错误信息：没有足够的存储空间`，即使磁盘仍有空闲。
+
+本地 Compose 默认预留 **5%**，可用 `FDFS_RESERVED_STORAGE_SPACE` 覆盖（整数 `1%`–`99%`，拒绝零预留）。例如设置 `FDFS_RESERVED_STORAGE_SPACE=10%` 后启动。生产环境应根据容量、备份和监控另行选择阈值，不要关闭空间保护。
+
+已有环境应用修改时只需重建 tracker，再重启 storage 获取新策略；不删除数据卷：
+
+```sh
+docker compose up -d --no-deps tracker
+docker compose restart storage1 storage2 storage3
+docker compose exec tracker fdfs_monitor /etc/fdfs/client.conf
+```
+
+检查三节点均为 `ACTIVE`，且 `disk available space` 大于待上传文件大小。如果修改了后端鉴权代码，也需重启本机后端（容器部署则重新构建后端），否则仍会运行旧的异步下载逻辑。
+
 ## 技术架构
 
 | 层级 | 技术                                                       |

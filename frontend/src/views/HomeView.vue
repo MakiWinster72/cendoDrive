@@ -63,6 +63,7 @@ import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import TransferPage from "../components/TransferPage.vue";
+import FilePreview from "../components/FilePreview.vue";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
@@ -100,6 +101,7 @@ const keyword = ref(""),
   mobileNavOpen = ref(false),
   uploadPanelOpen = ref(false);
 const createdShare = ref<ShareRecord | null>(null);
+const previewTarget = ref<DriveItem | null>(null);
 const renameTarget = ref<DriveItem | null>(null),
   renameName = ref(""),
   renaming = ref(false),
@@ -279,10 +281,13 @@ async function loadFolder(parentId: string | null) {
   }
 }
 async function openItem(item: DriveItem) {
-  if (item.kind === "folder" && mode.value !== "trash") {
+  if (mode.value === "trash") return;
+  if (item.kind === "folder") {
     mode.value = "all";
     checked.value = [];
     await loadFolder(item.id);
+  } else {
+    previewTarget.value = item;
   }
 }
 async function goRoot() {
@@ -507,8 +512,11 @@ async function downloadSelected() {
   if (!files.length) return flash("文件夹暂不支持下载");
   downloading.value = true;
   try {
-    const results = await Promise.allSettled(files.map(id => drive.download(id)));
-    if (results.some(result => result.status === "rejected")) throw new Error("部分下载失败");
+    const results = await Promise.allSettled(
+      files.map((id) => drive.download(id)),
+    );
+    if (results.some((result) => result.status === "rejected"))
+      throw new Error("部分下载失败");
     flash(`已下载 ${files.length} 个文件`);
   } catch {
     alert(drive.state.error || "下载失败");
@@ -566,14 +574,25 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <<<<<<< HEAD
   <TransferPage v-if="showTransfers" @back="showTransfers = false" />
+  =======
+  <FilePreview
+    v-if="previewTarget"
+    :file="previewTarget"
+    @close="previewTarget = null"
+  />
+  >>>>>>> feat/preview
   <UploadPanel
     :open="uploadPanelOpen"
     :folder-options="uploadFolders"
     :initial-folder-id="currentFolder"
     @close="uploadPanelOpen = false"
     @uploaded="handleUploaded"
-    @create-folder="uploadPanelOpen = false; createFolder()"
+    @create-folder="
+      uploadPanelOpen = false;
+      createFolder();
+    "
   />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
   <div
@@ -631,7 +650,9 @@ onUnmounted(() => {
             ><span>会员免费领<small>新用户福利 ❯</small></span>
           </div>
           <div class="m-head-actions">
-            <button aria-label="传输列表" @click="showTransfers = true"><Download /></button>
+            <button aria-label="传输列表" @click="showTransfers = true">
+              <Download />
+            </button>
             <button aria-label="签到" @click="flash('签到功能即将上线')">
               <CalendarDays /></button
             ><button aria-label="存储空间" @click="mobileTab = 'files'">
@@ -701,7 +722,7 @@ onUnmounted(() => {
             v-for="item in recentItems"
             :key="item.id"
             class="m-recent"
-            @click="openHomeCategory('recent')"
+            @click="openItem(item)"
           >
             <span class="m-item-icon"
               ><component :is="iconForFile(item)"
@@ -720,10 +741,18 @@ onUnmounted(() => {
         <div class="m-panel-title">
           <h2>转存 <span>订阅</span></h2>
           <div class="m-panel-actions">
-            <button type="button" aria-label="查看转存与订阅" @click="mobileTab = 'share'">
+            <button
+              type="button"
+              aria-label="查看转存与订阅"
+              @click="mobileTab = 'share'"
+            >
               <Eye :size="20" />
             </button>
-            <button type="button" aria-label="查看分享" @click="mobileTab = 'share'">
+            <button
+              type="button"
+              aria-label="查看分享"
+              @click="mobileTab = 'share'"
+            >
               <ChevronRight :size="20" />
             </button>
           </div>
