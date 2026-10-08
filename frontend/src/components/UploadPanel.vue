@@ -490,7 +490,7 @@ function statusText(task: UploadTask) {
           >
             {{ uploadButtonText }}
           </button>
-          <button v-else type="button" @click="emit('close')">完成</button>
+          <button v-else class="upload-complete-button" type="button" @click="emit('close')">上传完成</button>
         </template>
         <template v-else
           ><span>选择文件后，可在这里查看上传进度</span
@@ -785,13 +785,22 @@ function statusText(task: UploadTask) {
   line-height: 1;
 }
 .start-upload-button {
-  border-color: #8bc9f6 !important;
-  background: #8ed1f7 !important;
+  border-color: #2877e5 !important;
+  background: #2877e5 !important;
   color: #fff !important;
 }
-.start-upload-button:hover {
-  border-color: #50afe8 !important;
-  background: #68c0f1 !important;
+.start-upload-button:hover:not(:disabled) {
+  border-color: #1766d2 !important;
+  background: #1766d2 !important;
+}
+.upload-complete-button {
+  border-color: #b9ddf4 !important;
+  background: #b9ddf4 !important;
+  color: #fff !important;
+}
+.upload-complete-button:hover {
+  border-color: #a8d3ef !important;
+  background: #a8d3ef !important;
 }
 
 @media (width < 768px) {
