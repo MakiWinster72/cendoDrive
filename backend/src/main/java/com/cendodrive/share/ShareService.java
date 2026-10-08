@@ -87,7 +87,7 @@ public class ShareService {
     if (token == null || !token.matches("[a-f0-9]{32}")) throw notFound();
     ShareLink link = links.findByToken(token).orElseThrow(ShareService::notFound);
     if (!link.isActiveAt(clock.instant()) || !access.allows(link)) throw notFound();
-    User owner = users.findById(link.getOwnerId()).orElseThrow(ShareService::notFound);
+    User owner = users.findById(link.getOwnerId()).filter(User::isActive).orElseThrow(ShareService::notFound);
     try {
       return new Resolved(link, owner, drive.shareableFile(owner, link.getFileId()));
     } catch (DriveFailure ex) {

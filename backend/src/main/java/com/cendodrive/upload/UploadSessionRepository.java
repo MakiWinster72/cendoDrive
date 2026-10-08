@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface UploadSessionRepository extends JpaRepository<UploadSession, String> {
   Optional<UploadSession> findByIdAndOwnerId(String id, Long ownerId);
+  @Modifying @Query("delete from UploadSession s where s.ownerId=:owner")
+  void deleteAllByOwnerId(@Param("owner") Long ownerId);
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select s from UploadSession s where s.id=:id and s.ownerId=:owner")
   Optional<UploadSession> lock(@Param("id") String id, @Param("owner") Long owner);

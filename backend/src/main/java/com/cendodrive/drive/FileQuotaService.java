@@ -19,8 +19,11 @@ public class FileQuotaService {
   }
   @Transactional(propagation=Propagation.MANDATORY)
   public User lock(User user) {
-    return users.lock(user.getId()).orElseThrow(() ->
+    User locked=users.lock(user.getId()).orElseThrow(() ->
         new DriveFailure(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User not found"));
+    if (!locked.isActive() || locked.getAuthVersion()!=user.getAuthVersion())
+      throw new com.cendodrive.common.ApiExceptionHandler.AuthFailure(HttpStatus.UNAUTHORIZED,"Unauthorized");
+    return locked;
   }
   @Transactional(propagation=Propagation.MANDATORY)
   public User check(User user, long additionalBytes, String uploadId) {
