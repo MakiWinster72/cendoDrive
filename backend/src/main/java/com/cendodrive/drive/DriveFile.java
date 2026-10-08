@@ -27,6 +27,10 @@ public class DriveFile {
   private LocalDateTime createdAt;
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
+  @Column(nullable = false)
+  private boolean favorite;
+  @Column(nullable = false)
+  private boolean hidden;
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
 
@@ -95,6 +99,8 @@ public class DriveFile {
     return storageBackend;
   }
 
+  public LocalDateTime getCreatedAt() { return createdAt; }
+
   public LocalDateTime getUpdatedAt() {
     return updatedAt;
   }
@@ -102,6 +108,14 @@ public class DriveFile {
   public LocalDateTime getDeletedAt() {
     return deletedAt;
   }
+
+  public boolean isFavorite() { return favorite; }
+
+  public boolean isHidden() { return hidden; }
+
+  void setFavorite(boolean value) { favorite = value; }
+
+  void setHidden(boolean value) { hidden = value; }
 
   public boolean isFolder() {
     return "folder".equals(kind);

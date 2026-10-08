@@ -1,0 +1,21 @@
+.file-tools { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); border: 0; border-radius: 16px; padding: 24px; color: #1d2129; box-shadow: 0 24px 80px #132a4933; overflow-y: auto; }
+.file-tools::backdrop { background: #16253c66; }
+.file-tools header, .file-tools footer { display: flex; align-items: center; gap: 12px; }
+.file-tools header { justify-content: space-between; }
+.file-tools h2 { font-size: 20px; margin: 0; }
+.file-tools button { border: 1px solid #e5e8ef; border-radius: 8px; background: #fff; color: inherit; min-height: 44px; padding: 8px 12px; }
+.file-tools button:disabled { opacity: .45; cursor: not-allowed; }
+.file-tools :focus-visible { outline: 2px solid #1677ff; outline-offset: 3px; }
+.file-tools .tools-primary { background: #1677ff; color: white; border-color: #1677ff; }
+.file-tools footer { justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
+.tools-selection, .tools-target small { color: #667085; font-size: 13px; overflow-wrap: anywhere; }
+.tools-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tools-menu button { display: flex; align-items: center; gap: 10px; text-align: left; }
+.tools-target { display: grid; gap: 12px; }
+.tools-target label { display: grid; gap: 8px; }
+.tools-target select { width: 100%; min-height: 44px; border: 1px solid #d5dae3; border-radius: 8px; padding: 8px; background: #fff; color: inherit; }
+.file-tools dl { display: grid; grid-template-columns: 100px 1fr; gap: 12px; }
+.file-tools dt { color: #667085; }
+.file-tools dd { margin: 0; overflow-wrap: anywhere; }
+.file-tools [role=alert] { color: #b42318; }
+@media (width < 768px) { .file-tools { padding: 20px; } .tools-menu { gap: 8px; } }

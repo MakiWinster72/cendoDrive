@@ -23,6 +23,9 @@ cendo:
   storage:
     root: ${CENDO_STORAGE_ROOT:./storage}
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
+  upload:
+    root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
+    ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}

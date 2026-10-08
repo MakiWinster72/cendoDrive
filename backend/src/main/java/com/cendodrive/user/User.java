@@ -73,6 +73,8 @@ public class User {
     return vipLevel;
   }
 
+  public void setStorageUsed(long bytes) { storageUsed = bytes; }
+
   public long getStorageUsed() {
     return storageUsed;
   }

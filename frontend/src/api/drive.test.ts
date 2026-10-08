@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
 import {
+  getUsage, listFavorites, listHidden, listFolders, getFileDetails, setFavorite, setHidden, moveFiles, copyFiles, organizeFiles,
   createFolder,
   deleteFilesForever,
   emptyTrash,
@@ -67,5 +68,13 @@ describe("drive API contract", () => {
       ids: ["1"],
     });
     expect(http.delete).toHaveBeenCalledWith("/files/trash");
+  });
+  it("uses the extended file-management routes and explicit flag values", async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: [] });
+    vi.mocked(http.post).mockResolvedValue({ data: [] });
+    await getUsage(); await listFavorites(); await listHidden(); await listFolders(); await getFileDetails("42");
+    expect(vi.mocked(http.get).mock.calls.map(call => call[0])).toEqual(["/files/usage", "/files/favorites", "/files/hidden", "/files/folders", "/files/42/details"]);
+    await setFavorite(["42"], false); await setHidden(["42"], true); await moveFiles(["42"], null); await copyFiles(["42"], "7"); await organizeFiles(["42"]);
+    expect(vi.mocked(http.post).mock.calls).toEqual([["/files/favorite", { ids: ["42"], value: false }], ["/files/hidden", { ids: ["42"], value: true }], ["/files/move", { ids: ["42"], parentId: null }], ["/files/copy", { ids: ["42"], parentId: "7" }], ["/files/organize", { ids: ["42"] }]]);
   });
 });
