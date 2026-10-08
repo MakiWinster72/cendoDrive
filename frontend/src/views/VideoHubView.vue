@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ChevronLeft, ChevronRight, Circle, ListFilter, Play, Search, Video, X } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, Circle, ListFilter, Play, Search, Video, X } from "@lucide/vue";
 import FilePreview from "../components/FilePreview.vue";
 import { fileCategory } from "../components/fileIcon";
 import type { DriveItem } from "../stores/drive";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Check, Copy, Link2, X } from "lucide-vue-next";
+import { Check, Copy, Link2, X } from "@lucide/vue";
 import type { ShareRecord } from "../api/shares";
 
 const props = defineProps<{ share: ShareRecord | null }>();

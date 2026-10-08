@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { X, FolderInput, Copy, Star, EyeOff, Info, Sparkles, Pencil, Trash2 } from "lucide-vue-next";
+import { X, FolderInput, Copy, Star, EyeOff, Info, Sparkles, Pencil, Trash2 } from "@lucide/vue";
 import { getFileDetails, listFolders, driveErrorMessage, type FileDetails } from "../api/drive";
 import { formatBytes, useDrive, type DriveItem } from "../stores/drive";
 import { folderChoices, type ToolAction } from "./fileTools";

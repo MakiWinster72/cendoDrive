@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChevronLeft } from 'lucide-vue-next';
+import { ChevronLeft } from '@lucide/vue';
 import { createGroup } from '../api/chat';
 import '../styles/chat.css';
+import '../styles/chat-entry.css';
 const router=useRouter(); const name=ref(''); const description=ref(''); const searchable=ref(false); const overflow=ref(true); const busy=ref(false); const error=ref(''); const notice=ref('');
 async function create() {
   if(!name.value.trim() || busy.value) return;

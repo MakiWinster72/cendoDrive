@@ -1,0 +1,59 @@
+/* Reference screenshots are @3x: 1179 image pixels = 393 CSS pixels.
+   Both entry screens share these tokens; conversation layout stays unchanged. */
+.discovery-page,.group-page {
+  --chat-blue:#2988ff;
+  --chat-muted:#9da9be;
+  --entry-radius:12px;
+  max-width:393px;
+  /* Native status-bar space is not part of the web page layout. */
+  padding:0 12px;
+  background:#f1f3f8;
+  font-size:14px;
+  border:0;
+}
+.discovery-page .chat-header,.group-page .chat-header {
+  grid-template-columns:64px minmax(0,1fr) 64px;
+  height:48px;min-height:48px;margin:0 0 17px;
+}
+.discovery-page .chat-header h1,.group-page .chat-header h1 {font-size:17px;font-weight:750;white-space:nowrap;}
+.discovery-page .chat-header>button:not(.chat-primary),.group-page .chat-header>button:not(.chat-primary) {padding:4px 0;}
+.discovery-page .chat-header svg,.group-page .chat-header svg {width:24px;height:24px;}
+.group-page .chat-primary {justify-self:end;width:64px;height:32px;padding:0;border-radius:8px;font-size:14px;font-weight:600;}
+.group-page .chat-primary:disabled {opacity:1;background:#9ecaff;}
+.discovery-page {display:flex;flex-direction:column;}
+.discovery-page .chat-search {height:40px;box-sizing:border-box;padding:0 14px;gap:10px;border-radius:24px;margin:0 3px;}
+.discovery-page .chat-search svg {width:17px;height:17px;color:#c6c6c6;}
+.discovery-page .chat-search input {font-size:14px;}
+.discovery-page .chat-search input::placeholder {color:#999;font-weight:600;}
+.discovery-page .discovery-cards {gap:11px;margin:18px 6px;}
+.discovery-page .discovery-cards button {height:113px;box-sizing:border-box;padding:20px 4px 16px;border-radius:14px;gap:7px;}
+.discovery-page .discovery-cards svg {width:25px;height:25px;margin:0 0 5px;}
+.discovery-page .discovery-cards strong {font-size:14px;line-height:19px;font-weight:750;}
+.discovery-page .discovery-cards span {font-size:12px;line-height:17px;font-weight:600;white-space:nowrap;}
+.discovery-page .discovery-entries {flex:1;margin:0 -12px;min-height:0;background:white;border-radius:15px 15px 0 0;padding:12px 18px 24px;}
+.discovery-page .discovery-entries button {height:54px;padding:0;gap:14px;font-size:14px;color:#333;}
+.discovery-page .discovery-entries svg {width:19px;height:19px;flex-shrink:0;color:#0c1220;}
+.discovery-page .discovery-entries svg:last-child {width:12px;height:12px;color:#cdd1da;}
+.group-page>form {min-height:100dvh;}
+.group-page .chat-header {margin-bottom:13px;}
+.group-page .group-label {font-size:15px;line-height:20px;font-weight:600;margin:0 6px 10px;}
+.group-page .group-label:not(:first-of-type) {margin-top:27px;}
+.group-page h2.group-label {margin-top:27px;}
+.group-page .group-field {height:48px;box-sizing:border-box;border-radius:var(--entry-radius);padding:0 16px;gap:10px;}
+.group-page .group-field input,.group-page .group-field textarea {font-size:14px;line-height:20px;}
+.group-page .group-field small {font-size:12px;}
+.group-page .group-description {height:122px;padding:16px 20px 32px;}
+.group-page .group-description textarea {height:64px;min-height:0;resize:none;}
+.group-page .group-description small {bottom:12px;right:16px;}
+.group-page .group-options {border-radius:var(--entry-radius);padding:0 16px;}
+.group-page .group-options label {height:48px;box-sizing:border-box;padding:0;gap:8px;font-size:14px;}
+.group-page .group-options i {width:40px;height:20px;}
+.group-page .group-options i:after {width:16px;height:16px;top:2px;left:2px;}
+.group-page .group-options input {width:40px;height:32px;}
+.group-page .group-options input:checked+i:after {left:22px;}
+.group-page .group-footer {font-size:12px;line-height:18px;padding:32px 0 53px;white-space:nowrap;}
+@media(max-width:360px) {
+  .discovery-page .discovery-cards span {font-size:10px;}
+  .group-page .group-options label {font-size:12px;}
+  .group-page .group-footer {font-size:10px;}
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from "vue";
-import { ArrowLeft, FileText, Search, Sparkles } from "lucide-vue-next";
+import { ArrowLeft, FileText, Search, Sparkles } from "@lucide/vue";
 import type { AiSearchHit } from "../api/aiSearchTypes";
 
 const props = defineProps<{

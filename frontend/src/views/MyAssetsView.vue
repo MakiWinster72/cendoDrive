@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ChevronLeft, Ticket } from "lucide-vue-next";
+import { ChevronLeft, Ticket } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import "../styles/mobile-commerce.css";
 

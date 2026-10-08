@@ -6,8 +6,8 @@ import {
   Download,
   CloudDownload,
   LoaderCircle,
-  ShieldCheck,
-} from "lucide-vue-next";
+} from "@lucide/vue";
+import { iconForFile } from "../components/fileIcon";
 import BrandLogo from "../components/BrandLogo.vue";
 import { formatSize } from "../stores/drive";
 import {
@@ -113,7 +113,7 @@ onUnmounted(() => {
         <RouterLink to="/login">返回登录</RouterLink></template
       >
       <template v-else-if="file"
-        ><ShieldCheck :size="48" />
+        ><component :is="iconForFile(file)" :size="48" aria-hidden="true" />
         <h1>分享文件</h1>
         <strong class="shared-file-name">{{ file.name }}</strong>
         <p>

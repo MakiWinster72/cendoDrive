@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { Download, X, FileText, RefreshCw } from "lucide-vue-next";
+import { Download, X, FileText, RefreshCw } from "@lucide/vue";
 import { fetchPreviewFile } from "../api/preview";
 import { downloadFile, driveErrorMessage, type DriveItemResponse } from "../api/drive";
 import { decodeText, previewFormat } from "../preview/formats";

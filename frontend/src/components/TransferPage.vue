@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
 import { iconForFile } from './fileIcon';
-import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from 'lucide-vue-next';
+import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
 const emit = defineEmits<{ back: [] }>();
 const tab = ref<'download' | 'upload'>('download');
 const promo = ref(true), coupon = ref(true);
@@ -86,11 +86,7 @@ function status(task: TransferTask) {
       <section v-for="[date, tasks] in groups" :key="date" class="transfer-group">
         <h2>{{ date }}</h2>
         <article v-for="task in tasks" :key="task.id" class="transfer-task">
-          <div v-if="/\.(zip|rar|7z)$/i.test(task.name)" class="archive-icon">
-            <span>
-            </span>
-          </div>
-          <component :is="iconForFile({ name: task.name, kind: 'file' })" v-else class="task-icon" />
+          <component :is="iconForFile({ name: task.name, kind: 'file' })" class="task-icon" aria-hidden="true" />
           <div class="task-detail">
             <h3 :title="task.name">{{ task.name }}</h3>
             <p>{{ formatSize(task.size) }} &nbsp; {{ status(task) }} <ChevronRight v-if="task.status === 'success'" />

@@ -3,12 +3,11 @@ import { computed, ref, watch } from "vue";
 import {
   Check,
   ChevronLeft,
-  FileText,
-  Folder,
   Link2,
   Share2,
   XCircle,
-} from "lucide-vue-next";
+} from "@lucide/vue";
+import { iconForFile } from "./fileIcon";
 import type { ShareRecord } from "../api/shares";
 
 type Filter = "all" | "active" | "expired" | "cancelled";
@@ -147,10 +146,10 @@ function cancelSelected() {
             @click="openOrSelect(share)"
           >
             <span class="my-shares-file-icon"
-              ><Folder
-                v-if="share.kind === 'folder'"
+              ><component
+                :is="iconForFile({ name: share.fileName, kind: share.kind })"
                 :size="29"
-                fill="currentColor" /><FileText v-else :size="29"
+                aria-hidden="true"
             /></span>
             <span class="my-shares-file-info"
               ><strong>{{ share.fileName }}</strong

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
-import { CircleAlert, X } from "lucide-vue-next";
+import { CircleAlert, X } from "@lucide/vue";
 import "../styles/unavailable-dialog.css";
 
 const props = defineProps<{

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronRight, Eye, EyeOff } from "lucide-vue-next";
+import { ChevronRight, Eye, EyeOff } from "@lucide/vue";
 import BrandLogo from "../components/BrandLogo.vue";
 import { authErrorMessage, fieldErrors, registerRequest } from "../api/auth";
 
