@@ -41,6 +41,9 @@ describe('share friend picker', () => {
     await open(); await wrapper.get('.friends-list > button').trigger('click'); await wrapper.get('.friend-send-button').trigger('click');
     await wrapper.get('.friend-send-button').trigger('click'); expect(sendFileMessage).toHaveBeenCalledTimes(1);
     reject(new Error('offline')); await flushPromises(); expect(wrapper.emitted('sent')).toBeUndefined(); expect(wrapper.find('[role="alert"]').exists()).toBe(true);
+    expect(wrapper.get('.friends-list > button').text()).toContain('小林');
+    expect(wrapper.get('.friends-list > button').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.get('.friend-send-button').text()).toBe('重试发送');
     await wrapper.get('.friend-send-button').trigger('click'); await flushPromises(); expect(wrapper.emitted('sent')).toEqual([['小林']]);
   });
   it('shows empty and failed lookup states with retry', async () => {
