@@ -71,6 +71,7 @@ const router = createRouter({
     },
     { path: "/friends", component: () => import("../views/ChatDiscoveryView.vue"), meta: { requiresAuth: true } },
     { path: "/groups/new", component: () => import("../views/NewGroupView.vue"), meta: { requiresAuth: true } },
+    { path: "/chat/:id/files/select", component: () => import("../views/ChatFileSelectView.vue"), meta: { requiresAuth: true } },
     { path: "/chat/:id", component: () => import("../views/ChatView.vue"), meta: { requiresAuth: true } },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],

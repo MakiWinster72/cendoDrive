@@ -4,6 +4,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import Discovery from './ChatDiscoveryView.vue';
 import NewGroup from './NewGroupView.vue';
 import Chat from './ChatView.vue';
+import Select from './ChatFileSelectView.vue';
 import * as api from '../api/chat';
 import * as drive from '../api/drive';
 import * as uploads from '../api/files';
@@ -33,11 +34,14 @@ describe('聊天页面',()=>{
     const file={id:'42',name:'附件.txt',kind:'file' as const,size:5,parentId:'8',updatedAt:'',deletedAt:null};
     vi.mocked(drive.listFiles).mockResolvedValueOnce([{...file,id:'8',name:'目录',kind:'folder',parentId:null}]).mockResolvedValueOnce([file]);
     vi.mocked(api.sendFileMessage).mockResolvedValue();
-    const wrapper=mount(Chat); await flushPromises();
-    await wrapper.find('.chat-file-actions button').trigger('click'); await flushPromises();
-    await wrapper.findAll('.chat-file-picker button').at(-1)!.trigger('click'); await flushPromises();
+    const chat=mount(Chat); await flushPromises();
+    await chat.find('.chat-file-actions button').trigger('click'); expect(push).toHaveBeenCalledWith('/chat/room/files/select'); chat.unmount();
+    const wrapper=mount(Select); await flushPromises();
+    await wrapper.find('.cloud-file-row').trigger('click'); await flushPromises();
     expect(drive.listFiles).toHaveBeenLastCalledWith('8');
-    await wrapper.findAll('.chat-file-picker button').at(-1)!.trigger('click'); await flushPromises();
+    await wrapper.find('.cloud-file-row').trigger('click'); await flushPromises();
+    expect(api.sendFileMessage).not.toHaveBeenCalled();
+    await wrapper.find('.chat-files-primary').trigger('click'); await flushPromises();
     expect(api.sendFileMessage).toHaveBeenCalledWith('room','42'); wrapper.unmount();
   });
   it('本地文件上传后发送失败可重试而不重复上传',async()=>{
