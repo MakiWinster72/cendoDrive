@@ -6,7 +6,7 @@ import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
 vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
-vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
+vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), searchFiles: vi.fn(), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
 const wrappers: ReturnType<typeof mount>[] = [];
 async function open() {
@@ -23,6 +23,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
+  vi.mocked(api.searchFiles).mockResolvedValue({ items: [], total: 0, page: 0, size: 20 });
   vi.mocked(api.listFiles).mockResolvedValue([file]); vi.mocked(api.listTrash).mockResolvedValue([]); vi.mocked(api.listFavorites).mockResolvedValue([{ ...file, favorite: true }]); vi.mocked(api.listHidden).mockResolvedValue([{ ...file, hidden: true }]); vi.mocked(api.trashFiles).mockResolvedValue([{ ...file, deletedAt: "today" }]);
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
 });
@@ -38,7 +39,7 @@ describe("folder navigation and screenshot layout", () => {
   it("shows the reference folder header, breadcrumb, blue folder, sorting and white panel instead of root filters", async () => {
     const wrapper = await inside();
     expect(wrapper.find('.m-folder-head button[aria-label="返回上一级"]').exists()).toBe(true);
-    expect(wrapper.find('.m-folder-search input').attributes('placeholder')).toBe("支持文档全文、图中文字搜索啦");
+    expect(wrapper.find('.m-folder-search input').attributes('placeholder')).toBe("按文件名搜索");
     expect(wrapper.find('.m-folder-breadcrumb').text()).toContain("我的网盘/U鱼游戏 S1-S3 三季");
     expect(wrapper.find('.m-folder-breadcrumb [aria-current="page"]').text()).toBe(parent.name);
     expect(wrapper.find('.m-folder-files .folder-sheet-icon').exists()).toBe(true);
@@ -77,7 +78,7 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.findAll('.m-folder-breadcrumb button').find(button => button.text() === parent.name)!.trigger("click"); await flushPromises();
     expect(api.createFolder).not.toHaveBeenCalled(); expect(wrapper.find('.inline-name-editor').exists()).toBe(false);
     await wrapper.find('.m-folder-search input').setValue("S01");
-    await wrapper.find('.m-file-row input[type="checkbox"]').setValue(true);
+    expect(wrapper.find('.file-search-panel').exists()).toBe(true);
     await wrapper.find('.m-folder-breadcrumb button').trigger("click"); await flushPromises();
     expect(wrapper.find('.m-selection-sheet').exists()).toBe(false);
     expect((wrapper.find('.mobile-app .m-search input').element as HTMLInputElement).value).toBe("");
