@@ -3,6 +3,8 @@ package com.cendodrive.drive;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface DriveFileRepository extends JpaRepository<DriveFile, Long> {
   List<DriveFile> findAllByOwnerIdAndParentIdIsNullAndDeletedAtIsNullOrderByKindAscNameAsc(Long ownerId);

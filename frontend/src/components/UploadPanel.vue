@@ -352,6 +352,8 @@ function statusText(task: UploadTask) {
         <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>千度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
       </div>
 
+      <p v-if="oversizeNotice" class="upload-notice">{{ oversizeNotice }}</p>
+
       <div v-if="uploadTasks.length" class="selected-files">
         <div class="selected-files-heading">
           <div>
