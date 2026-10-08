@@ -66,6 +66,9 @@ import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import TransferPage from "../components/TransferPage.vue";
+import AccountPage from "../components/AccountPage.vue";
+import { getProfile, getAvatar } from "../api/users";
+import { invalidateSession } from "../stores/auth";
 import FilePreview from "../components/FilePreview.vue";
 import FileSearchPanel from "../components/FileSearchPanel.vue";
 import type { FileSearchHit, SearchType } from "../api/drive";
@@ -145,6 +148,24 @@ const sortBy = ref<"name" | "time" | "size">("time"),
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
 watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
+const showAccount=ref(false),avatarUrl=ref("");
+let avatarGeneration=0,homeAlive=true;
+async function refreshAvatar() {
+  const generation=++avatarGeneration,id=auth.user.value?.id;
+  if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
+  avatarUrl.value="";
+  if (!id) return;
+  try {
+    const profile=await getProfile();
+    if (!profile.hasAvatar || !homeAlive || generation!==avatarGeneration || auth.user.value?.id!==id) return;
+    const blob=await getAvatar();
+    if (homeAlive && generation===avatarGeneration && auth.user.value?.id===id) avatarUrl.value=URL.createObjectURL(blob);
+  } catch { /* Account management exposes a retry; the header retains an initials fallback. */ }
+}
+async function accountSignedOut(reason: "password"|"deletion",purgeAfter?: string) {
+  invalidateSession(); drive.reset();
+  await router.replace({name:"login",query:reason==="password" ? {passwordChanged:"1"} : {accountDeleted:"1",purgeAfter}});
+}
 function openTransfers() {
   folderMenuOpen.value = false;
   showTransfers.value = true;
@@ -598,6 +619,7 @@ onMounted(async () => {
   window.addEventListener("resize", updateViewport);
   drive.reset();
   void drive.loadUsage();
+  void refreshAvatar();
   searchPromptTimer = window.setInterval(() => {
     searchPromptIndex.value =
       (searchPromptIndex.value + 1) % searchPrompts.value.length;
@@ -612,6 +634,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener("resize", updateViewport);
   if (searchPromptTimer) clearInterval(searchPromptTimer);
+  homeAlive=false; avatarGeneration++;
+  if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
 });
 </script>
 
@@ -622,6 +646,7 @@ onUnmounted(() => {
     @close="unavailableMessage = ''"
   />
   <TransferPage v-if="showTransfers" @back="showTransfers = false" />
+  <AccountPage v-if="showAccount" @back="showAccount=false" @changed="refreshAvatar" @signed-out="accountSignedOut" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
@@ -963,7 +988,7 @@ onUnmounted(() => {
     <template v-else-if="mobileTab === 'profile'">
       <main class="profile-page">
         <header class="profile-header">
-          <div class="profile-avatar"><UserRound :size="30" /></div>
+          <button class="profile-avatar" type="button" aria-label="账号管理" @click="showAccount=true"><img v-if="avatarUrl" :src="avatarUrl" alt=""><UserRound v-else :size="30" /></button>
           <div class="profile-identity">
             <div>
               <strong>{{ displayName }}</strong
@@ -1053,6 +1078,7 @@ onUnmounted(() => {
           </div>
           <p>探索更多云端乐趣</p>
         </section>
+        <button class="profile-logout" type="button" @click="showAccount=true"><Settings :size="19" /><span>账号管理</span><ChevronRight :size="18" /></button>
         <button
           class="profile-logout"
           type="button"
@@ -1171,16 +1197,16 @@ onUnmounted(() => {
         </div>
         <div class="top-actions">
           <button><Bell :size="19" /><i></i></button
-          ><button><Settings :size="19" /></button><span></span
+          ><button aria-label="账号管理" @click="showAccount=true"><Settings :size="19" /></button><span></span
           ><button class="user" @click="menuOpen = !menuOpen">
-            <b>{{ displayName.slice(0, 1).toUpperCase() }}</b
+            <b><img v-if="avatarUrl" :src="avatarUrl" alt=""><template v-else>{{ displayName.slice(0, 1).toUpperCase() }}</template></b
             ><em>{{ displayName }}</em
             ><ChevronDown :size="15" />
           </button>
         </div>
         <div v-if="menuOpen" class="user-menu">
           <strong>{{ displayName }}</strong
-          ><small>普通用户</small
+          ><small>普通用户</small><button @click="showAccount=true;menuOpen=false">账号管理</button
           ><button :disabled="loggingOut" @click="logout">
             {{ loggingOut ? "正在退出…" : "退出登录" }}
           </button>

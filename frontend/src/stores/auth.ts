@@ -149,6 +149,18 @@ export function useAuth() {
     user: computed(() => state.user),
     loggedIn: computed(() => Boolean(state.token) && verified),
     verificationError: computed(() => state.verificationError),
+    updateNickname(nickname: string) {
+      if (!state.user) return;
+      state.user={...state.user,nickname};
+      for (const storage of [localStorage,sessionStorage]) {
+        try {
+          const saved=JSON.parse(storage.getItem(STORAGE_KEY) ?? "null") as SavedSession|null;
+          if (saved?.token===state.token && saved.user.id===state.user.id) {
+            saved.user={...saved.user,nickname}; storage.setItem(STORAGE_KEY,JSON.stringify(saved));
+          }
+        } catch { /* unavailable or corrupt storage does not prevent an in-memory update */ }
+      }
+    },
     ensureSession,
     login,
     logout,

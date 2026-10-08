@@ -1,0 +1,107 @@
+<script setup lang="ts">
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { ArrowLeft, Camera, Search, ShieldCheck, UserRound } from "lucide-vue-next";
+import * as api from "../api/users";
+import { useAuth } from "../stores/auth";
+import "../styles/account.css";
+const emit=defineEmits<{ back: []; changed: []; signedOut: [reason: "password" | "deletion", purgeAfter?: string] }>();
+const auth=useAuth();
+const profile=ref<api.UserProfile|null>(null),nickname=ref(""),avatarUrl=ref(""),busy=ref(false),loading=ref(true);
+const error=ref(""),notice=ref(""),currentPassword=ref(""),newPassword=ref(""),repeatPassword=ref("");
+const deleting=ref(false),deletePassword=ref(""),confirmation=ref(""),query=ref(""),result=ref<api.UserProfile|null>(null);
+const lookupBusy=ref(false),lookupError=ref(""),page=ref<HTMLElement|null>(null);
+let alive=true,lookupGeneration=0,lookupController: AbortController|undefined;
+const previousOverflow=document.body.style.overflow;
+async function loadAvatar() {
+  if (!profile.value?.hasAvatar) { if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value); avatarUrl.value=""; return; }
+  const blob=await api.getAvatar();
+  if (!alive) return;
+  if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
+  avatarUrl.value=URL.createObjectURL(blob);
+}
+async function load() {
+  loading.value=true; error.value="";
+  try { const value=await api.getProfile(); if (!alive) return; profile.value=value; nickname.value=value.nickname; await loadAvatar(); }
+  catch (e) { if (alive) error.value=api.accountError(e,"个人资料加载失败，请重试"); }
+  finally { if (alive) loading.value=false; }
+}
+async function run(action: ()=>Promise<void>) {
+  if (busy.value) return;
+  busy.value=true; error.value=""; notice.value="";
+  try { await action(); } catch (e) { if (alive) error.value=api.accountError(e,"操作失败，请稍后重试"); }
+  finally { if (alive) busy.value=false; }
+}
+async function save() {
+  const name=nickname.value.trim();
+  if (!name || name.length>64) { error.value="请输入 1–64 个字符的昵称"; return; }
+  await run(async ()=>{
+    const value=await api.updateProfile(name); if (!alive) return;
+    profile.value=value; nickname.value=value.nickname; auth.updateNickname(value.nickname);
+    notice.value="个人资料已保存"; emit("changed");
+  });
+}
+async function selectAvatar(event: Event) {
+  const input=event.target as HTMLInputElement,file=input.files?.[0]; input.value="";
+  if (!file) return;
+  if (!["image/png","image/jpeg"].includes(file.type) || file.size>2*1024*1024) {
+    error.value="请选择不超过 2 MiB 的 PNG 或 JPEG 图片"; return;
+  }
+  await run(async ()=>{ await api.uploadAvatar(file); if (!alive) return; if (profile.value) profile.value.hasAvatar=true;
+    await loadAvatar(); if (!alive) return; notice.value="头像已更新"; emit("changed"); });
+}
+async function removeAvatar() {
+  await run(async ()=>{ await api.removeAvatar(); if (!alive) return; if (profile.value) profile.value.hasAvatar=false;
+    await loadAvatar(); notice.value="头像已移除"; emit("changed"); });
+}
+async function password() {
+  if (newPassword.value!==repeatPassword.value) { error.value="两次输入的新密码不一致"; return; }
+  if (newPassword.value.length<8 || new TextEncoder().encode(newPassword.value).length>72) { error.value="新密码需要 8–72 个字符，且不超过 72 个 UTF-8 字节"; return; }
+  await run(async ()=>{ await api.changePassword(currentPassword.value,newPassword.value); if (!alive) return;
+    currentPassword.value=newPassword.value=repeatPassword.value=""; emit("signedOut","password"); });
+}
+async function deletion() {
+  if (confirmation.value!=="注销账号" || !deletePassword.value) { error.value="请验证密码并输入“注销账号”"; return; }
+  await run(async ()=>{ const value=await api.deleteAccount(deletePassword.value,confirmation.value); if (!alive) return;
+    deletePassword.value=""; emit("signedOut","deletion",value.purgeAfter); });
+}
+watch(query,()=>{ lookupController?.abort(); lookupGeneration++; result.value=null; lookupError.value=""; lookupBusy.value=false; });
+async function lookup() {
+  const name=query.value.trim();
+  if (!/^[a-zA-Z0-9_]{3,64}$/.test(name)) { lookupError.value="请输入完整用户名（3–64 位字母、数字或下划线）"; return; }
+  lookupController?.abort(); const controller=new AbortController(),generation=++lookupGeneration;
+  lookupController=controller; lookupBusy.value=true; lookupError.value=""; result.value=null;
+  try { const value=await api.lookupUser(name,controller.signal); if (alive && generation===lookupGeneration) result.value=value; }
+  catch (e) { if (alive && !controller.signal.aborted && generation===lookupGeneration) lookupError.value=api.accountError(e,"查询失败，请稍后重试"); }
+  finally { if (alive && generation===lookupGeneration) lookupBusy.value=false; }
+}
+function back() { if (!busy.value) emit("back"); }
+function keydown(event: KeyboardEvent) { if (event.key==="Escape") { event.preventDefault(); back(); } }
+onMounted(()=>{ document.body.style.overflow="hidden"; page.value?.focus(); void load(); });
+onUnmounted(()=>{ alive=false; lookupController?.abort(); if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value); document.body.style.overflow=previousOverflow; });
+watch(deleting,async value=>{ if (value) { await nextTick(); page.value?.querySelector<HTMLInputElement>("#delete-password")?.focus(); } });
+</script>
+
+<template>
+  <main ref="page" class="account-page" tabindex="-1" aria-labelledby="account-title" @keydown="keydown">
+    <header class="account-top"><button type="button" aria-label="返回文件" :disabled="busy" @click="back"><ArrowLeft :size="20" /></button><div><h1 id="account-title">账号管理</h1><p>个人资料与账号安全</p></div></header>
+    <div class="account-body">
+      <p v-if="error" class="account-error" role="alert">{{ error }}</p><p v-if="notice" class="account-notice" role="status">{{ notice }}</p>
+      <p v-if="loading" role="status">正在加载个人资料…</p>
+      <button v-else-if="!profile" class="account-primary" type="button" @click="load">重新加载</button>
+      <template v-else>
+        <section class="account-card" aria-labelledby="profile-title"><h2 id="profile-title"><UserRound :size="20" />个人资料</h2>
+          <div class="account-identity"><div class="account-avatar"><img v-if="avatarUrl" :src="avatarUrl" alt="个人头像"><span v-else>{{ profile.nickname.slice(0,1) }}</span></div>
+            <div><strong>{{ profile.nickname }}</strong><p>用户名：{{ profile.username }}</p><p>用户 ID：<code>{{ profile.id }}</code></p></div></div>
+          <div class="account-avatar-actions"><label class="account-upload"><Camera :size="17" />更换头像<input aria-label="上传头像" type="file" accept="image/png,image/jpeg" :disabled="busy" @change="selectAvatar"></label><button v-if="profile.hasAvatar" :disabled="busy" type="button" @click="removeAvatar">移除头像</button></div>
+          <p class="account-hint">PNG / JPEG，最多 2 MiB、2048×2048；保存为 256×256 PNG，不保留原图元数据。</p>
+          <form class="account-form" @submit.prevent="save"><label for="nickname">昵称</label><input id="nickname" v-model="nickname" maxlength="64" required :disabled="busy"><p class="account-hint">昵称可以修改；用户名和用户 ID 不变。</p><button class="account-primary" :disabled="busy || loading">{{ busy ? '处理中…' : '保存资料' }}</button></form>
+        </section>
+        <section class="account-card" aria-labelledby="password-title"><h2 id="password-title"><ShieldCheck :size="20" />修改密码</h2><p class="account-hint">修改成功后，所有设备的旧会话都会失效，需重新登录。</p>
+          <form class="account-form" @submit.prevent="password"><label for="current-password">当前密码</label><input id="current-password" v-model="currentPassword" type="password" autocomplete="current-password" maxlength="128" required :disabled="busy"><label for="new-password">新密码</label><input id="new-password" v-model="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" required :disabled="busy"><label for="repeat-password">再次输入新密码</label><input id="repeat-password" v-model="repeatPassword" type="password" autocomplete="new-password" required :disabled="busy"><p class="account-hint">8–72 个字符，且不超过 72 个 UTF-8 字节。</p><button class="account-primary" :disabled="busy">修改密码并退出</button></form>
+        </section>
+        <section class="account-card" aria-labelledby="lookup-title"><h2 id="lookup-title"><Search :size="20" />查找用户</h2><p class="account-hint">仅按完整用户名精确查找，便于确认分享对象；不会创建好友关系或发送分享。</p><form class="account-form" @submit.prevent="lookup"><label for="lookup-username">完整用户名</label><input id="lookup-username" v-model="query" maxlength="64" autocomplete="off" required><button class="account-primary" :disabled="lookupBusy">{{ lookupBusy ? '正在查询…' : '查找用户' }}</button></form><p v-if="lookupError" class="account-error" role="alert">{{ lookupError }}</p><div v-if="result" class="account-result" role="status"><strong>{{ result.nickname }}</strong><span>@{{ result.username }}</span><code>用户 ID：{{ result.id }}</code></div></section>
+        <section class="account-card account-danger" aria-labelledby="deletion-title"><h2 id="deletion-title">注销账号</h2><p>注销后立即退出所有设备、撤销分享并隐藏用户身份。账号和文件先保留 7 天，之后彻底删除。</p><p class="account-hint">7 天内可在登录页验证原密码恢复；旧分享和旧会话不会恢复。到期后不能恢复，清理失败会自动重试。</p><button v-if="!deleting" class="account-danger-button" :disabled="busy" type="button" @click="deleting=true">申请注销账号</button><form v-else class="account-form" @submit.prevent="deletion"><label for="delete-password">验证当前密码</label><input id="delete-password" v-model="deletePassword" type="password" autocomplete="current-password" required :disabled="busy"><label for="delete-confirmation">输入“注销账号”确认</label><input id="delete-confirmation" v-model="confirmation" required :disabled="busy" autocomplete="off"><div class="account-delete-actions"><button class="account-danger-button" :disabled="busy || confirmation!=='注销账号'">确认注销，7 天后彻底删除</button><button type="button" :disabled="busy" @click="deleting=false;deletePassword='';confirmation=''">取消</button></div></form></section>
+      </template>
+    </div>
+  </main>
+</template>
