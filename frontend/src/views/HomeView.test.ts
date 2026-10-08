@@ -8,6 +8,8 @@ const routerPush = vi.hoisted(() => vi.fn());
 const routerReplace = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({ useRouter: () => ({ replace: routerReplace, push: routerPush }) }));
 import { getProfile } from "../api/users";
+import { createShare } from "../api/shares";
+vi.mock("../api/shares", async original => ({ ...await original<typeof import("../api/shares")>(), createShare: vi.fn() }));
 vi.mock("../api/users", async original => ({ ...(await original<typeof import("../api/users")>()), getProfile: vi.fn() }));
 const invalidateSession = vi.hoisted(() => vi.fn());
 vi.mock("../stores/auth", () => ({ invalidateSession, useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
@@ -34,6 +36,24 @@ beforeEach(() => {
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
+describe("share creation integration", () => {
+  it("opens settings without creating a link, then keeps the confirmed code only in current state", async () => {
+    vi.mocked(createShare).mockResolvedValue({ id: "51", token: "opaque", fileId: file.id, fileName: file.name, kind: "file", size: file.size, createdAt: "2026-10-08", expiresAt: "2030-01-01", status: "ACTIVE", hasExtractionCode: true });
+    const wrapper = await open();
+    await wrapper.get('.m-file-row input[type="checkbox"]').setValue(true);
+    await wrapper.findAll(".m-selection-actions button").find(button => button.text() === "分享")!.trigger("click");
+    expect(createShare).not.toHaveBeenCalled(); expect(wrapper.get("#share-settings-title").text()).toBe("分享设置");
+    await wrapper.get(".share-settings [type=checkbox]").setValue(true);
+    await wrapper.get("#share-extraction-code").setValue("Ab12");
+    await wrapper.get(".share-settings form").trigger("submit"); await flushPromises();
+    expect(createShare).toHaveBeenCalledWith(file.id, 604800, "Ab12");
+    expect(wrapper.find(".share-settings").exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "ShareLinkDialog" }).props("share").extractionCode).toBe("Ab12");
+    expect(useDrive().state.shares[0]?.extractionCode).toBe("Ab12");
+    useDrive().reset(); expect(useDrive().state.shares).toEqual([]);
+  });
+});
+
 describe("account page integration", () => {
   it.each([390,1280])("opens and returns from account management at width %s", async width => {
     window.innerWidth=width; const wrapper=await open();
