@@ -119,6 +119,13 @@ public class DriveFile {
 
   void enableIndexing() { if (indexRevision == 0) indexRevision = 1; }
 
+  boolean isIndexManaged() { return indexRevision > 0; }
+
+  void advanceIndexRevision() {
+    if (indexRevision <= 0) throw new IllegalStateException("File is not managed by the index lifecycle");
+    indexRevision++;
+  }
+
   void setFavorite(boolean value) { favorite = value; }
 
   void setHidden(boolean value) { hidden = value; }

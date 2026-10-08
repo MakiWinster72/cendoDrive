@@ -219,13 +219,32 @@ class FileManagementIntegrationTest {
     long parent=folder("parent",null); long child=folder("child",parent);
     long file=upload("private.txt","secret".getBytes(),child,201).path("id").asLong();
     call(postJson("/api/files/trash",Map.of("ids",List.of(parent))),"owner",200);
+    assertEquals(List.of(AiIndexTask.Operation.UPSERT,AiIndexTask.Operation.DEACTIVATE),
+        indexTasks.findAll().stream().map(AiIndexTask::getOperation).toList());
+    assertEquals(List.of(1L,2L),indexTasks.findAll().stream().map(AiIndexTask::getRevision).toList());
     call(get("/api/files/"+file+"/download"),"owner",404);
     call(get("/api/files/"+file+"/details"),"owner",404);
     call(get("/api/files").param("parentId",String.valueOf(child)),"owner",404);
     call(put("/api/files/"+file+"/rename").contentType("application/json").content("{\"name\":\"leak.txt\"}"),"owner",404);
     assertEquals(6,usage().path("trashBytes").asLong()); assertEquals(0,call(get("/api/files/folders"),"owner",200).size());
     call(post("/api/files/trash/delete").contentType("application/json").content(json.writeValueAsString(Map.of("ids",List.of(parent)))),"owner",204);
+    assertEquals(AiIndexTask.Operation.DELETE,indexTasks.findAll().getLast().getOperation());
+    assertEquals(3,indexTasks.findAll().getLast().getRevision());
     assertEquals(0,files.count()); assertTrue(sizes.isEmpty()); assertEquals(0,usage().path("usedBytes").asLong());
+  }
+
+  @Test void restoreCreatesNewerUpsertOnlyForSearchableIndexedFiles() throws Exception {
+    long folder=folder("folder",null);
+    long indexed=upload("indexed.txt","hello".getBytes(),folder,201).path("id").asLong();
+    long copied=call(postJson("/api/files/copy",target(List.of(indexed),folder)),"owner",201).get(0).path("id").asLong();
+    call(postJson("/api/files/trash",Map.of("ids",List.of(folder))),"owner",200);
+    call(postJson("/api/files/trash/restore",Map.of("ids",List.of(folder))),"owner",200);
+    List<AiIndexTask> lifecycle=indexTasks.findAll();
+    assertEquals(List.of(AiIndexTask.Operation.UPSERT,AiIndexTask.Operation.DEACTIVATE,AiIndexTask.Operation.UPSERT),
+        lifecycle.stream().map(AiIndexTask::getOperation).toList());
+    assertEquals(List.of(1L,2L,3L),lifecycle.stream().map(AiIndexTask::getRevision).toList());
+    assertEquals(indexed,lifecycle.getLast().getFileId());
+    assertEquals(0,files.findById(copied).orElseThrow().getIndexRevision());
   }
 
   @Test void recursiveCopyPreservesHiddenFlagsButUsesIndependentContentAndQuota() throws Exception {

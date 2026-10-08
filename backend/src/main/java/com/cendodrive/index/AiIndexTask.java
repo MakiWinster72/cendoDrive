@@ -30,10 +30,16 @@ public class AiIndexTask {
   protected AiIndexTask() {}
 
   public static AiIndexTask upsert(DriveFile file) {
+    return lifecycle(file,Operation.UPSERT);
+  }
+
+  public static AiIndexTask lifecycle(DriveFile file,Operation operation) {
     AiIndexTask task=new AiIndexTask();
-    task.fileId=file.getId(); task.ownerId=file.getOwnerId(); task.operation=Operation.UPSERT;
-    task.revision=file.getIndexRevision(); task.fileName=file.getName();
-    task.storageBackend=file.getStorageBackend(); task.storageKey=file.getStorageKey();
+    task.fileId=file.getId(); task.ownerId=file.getOwnerId(); task.operation=operation;
+    task.revision=file.getIndexRevision();
+    if (operation==Operation.UPSERT) {
+      task.fileName=file.getName(); task.storageBackend=file.getStorageBackend(); task.storageKey=file.getStorageKey();
+    }
     task.eventId=eventId(task.fileId,task.revision,task.operation);
     task.status=Status.PENDING; task.attempts=0; task.nextAttemptAt=now();
     return task;

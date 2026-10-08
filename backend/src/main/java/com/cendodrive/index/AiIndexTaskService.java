@@ -13,8 +13,13 @@ public class AiIndexTaskService {
 
   @Transactional(propagation=Propagation.MANDATORY)
   public void enqueueUpsert(DriveFile file) {
-    String eventId=AiIndexTask.eventId(file.getId(),file.getIndexRevision(),AiIndexTask.Operation.UPSERT);
-    if (!tasks.existsByEventId(eventId)) tasks.save(AiIndexTask.upsert(file));
+    enqueue(file,AiIndexTask.Operation.UPSERT);
+  }
+
+  @Transactional(propagation=Propagation.MANDATORY)
+  public void enqueue(DriveFile file,AiIndexTask.Operation operation) {
+    String eventId=AiIndexTask.eventId(file.getId(),file.getIndexRevision(),operation);
+    if (!tasks.existsByEventId(eventId)) tasks.save(AiIndexTask.lifecycle(file,operation));
   }
 
   @Transactional(readOnly=true)

@@ -93,6 +93,7 @@ class DriveServiceTest {
         when(file.getKind()).thenReturn("folder");
         when(file.getUpdatedAt()).thenReturn(java.time.LocalDateTime.now());
         when(files.findByIdAndOwnerId(1L, 7L)).thenReturn(Optional.of(file));
+        when(files.findAllByOwnerId(7L)).thenReturn(List.of(file));
         when(files.saveAllAndFlush(anyList())).thenAnswer(call -> call.getArgument(0));
         service.trash(user, new FileIdsRequest(List.of(1L)));
         verify(file).moveToTrash();

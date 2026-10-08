@@ -5,6 +5,7 @@ import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
 import com.cendodrive.storage.FileStorage;
 import com.cendodrive.index.AiIndexTaskService;
+import com.cendodrive.index.AiIndexTask;
 import java.io.IOException;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
@@ -151,12 +152,14 @@ public class DriveService {
   public List<FileResponse> trash(User user, FileIdsRequest request) {
     quota.lock(user);
     List<DriveFile> selected = requireSelection(user, request);
+    List<DriveFile> affected=subtree(user,selected,false);
     selected.forEach(file -> {
       requireActiveOwned(user, file.getId());
       if (file.isDeleted())
         fail(HttpStatus.CONFLICT, "ALREADY_IN_TRASH", "Item is already in trash");
       file.moveToTrash();
     });
+    enqueueLifecycle(affected,AiIndexTask.Operation.DEACTIVATE);
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
 
@@ -164,6 +167,7 @@ public class DriveService {
   public List<FileResponse> restore(User user, FileIdsRequest request) {
     quota.lock(user);
     List<DriveFile> selected = requireSelection(user, request);
+    List<DriveFile> affected=subtree(user,selected,true);
     selected.forEach(file -> {
       if (!file.isDeleted())
         fail(HttpStatus.CONFLICT, "NOT_IN_TRASH", "Item is not in trash");
@@ -172,6 +176,7 @@ public class DriveService {
       requireAvailableName(user.getId(), file.getParentId(), file.getName(), file);
       file.restore();
     });
+    enqueueLifecycle(affected.stream().filter(file -> activeTree(user,file)).toList(),AiIndexTask.Operation.UPSERT);
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
 
@@ -193,6 +198,7 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
+    enqueueLifecycle(doomed,AiIndexTask.Operation.DELETE);
     List<Runnable> deletions = doomed.stream().filter(f -> !f.isFolder() && f.getStorageKey() != null)
         .map(f -> (Runnable) () -> deleteStorage(f.getStorageBackend(), f.getStorageKey())).toList();
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
@@ -200,6 +206,13 @@ public class DriveService {
     files.flush();
     quota.refresh(locked);
     afterCommit(() -> deletions.forEach(Runnable::run));
+  }
+
+  private void enqueueLifecycle(List<DriveFile> affected,AiIndexTask.Operation operation) {
+    affected.stream().filter(file -> !file.isFolder() && file.isIndexManaged()).forEach(file -> {
+      file.advanceIndexRevision();
+      indexTasks.enqueue(file,operation);
+    });
   }
 
   List<DriveFile> subtree(User user, List<DriveFile> roots, boolean includeDeleted) {
