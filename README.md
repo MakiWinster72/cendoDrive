@@ -45,7 +45,7 @@ docker compose up -d --build
 # 如端口已被现有容器占用，请先停止现有容器；不要删除原有数据卷。
 ```
 
-打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，前端 Nginx 将 `/api/` 代理至后端。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
+打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，Compose 前端使用 Vite Preview 将 `/api/` 代理至后端，无需配置 Nginx（仅用于本机开发）。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
 
 ```sh
 # 可选：在宿主机分别开发时，需 Java 21、Maven、Node.js/npm；只启动依赖：

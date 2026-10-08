@@ -9,6 +9,8 @@ services:
       FASTDFS_TRACKER: tracker:22122
       CENDO_STORAGE_ROOT: /app/storage
       CENDO_UPLOAD_ROOT: /app/storage/uploads
+      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
+
     volumes:
       - backend-storage:/app/storage
     ports:
