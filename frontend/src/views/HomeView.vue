@@ -64,6 +64,7 @@ import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import FilePreview from "../components/FilePreview.vue";
 import FileTools from "../components/FileTools.vue";
+import CreateFolderDialog from "../components/CreateFolderDialog.vue";
 import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
@@ -104,6 +105,7 @@ const keyword = ref(""),
 const createdShare = ref<ShareRecord | null>(null);
 const previewTarget = ref<DriveItem | null>(null);
 const toolsTarget = ref<{ action: ToolAction; items: DriveItem[] } | null>(null);
+const folderCreation = ref<{ parentId: string | null; parentLabel: string } | null>(null);
 function openTools(action: ToolAction, items = checked.value.map(id => drive.get(id)).filter((item): item is DriveItem => !!item)) {
   if (!items.length) return;
   checked.value = items.map(item => item.id);
@@ -317,15 +319,13 @@ async function goRoot() {
   checked.value = [];
   await loadFolder(null);
 }
-async function createFolder() {
-  const name = prompt("请输入文件夹名称");
-  if (!name) return;
-  try {
-    await drive.createFolder(name, currentFolder.value);
-    flash("文件夹创建成功");
-  } catch {
-    alert(drive.state.error);
-  }
+function createFolder() {
+  folderCreation.value = { parentId: currentFolder.value, parentLabel: currentFolder.value ? title.value : "根目录 /" };
+}
+async function folderCreated(item: DriveItem) {
+  flash("文件夹创建成功");
+  mode.value = "all";
+  await loadFolder(item.parentId);
 }
 function chooseFiles() {
   uploadPanelOpen.value = true;
@@ -573,6 +573,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <CreateFolderDialog v-if="folderCreation" v-bind="folderCreation" @close="folderCreation = null" @created="folderCreated" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
@@ -787,7 +788,7 @@ onUnmounted(() => {
           </button></template
         ><template v-else
           ><h1>{{ title }}</h1>
-          <div><HardDrive :size="23" /><MoreHorizontal :size="24" /></div
+          <div><button v-if="mode !== 'trash'" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="createFolder"><Folder :size="20" />新建文件夹</button><MoreHorizontal :size="24" /></div
         ></template>
       </header>
       <div class="m-search">

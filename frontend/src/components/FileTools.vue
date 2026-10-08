@@ -5,11 +5,21 @@ import { getFileDetails, listFolders, driveErrorMessage, type FileDetails } from
 import { formatBytes, useDrive, type DriveItem } from "../stores/drive";
 import { folderChoices, type ToolAction } from "./fileTools";
 import "../styles/file-tools.css";
+import CreateFolderDialog from "./CreateFolderDialog.vue";
 const props = defineProps<{ items: DriveItem[]; initialAction: ToolAction }>();
 const emit = defineEmits<{ close: []; changed: [message: string]; rename: []; trash: [ids: string[]] }>();
 const drive = useDrive(), dialog = ref<HTMLDialogElement>();
 const action = ref<ToolAction>(props.initialAction), folders = ref<DriveItem[]>([]);
 const target = ref<string | null>(null), details = ref<FileDetails | null>(null);
+const folderCreation = ref<{ parentId: string | null; parentLabel: string } | null>(null);
+function createTarget() {
+  const choice = choices.value.find(entry => entry.id === target.value && !entry.disabled);
+  if (choice) folderCreation.value = { parentId: choice.id, parentLabel: choice.label };
+}
+async function targetCreated(item: DriveItem) {
+  target.value = item.id;
+  await choose(action.value);
+}
 const busy = ref(false), loading = ref(false), error = ref("");
 const ids = computed(() => props.items.map(item => item.id));
 const choices = computed(() => folderChoices(folders.value, ids.value));
@@ -53,6 +63,7 @@ onBeforeUnmount(() => { alive = false; dialog.value?.close(); document.body.styl
 </script>
 <template>
   <dialog ref="dialog" class="file-tools" aria-labelledby="file-tools-title" @cancel.prevent="close" @click.self="close">
+    <CreateFolderDialog v-if="folderCreation" v-bind="folderCreation" @close="folderCreation = null" @created="targetCreated" />
     <header><h2 id="file-tools-title">{{ titles[action] }}</h2><button type="button" aria-label="关闭文件操作" :disabled="busy" autofocus @click="close"><X :size="22" /></button></header>
     <p class="tools-selection">已选择 {{ items.length }} 个项目<span v-if="items.length === 1"> · {{ items[0]?.name }}</span></p>
     <div v-if="action === 'menu'" class="tools-menu">
@@ -62,7 +73,7 @@ onBeforeUnmount(() => { alive = false; dialog.value?.close(); document.body.styl
     <p v-if="loading" role="status">正在加载…</p>
     <div v-if="error" role="alert"><p>{{ error }}</p><button :disabled="busy" @click="choose(action)">重新加载 / 重试</button></div>
     <template v-if="!loading && !error">
-      <label v-if="action === 'move' || action === 'copy'" class="tools-target">目标文件夹<select v-model="target" :disabled="busy"><option v-for="choice in choices" :key="choice.id ?? 'root'" :value="choice.id" :disabled="choice.disabled">{{ choice.label }}</option></select><small>按完整路径选择；不能选择自身或子目录。复制会占用额外容量。</small></label>
+      <div v-if="action === 'move' || action === 'copy'" class="tools-target"><label>目标文件夹<select v-model="target" :disabled="busy"><option v-for="choice in choices" :key="choice.id ?? 'root'" :value="choice.id" :disabled="choice.disabled">{{ choice.label }}</option></select></label><button :disabled="busy || loading || !choices.some(choice => choice.id === target && !choice.disabled)" @click="createTarget">新建文件夹</button><small>在所选位置创建目录后自动选中，可直接确认移动或复制。不能选择自身或子目录，复制会占用额外容量。</small></div>
       <p v-if="action === 'favorite'">{{ favoriteValue ? '添加到我的收藏，不移动原文件。' : '取消所选项目的收藏。' }}</p>
       <p v-if="action === 'hide'">{{ hiddenValue ? '从普通列表隐藏，可在隐藏空间管理。此功能不是加密或密码保护。' : '恢复在普通文件列表中显示。' }}</p>
       <p v-if="action === 'organize'">按扩展名归入图片、视频、音频、文档或其他文件夹。仅整理文件，不修改内容，不覆盖同名项目；文件夹保持原样。</p>
