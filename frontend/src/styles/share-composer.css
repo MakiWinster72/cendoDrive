@@ -1,0 +1,62 @@
+.share-composer { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; color: #101725; overflow: hidden; }
+.share-composer::backdrop { background: transparent; }
+.share-stage { position: absolute; inset: 0; display: grid; align-items: end; justify-items: center; background: rgb(0 0 0 / 55%); }
+.share-stage.is-qr { align-items: center; background: rgb(0 0 0 / 50%); }
+.share-sheet { width: min(100%, 520px); max-height: 90dvh; display: flex; flex-direction: column; border-radius: 14px 14px 0 0; background: #f8f8fa; overflow: hidden; box-shadow: 0 -4px 24px rgb(0 0 0 / 5%); }
+.share-sheet-header { position: relative; display: flex; flex-shrink: 0; justify-content: center; align-items: center; height: 50px; border-bottom: 1px solid #ececf0; }
+.share-sheet h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.share-close, .share-back { position: absolute; top: 3px; height: 44px; width: 44px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #cdd0d7; }
+.share-close { right: 3px; }.share-back { left: 3px; color: #192133; }
+.share-sheet-body { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.share-channel-row { display: flex; overflow-x: auto; scrollbar-width: none; padding: 26px 14px 9px; gap: 16px; }
+.share-channel-row > button { width: 68px; flex: 0 0 68px; padding: 0; display: flex; align-items: center; flex-direction: column; gap: 9px; border: 0; background: none; color: #101725; font-size: 13px; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.share-action-circle { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #fff; }
+.share-action-circle.wechat { color: #00d168; }.friend-action { color: #858a94; }
+.share-tool-row { padding-top: 17px; padding-bottom: 25px; }
+.share-preferences { margin: 0 24px 18px; padding: 0 15px; border-radius: 9px; background: #fff; }
+.share-setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 6px 0; border: 0; background: none; color: #101725; text-align: left; font-size: 13px; font-weight: 550; }
+.share-setting > span { display: inline-flex; align-items: center; gap: 7px; }
+.setting-value { color: #2788ff; }.setting-value svg, .setting-muted svg, .setting-dark svg { color: #cbd0d9; }
+.setting-muted { color: #8a92a2; font-weight: 400; }.setting-dark { font-size: 12px; }
+.share-switch { appearance: none; position: relative; width: 34px; height: 21px; flex: 0 0 34px; margin: 0; border-radius: 20px; background: #d9dde3; cursor: pointer; transition: background 160ms; }
+.share-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; background: white; border-radius: 50%; box-shadow: 0 1px 2px rgb(0 0 0 / 12%); transition: transform 160ms ease; }
+.share-switch:checked { background: #2788ff; }.share-switch:checked::after { transform: translateX(13px); }
+.code-help { display: grid; place-items: center; padding: 0; border: 0; background: none; color: #9096a5; }
+.share-vip { padding: 1px 6px; border: 1px solid #c59568; border-radius: 10px; color: #f1d3ae; background: #3c2924; font-size: 9px; font-style: italic; }
+.share-disclaimer { padding: 17px 12px max(40px, env(safe-area-inset-bottom)); border-top: 1px solid #e9eaf0; text-align: center; color: #8f95a5; font-size: 10px; letter-spacing: .2px; }
+.share-working { margin: 0 24px 10px; text-align: center; color: #878e9f; font-size: 12px; }
+.share-error { color: #c74848; margin: 8px 24px 16px; font-size: 12px; text-align: center; }
+.share-subpage { min-height: 320px; padding: 20px 24px max(32px, env(safe-area-inset-bottom)); overflow-y: auto; }
+.expiry-option { display: flex; width: 100%; justify-content: space-between; padding: 16px 0; border: 0; border-bottom: 1px solid #eaecef; background: none; color: #162134; font-size: 14px; }.selected-check { color: #2788ff; }
+.custom-expiry { margin-top: 25px; font-size: 13px; }.custom-expiry > div { display: flex; align-items: center; gap: 9px; margin-top: 12px; }
+.custom-expiry input { width: 70px; height: 40px; padding: 0 12px; border: 1px solid #dce1e9; border-radius: 7px; background: #fff; }
+.custom-expiry button { height: 40px; padding: 0 16px; border: 0; border-radius: 7px; color: white; background: #2788ff; margin-left: auto; }
+.share-subpage small { display: block; margin-top: 11px; color: #9198a7; line-height: 1.7; font-size: 11px; }
+.code-form > label { font-size: 13px; }.code-form > div { display: flex; gap: 8px; margin-top: 15px; }
+.code-form input { flex: 1; min-width: 0; height: 44px; padding: 0 13px; border: 1px solid #dce1e9; border-radius: 7px; background: #fff; font-size: 16px; color: #2788ff; }.code-form div button { border: 0; background: transparent; padding: 0 10px; color: #2788ff; }
+.share-primary { width: 100%; height: 43px; margin-top: 26px; border: 0; border-radius: 8px; background: #2788ff; color: #fff; }
+.qr-overlay { width: min(316px, calc(100% - 54px)); max-height: calc(100dvh - 32px); overflow-y: auto; scrollbar-width: none; position: relative; padding-top: 10px; }
+.share-qr-card { padding: 49px 14px 20px; border-radius: 18px; background: white; }
+.share-qr-poster { display: block; width: 100%; height: auto; object-fit: contain; -webkit-touch-callout: default; user-select: auto; }
+.share-qr-actions { display: flex; align-items: center; justify-content: space-around; margin: 12px 6px 0; padding-top: 18px; border-top: 1px dashed #dadde3; }
+.share-qr-actions button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; color: white; }
+.qr-wechat { background: #7bd126; --icon-bg: #7bd126; }.qr-moments { background: #21c685; }.qr-download { background: #009cff; }
+.qr-moments :deep(path) { fill: white; }.share-qr-actions :deep(svg) { width: 26px; height: 26px; }
+.qr-close { display: grid; place-items: center; width: 44px; height: 44px; margin: 20px auto 0; padding: 0; color: white; background: none; border: 0; }.qr-error { color: white; }
+.share-toast { position: fixed; z-index: 1; left: 50%; bottom: max(34px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 56px); padding: 9px 15px; border-radius: 7px; background: rgb(20 22 28 / 82%); color: #fff; font-size: 12px; text-align: center; pointer-events: none; box-shadow: 0 2px 8px rgb(0 0 0 / 8%); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); }
+.share-stage-enter-active, .share-stage-leave-active { transition: background 260ms ease; }
+.share-stage-enter-active .share-sheet, .share-stage-leave-active .share-sheet { transition: transform 260ms cubic-bezier(.32,.72,0,1); }
+.share-stage-enter-from, .share-stage-leave-to { background: transparent; }
+.share-stage-enter-from .share-sheet, .share-stage-leave-to .share-sheet { transform: translateY(100%); }
+.share-stage-enter-active .qr-overlay, .share-stage-leave-active .qr-overlay { transition: transform 200ms ease, opacity 200ms ease; }
+.share-stage-enter-from .qr-overlay, .share-stage-leave-to .qr-overlay { transform: scale(.96); opacity: 0; }
+.share-page-enter-active, .share-page-leave-active { transition: opacity 140ms ease, transform 180ms cubic-bezier(.32,.72,0,1); }
+.share-page-enter-from, .share-page-leave-to { transform: translateY(12px); opacity: 0; }
+.share-toast-enter-active, .share-toast-leave-active { transition: opacity 160ms ease; }.share-toast-enter-from, .share-toast-leave-to { opacity: 0; }
+button:focus-visible, input:focus-visible { outline: 2px solid #2788ff; outline-offset: 3px; }
+button:not(:disabled) { cursor: pointer; }button:disabled, input:disabled { cursor: wait; opacity: .55; }
+@media (max-width: 359px) { .share-preferences { margin-inline: 14px; padding-inline: 12px; }.share-setting { font-size: 12px; gap: 5px; }.share-setting > span { gap: 4px; } }
+@media (max-height: 660px) { .qr-overlay { width: min(280px, calc(100% - 54px)); }.share-qr-card { padding-top: 24px; }.qr-close { margin-top: 10px; } }
+@media (min-width: 768px) { .share-sheet { margin-bottom: 24px; border-radius: 16px; }.share-disclaimer { padding-bottom: 24px; } }
+@media (prefers-reduced-motion: reduce) { *, *::after { transition: none !important; } }
