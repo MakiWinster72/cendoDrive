@@ -10,6 +10,7 @@ const emit = defineEmits<{ sent: [name: string]; busy: [value: boolean] }>();
 type Recipient = { kind: "room"; id: string; name: string } | { kind: "person"; id: number; name: string };
 const query = ref(""), rooms = ref<Room[]>([]), people = ref<Person[]>([]);
 const selected = ref<Recipient | null>(null), loading = ref(false), sending = ref(false), error = ref("");
+const sendError = ref("");
 let alive = true, revision = 0, debounce: ReturnType<typeof setTimeout> | undefined;
 async function load() {
   const request = ++revision;
@@ -30,16 +31,17 @@ watch(query, () => {
   ++revision; clearTimeout(debounce); selected.value = null; people.value = []; error.value = ""; loading.value = true;
   debounce = setTimeout(() => void load(), 250);
 });
+watch(selected, () => { sendError.value = ""; });
 async function send() {
   if (!selected.value || sending.value) return;
   const recipient = selected.value;
-  sending.value = true; emit("busy", true); error.value = "";
+  sending.value = true; emit("busy", true); sendError.value = "";
   try {
     const roomId = recipient.kind === "room" ? recipient.id : (await openDirect(recipient.id)).id;
     await sendFileMessage(roomId, props.file.id);
     if (alive) emit("sent", recipient.name);
   } catch (reason) {
-    if (alive) error.value = driveErrorMessage(reason, "发送失败，请重试");
+    if (alive) sendError.value = driveErrorMessage(reason, "发送失败，请重试");
   } finally { sending.value = false; emit("busy", false); }
 }
 onMounted(() => void load());
@@ -66,7 +68,8 @@ onUnmounted(() => { alive = false; ++revision; clearTimeout(debounce); });
         <p v-if="!rooms.length" class="friends-state">暂无最近联系，可搜索昵称或用户名发送</p>
       </template>
     </div>
-    <footer class="friend-send"><div class="friend-file"><component :is="iconForFile(file)" :size="27"/><span>{{ file.name }}<small>{{ formatBytes(file.size) }}</small></span></div><button type="button" class="friend-send-button" :disabled="!selected || sending || loading" @click="send">{{ sending ? '发送中…' : '发送' }}</button></footer>
+    <p v-if="sendError" class="friend-send-error" role="alert">{{ sendError }}</p>
+    <footer class="friend-send"><div class="friend-file"><component :is="iconForFile(file)" :size="27"/><span>{{ file.name }}<small>{{ formatBytes(file.size) }}</small></span></div><button type="button" class="friend-send-button" :disabled="!selected || sending || loading" @click="send">{{ sending ? '发送中…' : sendError ? '重试发送' : '发送' }}</button></footer>
   </div>
 </template>
 
@@ -84,6 +87,7 @@ onUnmounted(() => { alive = false; ++revision; clearTimeout(debounce); });
 .friend-check { color: #2788ff; }
 .friends-state { flex: 1; padding: 32px 0; text-align: center; color: #878d9a; font-size: 13px; }
 .friends-state button { border: 0; color: #2788ff; background: none; padding: 12px; }
+.friend-send-error { margin: 12px 0 0; color: #c74848; font-size: 12px; }
 .friend-send { display: flex; align-items: center; gap: 15px; margin-top: auto; padding: 18px 0 max(20px, env(safe-area-inset-bottom)); }
 .friend-file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; color: #4792dd; }
 .friend-file span { color: #20293a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
