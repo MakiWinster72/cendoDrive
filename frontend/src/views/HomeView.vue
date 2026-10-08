@@ -96,7 +96,7 @@ import { useAuth } from "../stores/auth";
 import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
 import { shareClipboardText, shareErrorMessage, type ShareRecord } from "../api/shares";
 import { getHomeContent, getSplashAd, type SplashAdContent } from "../api/content";
-import { demoHomeContent } from "../api/contentDemo";
+import { demoHomeContent, demoSplashAd } from "../api/contentDemo";
 
 type Mode =
   | "all"
@@ -175,6 +175,7 @@ async function accountSignedOut(reason: "password"|"deletion",purgeAfter?: strin
   await router.replace({name:"login",query:reason==="password" ? {passwordChanged:"1"} : {accountDeleted:"1",purgeAfter}});
 }
 
+const splashAdDemo = ref(false);
 function openTransfers() {
   folderMenuOpen.value = false;
   showTransfers.value = true;
@@ -354,10 +355,30 @@ async function loadHomeContent() {
 }
 async function loadSplashAd() {
   try {
-    splashAd.value = await getSplashAd();
+    const ad = await getSplashAd();
+    splashAd.value = ad && !wasSplashSeen(ad.id) ? ad : null;
+    splashAdDemo.value = false;
   } catch {
-    splashAd.value = null;
+    if (import.meta.env.DEV && !wasSplashSeen(demoSplashAd.id)) {
+      splashAd.value = demoSplashAd;
+      splashAdDemo.value = true;
+    } else {
+      splashAd.value = null;
+      splashAdDemo.value = false;
+    }
   }
+}
+function wasSplashSeen(id: string) {
+  try { return sessionStorage.getItem(`cendo:splash-ad-seen:${id}`) === "1"; }
+  catch { return false; }
+}
+function closeSplashAd() {
+  if (splashAd.value) {
+    try { sessionStorage.setItem(`cendo:splash-ad-seen:${splashAd.value.id}`, "1"); }
+    catch { /* The ad still closes when session storage is unavailable. */ }
+  }
+  splashAd.value = null;
+  splashAdDemo.value = false;
 }
 function openContentTarget(targetUrl: string | null | undefined) {
   if (!targetUrl) {
@@ -675,7 +696,8 @@ onUnmounted(() => {
 <template>
   <SplashAdOverlay
     :ad="splashAd"
-    @close="splashAd = null"
+    :demo="splashAdDemo"
+    @close="closeSplashAd"
     @open="openContentTarget"
   />
   <UnavailableFeatureDialog
