@@ -30,6 +30,15 @@ beforeEach(() => {
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
 describe("folder navigation and screenshot layout", () => {
+  it("routes the mobile search card and desktop AI entry to one page", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await wrapper.get('.m-profile-search[aria-label="AI 搜索文件内容"]').trigger("click");
+    await wrapper.get('.desktop-drive .ai-search-entry[aria-label="AI 搜索文件内容"]').trigger("click");
+    expect(routerPush).toHaveBeenNthCalledWith(1, { name: "ai-search" });
+    expect(routerPush).toHaveBeenNthCalledWith(2, { name: "ai-search" });
+  });
   const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
   const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };
   async function inside() {

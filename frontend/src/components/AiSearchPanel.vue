@@ -18,8 +18,8 @@ const loading = ref(false);
 const error = ref("");
 let controller: AbortController | undefined;
 
-async function submit() {
-  const value = query.value.trim();
+async function runSearch(input: string) {
+  const value = input.trim();
   if (!value) return;
   controller?.abort();
   const request = new AbortController();
@@ -37,6 +37,9 @@ async function submit() {
     if (controller === request) loading.value = false;
   }
 }
+
+function submit() { return runSearch(query.value); }
+function refresh() { return runSearch(submittedQuery.value); }
 
 onBeforeUnmount(() => controller?.abort());
 </script>
@@ -67,11 +70,11 @@ onBeforeUnmount(() => controller?.abort());
       <section v-if="submittedQuery" class="ai-search-results" aria-live="polite" :aria-busy="loading">
         <div class="ai-search-results-heading">
           <h2>“{{ submittedQuery }}”的搜索结果</h2>
-          <button type="button" :disabled="loading" @click="submit">刷新结果</button>
+          <button type="button" :disabled="loading" @click="refresh">刷新结果</button>
         </div>
         <p v-if="loading" role="status" class="ai-search-state">正在搜索文件内容…</p>
         <div v-else-if="error" role="alert" class="ai-search-state">
-          <p>{{ error }}</p><button type="button" @click="submit">重新搜索</button>
+          <p>{{ error }}</p><button type="button" @click="refresh">重新搜索</button>
         </div>
         <p v-else-if="!results.length" class="ai-search-state">没有找到匹配文件，试试换一种说法。</p>
         <ul v-else class="ai-search-list">

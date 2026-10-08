@@ -198,13 +198,11 @@ const displayName = computed(
   () =>
     auth.user.value?.nickname || auth.user.value?.username || "CendoDrive 用户",
 );
-const searchPrompts = computed(() => [
-  `${displayName.value}的云端空间`,
-  "AI学习笔记",
-  "简单听记",
-  "文件清理",
-  "照片动起来",
-]);
+const searchPrompts = [
+  "用一句话搜索文件内容",
+  "哪份笔记提到了缓存穿透？",
+  "找到上周的会议记录",
+];
 const searchPromptIndex = ref(0);
 let searchPromptTimer: number | undefined;
 const modeNames: Record<Mode, string> = {
@@ -600,7 +598,7 @@ onMounted(async () => {
   void drive.loadUsage();
   searchPromptTimer = window.setInterval(() => {
     searchPromptIndex.value =
-      (searchPromptIndex.value + 1) % searchPrompts.value.length;
+      (searchPromptIndex.value + 1) % searchPrompts.length;
   }, 3000);
   await loadFolder(null);
   try {
@@ -670,7 +668,7 @@ onUnmounted(() => {
             </button>
           </div>
         </header>
-        <button class="m-profile-search" @click="mobileTab = 'profile'">
+        <button class="m-profile-search" aria-label="AI 搜索文件内容" @click="router.push({ name: 'ai-search' })">
           <span class="m-search-prompt-window"
             ><Transition name="m-prompt-slide"
               ><span :key="searchPromptIndex" class="m-search-prompt">{{
@@ -1169,6 +1167,9 @@ onUnmounted(() => {
             :placeholder="serverSearchEnabled ? '按文件名搜索' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
           /><kbd>⌘ K</kbd>
         </div>
+        <button class="ai-search-entry" type="button" aria-label="AI 搜索文件内容" @click="router.push({ name: 'ai-search' })">
+          <WandSparkles :size="18" /><span>AI 搜索</span>
+        </button>
         <div class="top-actions">
           <button><Bell :size="19" /><i></i></button
           ><button><Settings :size="19" /></button><span></span
@@ -1362,3 +1363,9 @@ onUnmounted(() => {
     <div v-if="notice" class="toast">{{ notice }}</div>
   </div>
 </template>
+
+<style scoped>
+.desktop-drive .ai-search-entry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: none; height: 38px; padding: 0 13px; border: 1px solid #b8d3ff; border-radius: 9px; background: #f0f6ff; color: #2369d5; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.desktop-drive .ai-search-entry:hover { background: #e4efff; }
+@media (width < 1024px) { .desktop-drive .ai-search-entry { width: 38px; padding: 0; } .desktop-drive .ai-search-entry span { display: none; } }
+</style>

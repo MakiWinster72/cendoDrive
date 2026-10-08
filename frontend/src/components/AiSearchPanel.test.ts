@@ -54,9 +54,11 @@ describe("AI search page", () => {
     await wrapper.find("form").trigger("submit");
     await flushPromises();
     expect(wrapper.text()).toContain(hit.fileName);
+    await wrapper.find("input").setValue("未提交的新查询");
     await wrapper.get(".ai-search-results-heading button").trigger("click");
     await flushPromises();
     expect(search).toHaveBeenCalledTimes(2);
+    expect(search.mock.calls[1]![0]).toBe("缓存穿透");
     expect(wrapper.text()).toContain("没有找到匹配文件");
     wrapper.unmount();
   });
