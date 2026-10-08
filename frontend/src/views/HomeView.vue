@@ -78,7 +78,7 @@ import { useNameEdit } from "../components/useNameEdit";
 import type { ToolAction } from "../components/fileTools";
 import ShareList from "../components/ShareList.vue";
 import ShareLinkDialog from "../components/ShareLinkDialog.vue";
-import ShareSettingsDialog from "../components/ShareSettingsDialog.vue";
+import ShareComposer from "../components/ShareComposer.vue";
 import MobileMyShares from "../components/MobileMyShares.vue";
 import MobileShareHub from "../components/MobileShareHub.vue";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
@@ -722,7 +722,7 @@ onUnmounted(() => {
       createFolder();
     "
   />
-  <ShareSettingsDialog v-if="shareTarget" :file="shareTarget" @close="shareTarget = null" @created="createdShare = $event; shareTarget = null; flash('分享链接已创建')" />
+  <ShareComposer v-if="shareTarget" :file="shareTarget" @close="shareTarget = null" />
   <ShareLinkDialog :share="createdShare" @close="createdShare = null" />
 
 
