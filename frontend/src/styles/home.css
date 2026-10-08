@@ -25,6 +25,12 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
   .m-vip-envelope {
     display: grid;
@@ -53,6 +59,7 @@
     font-weight: 700;
     color: #ec7129;
   }
+  .promo-art { display: block; width: 52px; height: 52px; border-radius: 10px; object-fit: cover; }
   .m-head-actions {
     display: flex;
     align-items: center;

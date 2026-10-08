@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MembershipView from "./MembershipView.vue";
@@ -7,9 +7,16 @@ import AiPointsView from "./AiPointsView.vue";
 import MyAssetsView from "./MyAssetsView.vue";
 import NovelHubView from "./NovelHubView.vue";
 import GameCenterView from "./GameCenterView.vue";
+import { getGameCenterContent, getMembershipContent, getNovelHubContent } from "../api/content";
+import { demoMembershipContent } from "../api/contentDemo";
 
 const nav = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }));
 vi.mock("vue-router", () => ({ useRouter: () => nav }));
+vi.mock("../api/content", () => ({
+  getGameCenterContent: vi.fn(),
+  getMembershipContent: vi.fn(),
+  getNovelHubContent: vi.fn(),
+}));
 const wrappers: ReturnType<typeof mount>[] = [];
 function mountTracked(component: Parameters<typeof mount>[0]) {
   const wrapper = mount(component);
@@ -20,12 +27,18 @@ function dialogText() {
   return document.body.querySelector(".unavailable-dialog")?.textContent ?? "";
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(getGameCenterContent).mockRejectedValue(new Error("内容接口未接入"));
+  vi.mocked(getMembershipContent).mockRejectedValue(new Error("内容接口未接入"));
+  vi.mocked(getNovelHubContent).mockRejectedValue(new Error("内容接口未接入"));
+});
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()));
 
 describe("mobile membership page", () => {
   it("selects a membership plan and never pretends to process real payment", async () => {
     const wrapper = mountTracked(MembershipView);
+    await flushPromises();
     expect(wrapper.find(".demo-inline").text()).toContain("演示数据");
     const plans = wrapper.findAll(".plan-card");
     await plans[0]!.trigger("click");
@@ -37,12 +50,26 @@ describe("mobile membership page", () => {
 
   it("labels the unavailable privilege comparison", async () => {
     const wrapper = mountTracked(MembershipView);
+    await flushPromises();
     await wrapper.find(".section-heading button").trigger("click");
     expect(dialogText()).toContain("会员权益对比暂未提供");
   });
 
+  it("replaces membership demo plans with backend response data", async () => {
+    vi.mocked(getMembershipContent).mockResolvedValueOnce({
+      ...demoMembershipContent,
+      plans: [{ id: "backend-plan", name: "后端新套餐", price: "88", suffix: "/年", originalPrice: null, badge: null, sortOrder: 1 }],
+    });
+    const wrapper = mountTracked(MembershipView);
+    await flushPromises();
+    expect(wrapper.findAll(".plan-card")).toHaveLength(1);
+    expect(wrapper.find(".plan-card").text()).toContain("后端新套餐");
+    expect(wrapper.find(".demo-inline").text()).toContain("由内容接口返回");
+  });
+
   it("shows a centered alert dialog that can be dismissed", async () => {
     const wrapper = mountTracked(MembershipView);
+    await flushPromises();
     await wrapper.find(".primary-pay").trigger("click");
     expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
     (document.body.querySelector(".unavailable-confirm") as HTMLButtonElement).click();
@@ -52,6 +79,7 @@ describe("mobile membership page", () => {
 
   it("provides a route from membership to AI point recharge", async () => {
     const wrapper = mountTracked(MembershipView);
+    await flushPromises();
     await wrapper.find(".upsell-card > button").trigger("click");
     expect(nav.push).toHaveBeenCalledWith({ name: "ai-points" });
   });
@@ -99,6 +127,7 @@ describe("mobile novel hub", () => {
 describe("mobile game center", () => {
   it("shows task rewards and filters recommended game cards", async () => {
     const wrapper = mountTracked(GameCenterView);
+    await flushPromises();
     expect(wrapper.text()).toContain("做任务");
     expect(wrapper.text()).toContain("精品推荐");
     await wrapper.findAll(".game-category-strip button")[1]!.trigger("click");
@@ -108,6 +137,7 @@ describe("mobile game center", () => {
 
   it("does not claim task rewards are connected", async () => {
     const wrapper = mountTracked(GameCenterView);
+    await flushPromises();
     await wrapper.find(".task-cta").trigger("click");
     expect(dialogText()).toContain("游戏任务服务暂未接入");
   });

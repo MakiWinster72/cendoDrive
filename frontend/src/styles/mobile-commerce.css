@@ -172,6 +172,7 @@
   background: linear-gradient(#fff,#fffaf1);
 }
 .plan-card.selected { border: 2px solid #ff9135; background: linear-gradient(#fff8e8,#fff); box-shadow: 0 3px 10px #f4973620; }
+.plan-card:disabled { cursor: default; opacity: .55; }
 .plan-badge { position: absolute; top: 0; left: 0; max-width: 100%; overflow: hidden; padding: 3px 6px; border-radius: 8px 0 7px 0; background: #ff9b38; color: white; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
 .plan-card strong { color: #554a3e; font-size: 10px; font-weight: 650; white-space: nowrap; }
 .plan-price { color: #f36f17; font-size: 24px; font-weight: 800; line-height: 1.15; }
@@ -224,6 +225,8 @@
 .membership-page .demo-caption { margin-bottom: 5px; }
 .membership-page .commerce-paybar { padding-top: 6px; }
 .membership-page .primary-pay { margin-top: 3px; }
+.membership-empty-state { margin: 20px 14px; color: #98a1af; text-align: center; font-size: 12px; }
+.membership-page .primary-pay:disabled { background: #aeb6c2; box-shadow: none; cursor: not-allowed; }
 
 /* AI points */
 .points-page { background: #f1f3f6; }

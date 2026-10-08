@@ -1,23 +1,45 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { ChevronLeft, ChevronRight, Ellipsis, X } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
+import { getNovelHubContent, type NovelContentItem } from "../api/content";
+import { demoNovelHubContent } from "../api/contentDemo";
 import "../styles/mobile-media.css";
 
 const router = useRouter();
 const notice = ref("");
-const recommendations = [
-  { title: "我，修仙，一开始就无敌", author: "画江山", tone: "ink" },
-  { title: "替嫁宠妃：残疾大佬…", author: "糖果可可", tone: "mist" },
-  { title: "我的绝美特工老婆", author: "程以武", tone: "rose" },
-  { title: "二婚嫁京圈大佬，渣…", author: "程以武", tone: "night" },
-];
-const hotReads = [
-  { title: "山海拾遗", author: "云上行", tone: "sea" },
-  { title: "长夜有星", author: "青禾", tone: "violet" },
-  { title: "风起人间", author: "南枝", tone: "sunset" },
-];
+const contentSource = ref<"demo" | "backend">("demo");
+const demoTones = ["ink", "mist", "rose", "night", "sea", "violet", "sunset"];
+type DisplayBook = NovelContentItem & { tone?: string };
+const recommendationSection = ref({
+  id: demoNovelHubContent.sections[0]!.id,
+  title: demoNovelHubContent.sections[0]!.title,
+  books: demoNovelHubContent.sections[0]!.books.map((book, index) => ({ ...book, tone: demoTones[index] })),
+});
+const hotReadSection = ref({
+  id: demoNovelHubContent.sections[1]!.id,
+  title: demoNovelHubContent.sections[1]!.title,
+  books: demoNovelHubContent.sections[1]!.books.map((book, index) => ({ ...book, tone: demoTones[index + 4] })),
+});
+
+onMounted(async () => {
+  try {
+    const content = await getNovelHubContent();
+    const sections = content.sections;
+    const featured = sections.find(section => section.id === "you-may-like") ?? sections[0];
+    const popular = sections.find(section => section.id === "male-popular") ?? sections[1];
+    recommendationSection.value = featured
+      ? { ...featured, books: featured.books.map((book, index) => ({ ...book, tone: demoTones[index % demoTones.length] })) }
+      : { id: "you-may-like", title: "你可能在找", books: [] };
+    hotReadSection.value = popular
+      ? { ...popular, books: popular.books.map((book, index) => ({ ...book, tone: demoTones[(index + 4) % demoTones.length] })) }
+      : { id: "male-popular", title: "男生热读", books: [] };
+    contentSource.value = "backend";
+  } catch {
+    // Keep the clearly marked local demo content until the backend endpoint is available.
+  }
+});
 
 function goBack() {
   if (window.history.state?.back) router.back();
@@ -25,6 +47,24 @@ function goBack() {
 }
 function showNotice(message: string) {
   notice.value = message;
+}
+function openBook(targetUrl: string | null) {
+  if (!targetUrl) {
+    showNotice("小说详情及阅读服务暂未接入");
+    return;
+  }
+  try {
+    const target = new URL(targetUrl, window.location.origin);
+    if (target.origin === window.location.origin) {
+      void router.push(`${target.pathname}${target.search}${target.hash}`);
+    } else if (target.protocol === "https:") {
+      window.open(target.href, "_blank", "noopener,noreferrer");
+    } else {
+      showNotice("小说跳转地址无效");
+    }
+  } catch {
+    showNotice("小说跳转地址无效");
+  }
 }
 </script>
 
@@ -48,29 +88,31 @@ function showNotice(message: string) {
       </section>
 
       <div class="novel-divider"></div>
-      <button class="novel-promo" aria-label="小说推荐活动" @click="showNotice('书城活动暂未开放')"><span>云端阅读 · 好书常伴</span><i>BOOKS</i></button>
+      <button v-if="contentSource === 'demo'" class="novel-promo" aria-label="小说推荐活动" @click="showNotice('书城活动暂未开放')"><span>云端阅读 · 好书常伴</span><i>BOOKS</i></button>
 
       <section class="novel-recommend-section">
-        <h2>你可能在找 <small class="novel-demo-tag">演示推荐</small></h2>
-        <p class="novel-quote">“ 爆款小说免费读，真香预警！”</p>
+        <h2>{{ recommendationSection.title }} <small v-if="contentSource === 'demo'" class="novel-demo-tag">演示推荐</small></h2>
+        <p v-if="contentSource === 'demo'" class="novel-quote">“ 爆款小说免费读，真香预警！”</p>
         <div class="novel-card-strip">
-          <button v-for="book in recommendations" :key="book.title" class="novel-book-card" @click="showNotice('书籍详情暂未接入')">
-            <span class="novel-cover" :class="book.tone"><i>HOT</i><b>{{ book.title }}</b><small>云端精选</small></span>
+          <button v-for="book in recommendationSection.books" :key="book.id" class="novel-book-card" @click="openBook(book.targetUrl)">
+            <span class="novel-cover" :class="book.tone" :style="book.coverUrl ? { backgroundImage: `url(${book.coverUrl})` } : undefined"><i>HOT</i><b>{{ book.title }}</b><small>云端精选</small></span>
             <strong>{{ book.title }}</strong><small>{{ book.author }}</small>
           </button>
+          <p v-if="!recommendationSection.books.length" class="novel-list-empty">暂无小说推荐</p>
         </div>
       </section>
 
       <section class="novel-recommend-section hot-read-section">
-        <h2>男生热读</h2>
+        <h2>{{ hotReadSection.title }}</h2>
         <div class="novel-card-strip">
-          <button v-for="book in hotReads" :key="book.title" class="novel-book-card" @click="showNotice('书籍详情暂未接入')">
-            <span class="novel-cover" :class="book.tone"><i>推荐</i><b>{{ book.title }}</b><small>云端精选</small></span>
+          <button v-for="book in hotReadSection.books" :key="book.id" class="novel-book-card" @click="openBook(book.targetUrl)">
+            <span class="novel-cover" :class="book.tone" :style="book.coverUrl ? { backgroundImage: `url(${book.coverUrl})` } : undefined"><i>推荐</i><b>{{ book.title }}</b><small>云端精选</small></span>
             <strong>{{ book.title }}</strong><small>{{ book.author }}</small>
           </button>
+          <p v-if="!hotReadSection.books.length" class="novel-list-empty">暂无小说推荐</p>
         </div>
       </section>
-      <p class="media-demo-note">书城推荐为页面演示内容，书籍数据及阅读服务尚未接入</p>
+      <p class="media-demo-note">{{ contentSource === "demo" ? "小说内容接口暂未接入，当前推荐为演示数据" : "小说展示数据由内容接口返回；书籍阅读服务尚未接入" }}</p>
     </div>
     <UnavailableFeatureDialog :open="Boolean(notice)" :message="notice" @close="notice = ''" />
   </main>
