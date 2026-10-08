@@ -86,11 +86,7 @@ function status(task: TransferTask) {
       <section v-for="[date, tasks] in groups" :key="date" class="transfer-group">
         <h2>{{ date }}</h2>
         <article v-for="task in tasks" :key="task.id" class="transfer-task">
-          <div v-if="/\.(zip|rar|7z)$/i.test(task.name)" class="archive-icon">
-            <span>
-            </span>
-          </div>
-          <component :is="iconForFile({ name: task.name, kind: 'file' })" v-else class="task-icon" />
+          <component :is="iconForFile({ name: task.name, kind: 'file' })" class="task-icon" aria-hidden="true" />
           <div class="task-detail">
             <h3 :title="task.name">{{ task.name }}</h3>
             <p>{{ formatSize(task.size) }} &nbsp; {{ status(task) }} <ChevronRight v-if="task.status === 'success'" />
