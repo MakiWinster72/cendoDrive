@@ -611,12 +611,15 @@ onUnmounted(() => {
           <button @click="openHomeCategory('image')">
             <span class="m-tool-icon"><HomeToolIcon name="photo" /></span
             ><span>相册</span></button
-          ><button @click="openHomeCategory('video')">
+          ><button @click="router.push({ name: 'videos' })">
             <span class="m-tool-icon"><HomeToolIcon name="video" /></span
             ><span>视频</span></button
           ><button @click="flash('更多功能即将上线')">
             <span class="m-tool-icon"><HomeToolIcon name="career" /></span
             ><span>求职</span></button
+          ><button @click="router.push({ name: 'novels' })">
+            <span class="m-tool-icon"><HomeToolIcon name="novel" /></span
+            ><span>小说</span></button
           ><button @click="openHomeCategory('doc')">
             <span class="m-tool-icon"><HomeToolIcon name="document" /></span
             ><span>文档</span></button
@@ -720,7 +723,7 @@ onUnmounted(() => {
           <button @click="openHomeCategory('image')">
             <span class="m-discover-art photo"><Image :size="38" /></span
             ><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button
-          ><button @click="openHomeCategory('video')">
+          ><button @click="router.push({ name: 'videos' })">
             <span class="m-discover-art film"><Video :size="38" /></span
             ><b>收藏精彩视频</b><small>你的回忆都在这里</small>
           </button>
@@ -887,13 +890,13 @@ onUnmounted(() => {
               <div><HardDrive /><span>5T 空间</span></div>
               <div><Gift /><span>等级福利</span></div>
             </div>
-            <button type="button" class="membership-cta">
+            <button type="button" class="membership-cta" @click="router.push({ name: 'membership' })">
               立即解锁 <ChevronRight :size="19" />
             </button>
           </div>
           <div class="membership-links">
-            <button type="button">我的 AI 点数</button><i></i
-            ><button type="button">我的资产</button>
+            <button type="button" @click="router.push({ name: 'ai-points' })">我的 AI 点数</button><i></i
+            ><button type="button" @click="router.push({ name: 'my-assets' })">我的资产</button>
           </div>
         </section>
         <section class="profile-shortcuts" aria-label="常用工具">
@@ -937,12 +940,12 @@ onUnmounted(() => {
             <strong>网盘 <em>SVIP</em> 会员免费送</strong>
             <p>限时活动 · 领 90 天会员</p>
           </div>
-          <button type="button">立即抢</button>
+          <button type="button" @click="router.push({ name: 'membership' })">立即抢</button>
         </section>
         <section class="profile-game">
           <div>
             <h2>游戏中心</h2>
-            <button type="button">
+            <button type="button" @click="router.push({ name: 'game-center' })">
               免费下载券 <ChevronRight :size="18" />
             </button>
           </div>

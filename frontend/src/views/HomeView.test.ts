@@ -4,7 +4,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import HomeView from "./HomeView.vue";
 import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
-vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn(), push: routerPush }) }));
 vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
 vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
@@ -144,5 +145,42 @@ describe("mobile file management wiring", () => {
     const wrapper = await open(), drive = useDrive();
     drive.state.files.push({ ...file, id: "1", kind: "folder", hidden: true }, { ...file, id: "2", parentId: "1", name: "秘密.txt" }, { ...file, id: "3", kind: "folder", deletedAt: "today" }, { ...file, id: "4", parentId: "3", name: "已删.txt" }); await flushPromises();
     expect(wrapper.find(".m-file-list").text()).not.toContain("秘密.txt"); expect(wrapper.find(".m-file-list").text()).not.toContain("已删.txt");
+  });
+});
+
+describe("mobile profile unavailable destinations", () => {
+  it.each([
+    [".membership-cta", "membership"],
+    ['.membership-links button:first-child', "ai-points"],
+    ['.membership-links button:last-child', "my-assets"],
+    [".profile-promo > button", "membership"],
+  ])("navigates from %s to its mobile page", async (selector, routeName) => {
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
+    await wrapper.find(selector).trigger("click");
+    expect(routerPush).toHaveBeenCalledWith({ name: routeName });
+  });
+
+  it("opens the game center from the free download voucher", async () => {
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "我的")!.trigger("click");
+    await wrapper.find(".profile-game button").trigger("click");
+    expect(routerPush).toHaveBeenCalledWith({ name: "game-center" });
+  });
+});
+
+describe("mobile home media shortcuts", () => {
+  it("shows the novel shortcut and routes video and novel entries to their hubs", async () => {
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find(button => button.text() === "首页")!.trigger("click");
+    const shortcuts = wrapper.findAll(".m-tools button");
+    const video = shortcuts.find(button => button.text() === "视频");
+    const novel = shortcuts.find(button => button.text() === "小说");
+    expect(video).toBeDefined();
+    expect(novel).toBeDefined();
+    await video!.trigger("click");
+    expect(routerPush).toHaveBeenCalledWith({ name: "videos" });
+    await novel!.trigger("click");
+    expect(routerPush).toHaveBeenLastCalledWith({ name: "novels" });
   });
 });
