@@ -19,9 +19,9 @@ class FlywayMigrationTest {
       "V7__create_upload_sessions.sql");
   @TempDir Path history;
 
-  @Test void freshDatabaseAppliesAllEightMigrations() {
+  @Test void freshDatabaseAppliesAllNineMigrations() {
     Flyway flyway = current(databaseUrl());
-    assertEquals(8, flyway.migrate().migrationsExecuted);
+    assertEquals(9, flyway.migrate().migrationsExecuted);
     assertTrue(flyway.validateWithResult().validationSuccessful);
     assertEquals(Integer.valueOf(-1727441758), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("5").equals(migration.getVersion()))
@@ -48,10 +48,10 @@ class FlywayMigrationTest {
           + "VALUES (1, 42, 'historical-share', '保留文件.txt', 123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
     Flyway flyway = current(url);
-    // migrate validates already-applied history and applies the new V8; validate alone rejects a pending migration.
-    assertEquals(1, flyway.migrate().migrationsExecuted);
+    // migrate validates already-applied history and applies V8 and V9; validate alone rejects a pending migration.
+    assertEquals(2, flyway.migrate().migrationsExecuted);
     assertDoesNotThrow(flyway::validate);
-    assertEquals(MigrationVersion.fromVersion("8"), flyway.info().current().getVersion());
+    assertEquals(MigrationVersion.fromVersion("9"), flyway.info().current().getVersion());
     try (var connection = DriverManager.getConnection(url, "sa", "");
          var statement = connection.createStatement();
          var rows = statement.executeQuery("SELECT file_name, size_bytes FROM share_links WHERE token = 'historical-share'")) {

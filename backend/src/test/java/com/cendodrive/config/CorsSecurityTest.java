@@ -27,6 +27,16 @@ class CorsSecurityTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", "https://app.example"));
     }
 
+    @Test void protectedShareAllowsCodeHeaderPreflight() throws Exception {
+        mvc.perform(options("/api/shares/0123456789abcdef0123456789abcdef")
+                        .header("Origin", "https://app.example")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "x-share-code"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://app.example"))
+                .andExpect(header().string("Access-Control-Allow-Headers", "x-share-code"));
+    }
+
     @Test void untrustedOriginPreflightIsRejected() throws Exception {
         mvc.perform(options("/api/auth/login").header("Origin", "https://evil.example")
                         .header("Access-Control-Request-Method", "POST"))

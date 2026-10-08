@@ -29,7 +29,7 @@ class ShareServiceTest {
   static final String TOKEN = "a".repeat(32);
 
   @BeforeEach void setup() {
-    service = new ShareService(links, access, drive, users, Clock.fixed(NOW, ZoneOffset.UTC));
+    service = new ShareService(links, access, drive, users, Clock.fixed(NOW, ZoneOffset.UTC), new ShareCodeGuard(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(), mock(com.cendodrive.auth.LoginRateLimiter.class)));
     lenient().when(owner.getId()).thenReturn(7L);
     lenient().when(owner.isActive()).thenReturn(true);
   }
@@ -154,6 +154,22 @@ class ShareServiceTest {
     verify(drive).download(owner, 42L);
     service.save(recipient, TOKEN, new SaveShareRequest(12L));
     verify(drive).saveSharedFile(recipient, owner, 42L, 12L);
+  }
+
+  @Test void protectedShareRequiresCodeOnEveryEntryAndNeverExposesHash() throws Exception {
+    ShareLink link = link(60);
+    link.protect(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("A1b2"));
+    resolve(link); when(access.allows(link)).thenReturn(true); source();
+    assertEquals("SHARE_CODE_REQUIRED", assertThrows(DriveFailure.class, () -> service.get(TOKEN)).code());
+    assertEquals("SHARE_CODE_REQUIRED", assertThrows(DriveFailure.class, () -> service.download(TOKEN)).code());
+    assertEquals("SHARE_CODE_REQUIRED", assertThrows(DriveFailure.class, () -> service.save(recipient, TOKEN, new SaveShareRequest(null))).code());
+    assertEquals("SHARE_CODE_INVALID", assertThrows(DriveFailure.class, () -> service.get(TOKEN, "bad1", "client")).code());
+    assertEquals("hello.txt", service.get(TOKEN, "A1b2", "client").file().name());
+    service.download(TOKEN, "A1b2", "client");
+    service.save(recipient, TOKEN, new SaveShareRequest(null), "A1b2", "client");
+    verify(drive).download(owner, 42L);
+    verify(drive).saveSharedFile(recipient, owner, 42L, null);
+    assertTrue(ShareResponse.from(link).hasExtractionCode());
   }
 
   void assertUnavailable() {

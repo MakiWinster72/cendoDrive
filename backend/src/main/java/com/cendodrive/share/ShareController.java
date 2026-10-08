@@ -5,6 +5,7 @@ import com.cendodrive.share.ShareDtos.*;
 import com.cendodrive.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -38,15 +39,17 @@ public class ShareController {
 
   @Operation(summary = "匿名查看有效分享")
   @GetMapping("/{token}")
-  ResponseEntity<ShareAccessResponse> get(@PathVariable String token) {
+  ResponseEntity<ShareAccessResponse> get(@PathVariable String token,
+      @RequestHeader(value="X-Share-Code",required=false) String code, HttpServletRequest request) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-        .header("Referrer-Policy", "no-referrer").body(shares.get(token));
+        .header("Referrer-Policy", "no-referrer").body(shares.get(token, code, request.getRemoteAddr()));
   }
 
   @Operation(summary = "匿名下载有效分享")
   @GetMapping("/{token}/download")
-  ResponseEntity<StreamingResponseBody> download(@PathVariable String token) {
-    var content = shares.download(token);
+  ResponseEntity<StreamingResponseBody> download(@PathVariable String token,
+      @RequestHeader(value="X-Share-Code",required=false) String code, HttpServletRequest request) {
+    var content = shares.download(token, code, request.getRemoteAddr());
     return ResponseEntity.ok().cacheControl(CacheControl.noStore())
         .header("Referrer-Policy", "no-referrer")
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''"
@@ -58,7 +61,8 @@ public class ShareController {
   @PostMapping("/{token}/save")
   @ResponseStatus(HttpStatus.CREATED)
   FileResponse save(@AuthenticationPrincipal User user, @PathVariable String token,
-      @Valid @RequestBody SaveShareRequest request) throws IOException {
-    return shares.save(user, token, request);
+      @Valid @RequestBody SaveShareRequest request,
+      @RequestHeader(value="X-Share-Code",required=false) String code, HttpServletRequest servletRequest) throws IOException {
+    return shares.save(user, token, request, code, servletRequest.getRemoteAddr());
   }
 }
