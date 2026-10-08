@@ -6,7 +6,7 @@ import { downloadFile, driveErrorMessage, type DriveItemResponse } from "../api/
 import { decodeText, previewFormat } from "../preview/formats";
 import "../styles/preview.css";
 const PdfPreview = defineAsyncComponent(() => import("./PdfPreview.vue"));
-const props = defineProps<{ file: DriveItemResponse }>();
+const props = defineProps<{ file: DriveItemResponse; fetchContent?: (signal: AbortSignal) => Promise<Blob>; downloadContent?: () => Promise<void> }>();
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement | null>(null);
 const format = computed(() => previewFormat(props.file.name));
@@ -27,7 +27,7 @@ async function load() {
   const file = props.file;
   const kind = previewFormat(file.name)?.kind;
   try {
-    const content = await fetchPreviewFile(file, request.signal);
+    const content = await (props.fetchContent ? props.fetchContent(request.signal) : fetchPreviewFile(file, request.signal));
     if (request.signal.aborted) return;
     if (kind === "text" || kind === "markdown") {
       const decoded = decodeText(await content.arrayBuffer());
@@ -55,7 +55,7 @@ async function load() {
 async function download() {
   if (downloading.value) return;
   downloading.value = true;
-  try { await downloadFile(props.file.id, props.file.name); }
+  try { await (props.downloadContent ? props.downloadContent() : downloadFile(props.file.id, props.file.name)); }
   catch (cause) { error.value = driveErrorMessage(cause, "下载失败，请重试"); }
   finally { downloading.value = false; }
 }

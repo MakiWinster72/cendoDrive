@@ -7,6 +7,7 @@ import type { DriveItemResponse } from "./drive";
 export async function fetchPreviewFile(
   file: Pick<DriveItemResponse, "id" | "name" | "size">,
   signal: AbortSignal,
+  downloadPath = `/files/${encodeURIComponent(file.id)}/download`,
 ): Promise<Blob> {
   const format = previewFormat(file.name);
   if (!format) throw new Error("此格式暂不支持在线预览，请下载查看");
@@ -19,7 +20,7 @@ export async function fetchPreviewFile(
   if (signal.aborted) abort();
   let exceeded = false;
   try {
-    const { data } = await http.get<Blob>(`/files/${encodeURIComponent(file.id)}/download`, {
+    const { data } = await http.get<Blob>(downloadPath, {
       responseType: "blob",
       signal: controller.signal,
       timeout: 120000,

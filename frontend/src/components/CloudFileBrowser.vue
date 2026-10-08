@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
-import { Search, ChevronRight, ArrowUpDown, FolderOpen, RefreshCw, Check } from 'lucide-vue-next';
+import { Search, ChevronRight, ArrowUpDown, FolderOpen, RefreshCw, Check } from '@lucide/vue';
 import { listFiles, driveErrorMessage, type DriveItemResponse } from '../api/drive';
 import { formatSize } from '../stores/drive';
 import ChatFileGlyph from './ChatFileGlyph.vue';

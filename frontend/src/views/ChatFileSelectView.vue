@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ChevronLeft, Send } from 'lucide-vue-next';
+import { ChevronLeft, Send } from '@lucide/vue';
 import CloudFileBrowser from '../components/CloudFileBrowser.vue';
 import ChatFileGlyph from '../components/ChatFileGlyph.vue';
 import { sendFileMessage } from '../api/chat';

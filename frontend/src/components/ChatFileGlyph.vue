@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FileText, Image, Film, Music2, FileArchive, File } from 'lucide-vue-next';
+import { FileText, Image, Film, Music2, FileArchive, File } from '@lucide/vue';
 import FolderGlyph from './FolderGlyph.vue';
 const props = defineProps<{name: string; folder?: boolean}>();
 const type = computed(() => { const ext = props.name.split('.').pop()?.toLowerCase() ?? ''; return /^(png|jpe?g|gif|webp|svg|avif|bmp)$/.test(ext) ? 'image' : /^(mp4|mov|webm|mkv)$/.test(ext) ? 'video' : /^(mp3|wav|flac|m4a)$/.test(ext) ? 'audio' : /^(zip|rar|7z|tar|gz)$/.test(ext) ? 'archive' : /^(pdf|docx?|txt|md|xlsx?|pptx?)$/.test(ext) ? 'document' : 'file'; });

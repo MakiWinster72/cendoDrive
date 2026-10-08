@@ -44,16 +44,32 @@ class ChatFileWorkflowTest {
     mvc.perform(post(url).header("Authorization","Bearer token1").contentType(MediaType.APPLICATION_JSON).content("{\"fileId\":"+id+"}")).andExpect(status().isOk());
     var message=mapper.readTree(mvc.perform(get("/api/chat/rooms/"+room+"/messages").header("Authorization","Bearer token2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get(0);
     assertEquals("hello.txt",message.get("attachment").get("name").asText());
-    String save=url+"/"+message.get("id").asText()+"/save";
+    String detail=url+"/"+message.get("id").asText();
+    String save=detail+"/save";
+    for(String endpoint:List.of(detail,detail+"/download")) {
+      mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+      mvc.perform(get(endpoint).header("Authorization","Bearer token3")).andExpect(status().isForbidden());
+    }
+    mvc.perform(get(detail).header("Authorization","Bearer token2")).andExpect(status().isOk()).andExpect(jsonPath("$.name").value("hello.txt")).andExpect(jsonPath("$.parentId").doesNotExist()).andExpect(header().string("Cache-Control","no-store"));
+    var originalDownload=mvc.perform(get(detail+"/download").header("Authorization","Bearer token2")).andExpect(request().asyncStarted()).andReturn();
+    assertEquals("hello",mvc.perform(asyncDispatch(originalDownload)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    mvc.perform(get(url+"/999999").header("Authorization","Bearer token2")).andExpect(status().isNotFound());
     mvc.perform(post(save)).andExpect(status().isUnauthorized());
     mvc.perform(post(save).header("Authorization","Bearer token3")).andExpect(status().isForbidden());
     String copy=mapper.readTree(mvc.perform(post(save).header("Authorization","Bearer token2").contentType(MediaType.APPLICATION_JSON).content("{\"ownerId\":3}")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("id").asText();
+    String folder=mapper.readTree(mvc.perform(post("/api/files/folder").header("Authorization","Bearer token2").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"聊天转存\",\"parentId\":null}")).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+    String nestedCopy=mapper.readTree(mvc.perform(post(save).header("Authorization","Bearer token2").contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":"+folder+"}")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("id").asText();
+    assertEquals(Long.parseLong(folder),files.findById(Long.parseLong(nestedCopy)).orElseThrow().getParentId());
+    mvc.perform(post(save).header("Authorization","Bearer token1").contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":"+folder+"}")).andExpect(status().isNotFound());
+    mvc.perform(post(save).header("Authorization","Bearer token2").contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":-1}")).andExpect(status().isBadRequest());
     var copied=files.findById(Long.parseLong(copy)).orElseThrow();
     assertEquals(2L,copied.getOwnerId()); assertNull(copied.getParentId());
     assertNotEquals(files.findById(Long.parseLong(id)).orElseThrow().getStorageKey(),copied.getStorageKey());
     assertEquals("hello",new String(blobs.get(copied.getStorageKey())));
     for(String action:List.of("/trash","/trash/delete")) mvc.perform(post("/api/files"+action).header("Authorization","Bearer token1").contentType(MediaType.APPLICATION_JSON).content("{\"ids\":["+id+"]}")).andExpect(status().is2xxSuccessful());
     mvc.perform(post(save).header("Authorization","Bearer token2")).andExpect(status().isNotFound());
+    mvc.perform(get(detail).header("Authorization","Bearer token2")).andExpect(status().isNotFound());
+    mvc.perform(get(detail+"/download").header("Authorization","Bearer token2")).andExpect(status().isNotFound());
     var download=mvc.perform(get("/api/files/"+copy+"/download").header("Authorization","Bearer token2")).andExpect(request().asyncStarted()).andReturn();
     assertEquals("hello",mvc.perform(asyncDispatch(download)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
   }

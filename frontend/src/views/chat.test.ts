@@ -18,17 +18,12 @@ const room={id:'room',name:'测试群',description:'简介',group:true,searchabl
 beforeEach(()=>{vi.clearAllMocks();vi.mocked(api.searchGroups).mockResolvedValue([]);vi.mocked(api.listRooms).mockResolvedValue([room]);vi.mocked(api.getMessages).mockResolvedValue([]);});
 afterEach(()=>vi.useRealTimers());
 describe('聊天页面',()=>{
-  it('文件卡片转存失败可重试，成功后阻止重复点击',async()=>{
+  it('点击文件卡片进入操作页，不直接转存',async()=>{
     vi.mocked(api.getMessages).mockResolvedValue([{id:7,senderId:2,senderName:'Bob',content:'',createdAt:new Date().toISOString(),attachment:{name:'报告.pdf',size:1024}}]);
     const wrapper=mount(Chat); await flushPromises();
-    expect(wrapper.text()).toContain('报告.pdf');
-    vi.mocked(api.saveChatFile).mockRejectedValueOnce(new Error('offline'));
-    await wrapper.find('.chat-file-card').trigger('click'); await flushPromises();
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true);
-    vi.mocked(api.saveChatFile).mockResolvedValue({id:'9',name:'报告.pdf',kind:'file',size:1024,parentId:null,updatedAt:'',deletedAt:null});
-    await wrapper.find('.chat-file-card').trigger('click'); await flushPromises();
-    expect(api.saveChatFile).toHaveBeenCalledWith('room',7); expect(wrapper.text()).toContain('已转存');
-    expect(wrapper.find('.chat-file-card').attributes('disabled')).toBeDefined(); wrapper.unmount();
+    await wrapper.find('.chat-file-card').trigger('click');
+    expect(push).toHaveBeenCalledWith('/chat/room/files/7');
+    expect(api.saveChatFile).not.toHaveBeenCalled(); wrapper.unmount();
   });
   it('云盘文件选择支持目录并发送文件ID',async()=>{
     const file={id:'42',name:'附件.txt',kind:'file' as const,size:5,parentId:'8',updatedAt:'',deletedAt:null};
