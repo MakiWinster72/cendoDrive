@@ -4,6 +4,7 @@ import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.storage.StorageCleanupService;
 import com.cendodrive.index.AiIndexTaskService;
 import org.springframework.mock.web.MockMultipartFile;
 import java.util.List;
@@ -23,10 +24,11 @@ class DriveServiceTest {
     @Mock User user;
     @Mock FileQuotaService quota;
     @Mock AiIndexTaskService indexTasks;
+    @Mock StorageCleanupService storageCleanup;
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, indexTasks);
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, indexTasks, storageCleanup);
         lenient().when(user.getId()).thenReturn(7L);
     }
 

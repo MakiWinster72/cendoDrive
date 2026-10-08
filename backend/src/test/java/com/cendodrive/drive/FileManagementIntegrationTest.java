@@ -2,6 +2,9 @@ package com.cendodrive.drive;
 
 import com.cendodrive.auth.AuthService;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.storage.StorageCleanupTask;
+import com.cendodrive.storage.StorageCleanupTaskRepository;
+import com.cendodrive.storage.StorageCleanupWorker;
 import com.cendodrive.upload.*;
 import com.cendodrive.index.*;
 import com.cendodrive.user.*;
@@ -35,7 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.url=jdbc:h2:mem:filefeatures;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
     "spring.datasource.driver-class-name=org.h2.Driver","spring.datasource.username=sa","spring.datasource.password=",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect","spring.jpa.hibernate.ddl-auto=validate",
-    "spring.flyway.enabled=true","cendo.upload.cleanup-delay-ms=86400000"})
+    "spring.flyway.enabled=true","cendo.upload.cleanup-delay-ms=86400000",
+    "cendo.storage.cleanup-delay-ms=86400000"})
 @AutoConfigureMockMvc
 class FileManagementIntegrationTest {
   static final Path STAGING=staging();
@@ -49,6 +53,8 @@ class FileManagementIntegrationTest {
   @Autowired DriveService drive;
   @Autowired FileQuotaService quota;
   @Autowired AiIndexTaskRepository indexTasks;
+  @Autowired StorageCleanupTaskRepository cleanupTasks;
+  @Autowired StorageCleanupWorker cleanupWorker;
   @Autowired TransactionTemplate transactions;
   @MockBean AuthService auth;
   @MockBean FileStorage storage;
@@ -57,7 +63,7 @@ class FileManagementIntegrationTest {
   Map<String,Long> sizes=new ConcurrentHashMap<>();
 
   @BeforeEach void setup() throws Exception {
-    indexTasks.deleteAllInBatch(); sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
+    cleanupTasks.deleteAllInBatch(); indexTasks.deleteAllInBatch(); sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
     owner=users.saveAndFlush(new User("owner","test-hash","用户一"));
     other=users.saveAndFlush(new User("other","test-hash","用户二"));
     when(auth.authenticate("owner")).thenReturn(owner);
@@ -210,6 +216,7 @@ class FileManagementIntegrationTest {
     call(postJson("/api/files/trash",Map.of("ids",List.of(small))),"owner",200);
     assertEquals(10,usage().path("usedBytes").asLong()); assertEquals(2,usage().path("trashBytes").asLong());
     call(post("/api/files/trash/delete").contentType("application/json").content(json.writeValueAsString(Map.of("ids",List.of(small)))),"owner",204);
+    cleanupWorker.cleanup();
     assertEquals(8,usage().path("usedBytes").asLong()); assertEquals(8,users.findById(owner.getId()).orElseThrow().getStorageUsed());
     call(postJson("/api/files/hidden",Map.of("ids",List.of(file),"value",false)),"owner",200);
     assertEquals(1,call(get("/api/files/favorites"),"owner",200).size());
@@ -230,6 +237,9 @@ class FileManagementIntegrationTest {
     call(post("/api/files/trash/delete").contentType("application/json").content(json.writeValueAsString(Map.of("ids",List.of(parent)))),"owner",204);
     assertEquals(AiIndexTask.Operation.DELETE,indexTasks.findAll().getLast().getOperation());
     assertEquals(3,indexTasks.findAll().getLast().getRevision());
+    assertEquals(1,cleanupTasks.count()); assertFalse(sizes.isEmpty());
+    cleanupWorker.cleanup();
+    assertEquals(StorageCleanupTask.Status.SUCCEEDED,cleanupTasks.findAll().getFirst().getStatus());
     assertEquals(0,files.count()); assertTrue(sizes.isEmpty()); assertEquals(0,usage().path("usedBytes").asLong());
   }
 
@@ -247,6 +257,27 @@ class FileManagementIntegrationTest {
     assertEquals(0,files.findById(copied).orElseThrow().getIndexRevision());
   }
 
+  @Test void failedPhysicalDeleteIsRecordedAndRetried() throws Exception {
+    long file=upload("cleanup.txt","content".getBytes(),null,201).path("id").asLong();
+    String key=files.findById(file).orElseThrow().getStorageKey();
+    call(postJson("/api/files/trash",Map.of("ids",List.of(file))),"owner",200);
+    call(post("/api/files/trash/delete").contentType("application/json")
+        .content(json.writeValueAsString(Map.of("ids",List.of(file)))),"owner",204);
+    assertEquals(0,files.count()); assertTrue(sizes.containsKey(key));
+    doThrow(new IOException("FastDFS temporarily offline")).doAnswer(call -> {
+      blobs.remove(key); sizes.remove(key); return null;
+    }).when(storage).delete(key);
+    cleanupWorker.cleanup();
+    StorageCleanupTask task=cleanupTasks.findAll().getFirst();
+    assertEquals(StorageCleanupTask.Status.RETRY,task.getStatus()); assertEquals(1,task.getAttempts());
+    assertTrue(task.getLastError().contains("temporarily offline")); assertTrue(sizes.containsKey(key));
+    ReflectionTestUtils.setField(task,"nextAttemptAt",LocalDateTime.now(Clock.systemUTC()).minusSeconds(1));
+    cleanupTasks.saveAndFlush(task);
+    cleanupWorker.cleanup();
+    assertEquals(StorageCleanupTask.Status.SUCCEEDED,cleanupTasks.findById(task.getId()).orElseThrow().getStatus());
+    assertFalse(sizes.containsKey(key)); verify(storage,times(2)).delete(key);
+  }
+
   @Test void recursiveCopyPreservesHiddenFlagsButUsesIndependentContentAndQuota() throws Exception {
     long parent=folder("source",null); long child=folder("child",parent);
     long file=upload("hello.txt","hello".getBytes(),child,201).path("id").asLong();
@@ -261,6 +292,7 @@ class FileManagementIntegrationTest {
     call(postJson("/api/files/copy",target(List.of(parent),child)),"owner",400);
     call(postJson("/api/files/trash",Map.of("ids",List.of(parent))),"owner",200);
     call(post("/api/files/trash/delete").contentType("application/json").content(json.writeValueAsString(Map.of("ids",List.of(parent)))),"owner",204);
+    cleanupWorker.cleanup();
     download(copiedFile.path("id").asText(),"hello".getBytes()); assertEquals(5,usage().path("usedBytes").asLong());
     JsonNode details=call(get("/api/files/"+copied.get(0).path("id").asText()+"/details"),"owner",200);
     assertEquals(5,details.path("contentSize").asLong()); assertEquals(1,details.path("fileCount").asLong());

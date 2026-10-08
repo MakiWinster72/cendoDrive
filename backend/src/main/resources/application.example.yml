@@ -23,6 +23,7 @@ cendo:
   storage:
     root: ${CENDO_STORAGE_ROOT:./storage}
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
+    cleanup-delay-ms: ${CENDO_STORAGE_CLEANUP_DELAY_MS:30000}
   upload:
     root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
     ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}

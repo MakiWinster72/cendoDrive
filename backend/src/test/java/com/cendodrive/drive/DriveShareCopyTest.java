@@ -2,6 +2,7 @@ package com.cendodrive.drive;
 
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.storage.StorageCleanupService;
 import com.cendodrive.index.AiIndexTaskService;
 import com.cendodrive.user.User;
 import java.io.*;
@@ -23,11 +24,12 @@ class DriveShareCopyTest {
   @Mock User recipient;
   @Mock FileQuotaService quota;
   @Mock AiIndexTaskService indexTasks;
+  @Mock StorageCleanupService storageCleanup;
   DriveService drive;
   DriveFile original;
 
   @BeforeEach void setup() {
-    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test", quota, indexTasks);
+    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test", quota, indexTasks, storageCleanup);
     lenient().when(quota.check(eq(recipient), anyLong(), isNull())).thenReturn(recipient);
     lenient().when(owner.getId()).thenReturn(7L);
     lenient().when(recipient.getId()).thenReturn(8L);

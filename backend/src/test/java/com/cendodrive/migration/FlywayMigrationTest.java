@@ -21,7 +21,7 @@ class FlywayMigrationTest {
 
   @Test void freshDatabaseAppliesAllMigrations() {
     Flyway flyway = current(databaseUrl());
-    assertEquals(10, flyway.migrate().migrationsExecuted);
+    assertEquals(11, flyway.migrate().migrationsExecuted);
     assertTrue(flyway.validateWithResult().validationSuccessful);
     assertEquals(Integer.valueOf(-1727441758), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("5").equals(migration.getVersion()))
@@ -48,9 +48,9 @@ class FlywayMigrationTest {
           + "VALUES (1, 42, 'historical-share', '保留文件.txt', 123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
     Flyway flyway = current(url);
-    assertEquals(2, flyway.migrate().migrationsExecuted);
+    assertEquals(3, flyway.migrate().migrationsExecuted);
     assertDoesNotThrow(flyway::validate);
-    assertEquals(MigrationVersion.fromVersion("10"), flyway.info().current().getVersion());
+    assertEquals(MigrationVersion.fromVersion("11"), flyway.info().current().getVersion());
     assertEquals(Integer.valueOf(-267370802), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("8").equals(migration.getVersion()))
         .findFirst().orElseThrow().getChecksum());
