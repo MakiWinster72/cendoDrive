@@ -31,6 +31,7 @@ class ShareServiceTest {
   @BeforeEach void setup() {
     service = new ShareService(links, access, drive, users, Clock.fixed(NOW, ZoneOffset.UTC));
     lenient().when(owner.getId()).thenReturn(7L);
+    lenient().when(owner.isActive()).thenReturn(true);
   }
 
   ShareLink link(long seconds) {
