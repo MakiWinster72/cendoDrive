@@ -67,6 +67,8 @@ import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import TransferPage from "../components/TransferPage.vue";
 import FilePreview from "../components/FilePreview.vue";
+import FileSearchPanel from "../components/FileSearchPanel.vue";
+import type { FileSearchHit, SearchType } from "../api/drive";
 import FileTools from "../components/FileTools.vue";
 import InlineNameEditor from "../components/InlineNameEditor.vue";
 import { useNameEdit } from "../components/useNameEdit";
@@ -107,6 +109,8 @@ const router = useRouter(),
 const view = ref<"list" | "grid">("list"),
   mode = ref<Mode>("all"),
   currentFolder = ref<string | null>(null);
+const navigationFolders = ref<DriveItem[]>([]);
+function navigationFolder(id: string) { return drive.get(id) ?? navigationFolders.value.find(item => item.id === id); }
 const keyword = ref(""),
   checked = ref<string[]>([]),
   menuOpen = ref(false),
@@ -130,12 +134,16 @@ async function toolsChanged(message: string) {
   else await changeMode(mode.value);
 }
 
+const serverSearchEnabled = computed(() => ["all", "image", "video", "doc", "audio", "other"].includes(mode.value));
+const searchActive = computed(() => serverSearchEnabled.value && !!keyword.value.trim());
+const searchType = computed<SearchType>(() => mode.value === "all" ? "all" : ["image", "video", "doc", "audio", "other"].includes(mode.value) ? mode.value as SearchType : "all");
 const sortBy = ref<"name" | "time" | "size">("time"),
   notice = ref(""),
   unavailableMessage = ref(""),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
 function openTransfers() {
   folderMenuOpen.value = false;
@@ -214,7 +222,7 @@ const modeNames: Record<Mode, string> = {
 };
 const title = computed(() =>
   currentFolder.value
-    ? drive.get(currentFolder.value)?.name || "文件夹"
+    ? navigationFolder(currentFolder.value)?.name || "文件夹"
     : modeNames[mode.value],
 );
 const folderMenuOpen = ref(false);
@@ -224,7 +232,7 @@ const folderCrumbs = computed(() => {
   let id = currentFolder.value;
   while (id && !seen.has(id)) {
     seen.add(id);
-    const folder = drive.get(id);
+    const folder = navigationFolder(id);
     if (!folder) break;
     crumbs.unshift(folder);
     id = folder.parentId;
@@ -275,7 +283,7 @@ const filteredFiles = computed(() => {
     );
   }
   items = items.filter((item) =>
-    item.name.toLowerCase().includes(keyword.value.toLowerCase()) &&
+    item.name.toLowerCase().includes(keyword.value.trim().toLowerCase()) &&
     (mode.value === "trash" || !drive.isDeleted(item)) &&
     (mode.value === "trash" || mode.value === "hidden" ||
       (mode.value === "all" && currentFolder.value && drive.get(currentFolder.value) && drive.isHidden(drive.get(currentFolder.value)!)) || !drive.isHidden(item)),
@@ -340,6 +348,19 @@ async function loadFolder(parentId: string | null) {
     alert(drive.state.error);
   }
 }
+async function openSearchHit(hit: FileSearchHit, locate = false) {
+  if (drive.state.loading || nameSaving.value) return;
+  if (!locate && hit.file.kind === "file") { previewTarget.value = hit.file; return; }
+  const target = locate ? hit.file.parentId : hit.file.id;
+  const query = keyword.value;
+  try {
+    await drive.load(target);
+    if (keyword.value !== query) return;
+    navigationFolders.value = [...hit.ancestors, ...(hit.file.kind === "folder" ? [hit.file] : [])];
+    cancelName(); checked.value = []; folderMenuOpen.value = false;
+    mode.value = "all"; currentFolder.value = target; keyword.value = ""; mobileTab.value = "files";
+  } catch { alert(drive.state.error); }
+}
 async function openItem(item: DriveItem) {
   if (mode.value === "trash" || drive.state.loading || nameSaving.value) return;
   if (item.kind === "folder") {
@@ -358,7 +379,7 @@ async function navigateFolder(parentId: string | null) {
   await loadFolder(parentId);
 }
 async function goParent() {
-  await navigateFolder(currentFolder.value ? drive.get(currentFolder.value)?.parentId ?? null : null);
+  await navigateFolder(currentFolder.value ? navigationFolder(currentFolder.value)?.parentId ?? null : null);
 }
 async function goRoot() {
   await navigateFolder(null);
@@ -784,7 +805,7 @@ onUnmounted(() => {
     <template v-else-if="mobileTab === 'files'">
       <header v-if="currentFolder && !checked.length" class="m-folder-head" @keydown.esc="folderMenuOpen = false">
         <button type="button" aria-label="返回上一级" :disabled="drive.state.loading || nameSaving" @click="goParent"><ChevronLeft :size="24" /></button>
-        <label class="m-folder-search"><Search :size="21" /><input v-model="keyword" aria-label="搜索当前文件夹" placeholder="支持文档全文、图中文字搜索啦" /></label>
+        <label class="m-folder-search"><Search :size="21" /><input v-model="keyword" aria-label="搜索当前文件夹" placeholder="按文件名搜索" maxlength="100" /></label>
         <button type="button" class="m-transfer-button" aria-label="传输列表" @click="openTransfers"><ArrowDownUp :size="16" /></button>
         <button type="button" aria-label="文件夹更多操作" :aria-expanded="folderMenuOpen" aria-controls="folder-menu" @click="folderMenuOpen = !folderMenuOpen"><MoreHorizontal :size="25" /></button>
         <div v-if="folderMenuOpen" id="folder-menu" class="m-folder-menu" @keydown.esc="folderMenuOpen = false">
@@ -824,7 +845,7 @@ onUnmounted(() => {
       <div v-if="!currentFolder" class="m-search">
         <Search :size="19" /><input
           v-model="keyword"
-          placeholder="搜索网盘文件"
+          :placeholder="serverSearchEnabled ? '按文件名搜索全网盘' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
         />
       </div>
       <div v-if="mode === 'trash'" class="m-trash-actions">
@@ -864,7 +885,8 @@ onUnmounted(() => {
       </div>
       <p v-if="!currentFolder && drive.state.usage" class="m-capacity">已用 {{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }} · 可用 {{ formatBytes(drive.state.usage.availableBytes) }}</p>
       <p v-if="!currentFolder && drive.state.usageError" class="m-capacity" role="alert">{{ drive.state.usageError }} <button @click="drive.loadUsage">重试</button></p>
-      <div class="m-file-list" :class="{ 'm-folder-files': currentFolder, 'is-grid': currentFolder && view === 'grid' }">
+      <FileSearchPanel v-if="searchActive && mobileViewport" :query="keyword" :parent-id="currentFolder" :initial-type="searchType" :sort="sortBy" :busy="drive.state.loading || nameSaving" @open="openSearchHit" @locate="openSearchHit($event, true)" @clear="keyword = ''" />
+      <div v-if="!searchActive" class="m-file-list" :class="{ 'm-folder-files': currentFolder, 'is-grid': currentFolder && view === 'grid' }">
         <div v-if="nameEdit?.kind === 'create' && nameEdit.parentId === currentFolder && mode === 'all'" class="m-file-row is-editing draft-folder-row"><span class="m-folder"><FolderGlyph v-if="currentFolder" /><Folder v-else /></span><div><InlineNameEditor v-if="mobileViewport" v-model="nameEdit.name" :saving="nameSaving" :error="nameError" creating @save="saveName" @cancel="cancelName" /></div></div>
         <div
           v-for="item in filteredFiles"
@@ -1144,7 +1166,7 @@ onUnmounted(() => {
         <div class="search">
           <Search :size="18" /><input
             v-model="keyword"
-            placeholder="搜索我的文件"
+            :placeholder="serverSearchEnabled ? '按文件名搜索' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
           /><kbd>⌘ K</kbd>
         </div>
         <div class="top-actions">
@@ -1168,7 +1190,7 @@ onUnmounted(() => {
         <div class="content-title">
           <div>
             <h1>{{ title }}</h1>
-            <p>共 {{ filteredFiles.length }} 个项目</p>
+            <p>{{ searchActive ? "按文件名搜索" : `共 ${filteredFiles.length} 个项目` }}</p>
           </div>
           <select v-model="sortBy" class="sort-select">
             <option value="time">按时间排序</option>
@@ -1189,6 +1211,8 @@ onUnmounted(() => {
           @cancel="cancelShareRecord"
         />
         <template v-else>
+          <FileSearchPanel v-if="searchActive && !mobileViewport" :query="keyword" :parent-id="currentFolder" :initial-type="searchType" :sort="sortBy" :busy="drive.state.loading || nameSaving" @open="openSearchHit" @locate="openSearchHit($event, true)" @clear="keyword = ''" />
+          <template v-if="!searchActive">
           <div class="toolbar">
             <div v-if="mode !== 'trash'" class="tool-left">
               <button @click="chooseFiles"><Upload :size="17" />上传</button
@@ -1331,6 +1355,7 @@ onUnmounted(() => {
               ><input v-model="checked" type="checkbox" :value="item.id" />
             </article>
           </div>
+          </template>
         </template>
       </section>
     </main>
