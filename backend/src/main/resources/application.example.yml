@@ -26,6 +26,8 @@ cendo:
   upload:
     root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
     ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
+  user:
+    cleanup-delay-ms: ${CENDO_ACCOUNT_CLEANUP_DELAY_MS:3600000}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}

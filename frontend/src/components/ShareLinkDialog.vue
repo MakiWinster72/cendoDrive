@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { Check, Copy, Link2, X } from "@lucide/vue";
-import type { ShareRecord } from "../api/shares";
+import { shareClipboardText, type ShareRecord } from "../api/shares";
 
 const props = defineProps<{ share: ShareRecord | null }>();
 const emit = defineEmits<{ close: [] }>();
@@ -25,9 +25,9 @@ watch(
 );
 
 async function copyLink() {
-  if (!active.value) return;
+  if (!props.share || !active.value) return;
   try {
-    await navigator.clipboard.writeText(link.value);
+    await navigator.clipboard.writeText(shareClipboardText(props.share, window.location.origin));
     copied.value = true;
   } catch {
     copied.value = false;
@@ -81,6 +81,9 @@ async function copyLink() {
           }}
         </button>
       </div>
+      <p v-if="share.hasExtractionCode" class="share-dialog-code">
+        {{ share.extractionCode ? `提取码：${share.extractionCode}` : '已设置提取码；为安全起见不再回显，请使用创建时保存的提取码。' }}
+      </p>
       <p class="share-dialog-expiry">
         有效期至
         {{
@@ -141,8 +144,8 @@ async function copyLink() {
 .share-dialog-close {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 9px;
   background: #f3f6fb;
@@ -165,7 +168,7 @@ async function copyLink() {
 .share-link-value input {
   min-width: 0;
   flex: 1;
-  height: 42px;
+  height: 44px;
   padding: 0 11px;
   border: 1px solid #dce4f1;
   border-radius: 8px;
@@ -178,7 +181,7 @@ async function copyLink() {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 42px;
+  height: 44px;
   padding: 0 13px;
   border: 0;
   border-radius: 8px;
@@ -187,6 +190,7 @@ async function copyLink() {
   font-weight: 650;
   white-space: nowrap;
 }
+.share-dialog-code { color: #33415b; font-size: 13px; overflow-wrap: anywhere; }
 .share-dialog-expiry {
   margin: 12px 0 0;
 }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuth } from "../stores/auth";
 import {
   Download,
   CloudDownload,
   LoaderCircle,
+  LockKeyhole,
 } from "@lucide/vue";
 import { iconForFile } from "../components/fileIcon";
 import BrandLogo from "../components/BrandLogo.vue";
@@ -15,6 +16,8 @@ import {
   getPublicShare,
   saveSharedFile,
   shareErrorMessage,
+  requiresShareCode,
+  isShareUnavailable,
   type ShareAccessResponse,
 } from "../api/shares";
 
@@ -30,6 +33,8 @@ const saved = ref(false);
 let loadVersion = 0;
 let loadController: AbortController | undefined;
 const error = ref("");
+const needsCode = ref(false), code = ref("");
+const codeInput = ref<HTMLInputElement | null>(null);
 const file = computed(() => access.value?.file ?? null);
 
 async function loadShare() {
@@ -41,11 +46,14 @@ async function loadShare() {
   access.value = null;
   saved.value = false;
   try {
-    const result = await getPublicShare(token.value, loadController.signal);
+    const result = await getPublicShare(token.value, loadController.signal, code.value || undefined);
     if (version === loadVersion) access.value = result;
   } catch (reason) {
-    if (version === loadVersion)
-      error.value = shareErrorMessage(reason, "分享链接不存在、已过期或已取消");
+    if (version === loadVersion) {
+      const required = requiresShareCode(reason);
+      needsCode.value = required || (needsCode.value && !isShareUnavailable(reason));
+      error.value = required && !code.value ? "" : shareErrorMessage(reason, "分享链接不存在、已过期或已取消");
+    }
   } finally {
     if (version === loadVersion) loading.value = false;
   }
@@ -57,7 +65,7 @@ async function download() {
   downloading.value = true;
   error.value = "";
   try {
-    await downloadPublicShare(requestedToken, file.value.name);
+    await downloadPublicShare(requestedToken, file.value.name, code.value || undefined);
   } catch (reason) {
     if (requestedToken === token.value)
       error.value = shareErrorMessage(reason, "下载失败，请稍后重试");
@@ -80,7 +88,8 @@ async function save() {
       await router.push({ name: "login", query: { redirect: route.fullPath } });
       return;
     }
-    await saveSharedFile(requestedToken);
+    if (requestedToken !== token.value) return;
+    await saveSharedFile(requestedToken, null, code.value || undefined);
     if (requestedToken === token.value) saved.value = true;
   } catch (reason) {
     if (requestedToken === token.value)
@@ -90,10 +99,14 @@ async function save() {
   }
 }
 
-watch(token, () => { void loadShare(); }, { immediate: true });
+watch(token, () => { code.value = ""; needsCode.value = false; void loadShare(); }, { immediate: true });
+watch([loading, needsCode], async () => {
+  if (!loading.value && needsCode.value && !access.value) { await nextTick(); codeInput.value?.focus(); }
+});
 onUnmounted(() => {
   loadVersion++;
   loadController?.abort();
+  code.value = "";
 });
 </script>
 
@@ -106,6 +119,16 @@ onUnmounted(() => {
         <h1>正在验证分享链接</h1>
         <p>请稍候…</p></template
       >
+      <template v-else-if="needsCode && !access">
+        <LockKeyhole :size="48" /><h1>请输入提取码</h1>
+        <p>此分享已设置提取码，区分大小写。</p>
+        <form class="share-code-form" @submit.prevent="loadShare">
+          <label for="public-share-code">提取码</label>
+          <input id="public-share-code" ref="codeInput" v-model="code" minlength="4" maxlength="16" pattern="[A-Za-z0-9]{4,16}" autocomplete="off" spellcheck="false" required>
+          <button class="download" type="submit">验证提取码</button>
+        </form>
+        <small v-if="error" class="share-error" role="alert">{{ error }}</small>
+      </template>
       <template v-else-if="!access"
         ><div class="status-icon">!</div>
         <h1>分享不可用</h1>
@@ -160,6 +183,11 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.share-code-form { width: 100%; display: grid; gap: 12px; text-align: left; }
+.share-code-form label { font-size: 14px; color: #33415b; }
+.share-code-form input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid #dce4f1; border-radius: 9px; font: inherit; }
+.share-code-form .download { width: 100%; margin: 4px 0 0; }
+.share-code-form :focus-visible { outline: 2px solid #316cff; outline-offset: 3px; }
 .share-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #eef4ff, #f9fbff);

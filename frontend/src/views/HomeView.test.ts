@@ -6,9 +6,15 @@ import * as api from "../api/drive";
 import { getHomeContent, getSplashAd } from "../api/content";
 import { useDrive, type DriveItem } from "../stores/drive";
 const routerPush = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn(), push: routerPush }) }));
+const routerReplace = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ replace: routerReplace, push: routerPush }) }));
 vi.mock("../api/content", () => ({ getHomeContent: vi.fn(), getSplashAd: vi.fn() }));
-vi.mock("../stores/auth", () => ({ useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
+import { getProfile } from "../api/users";
+import { createShare } from "../api/shares";
+vi.mock("../api/shares", async original => ({ ...await original<typeof import("../api/shares")>(), createShare: vi.fn() }));
+vi.mock("../api/users", async original => ({ ...(await original<typeof import("../api/users")>()), getProfile: vi.fn() }));
+const invalidateSession = vi.hoisted(() => vi.fn());
+vi.mock("../stores/auth", () => ({ invalidateSession, useAuth: () => ({ user: { value: { username: "测试用户" } }, logout: vi.fn() }) }));
 vi.mock("../api/drive", async importOriginal => ({ ...(await importOriginal<typeof api>()), searchFiles: vi.fn(), downloadFile: vi.fn(), renameFile: vi.fn(), createFolder: vi.fn(), listFiles: vi.fn(), listTrash: vi.fn(), listFavorites: vi.fn(), listHidden: vi.fn(), trashFiles: vi.fn(), getUsage: vi.fn() }));
 const file: DriveItem = { id: "42", name: "说明.txt", kind: "file", size: 1024, parentId: null, updatedAt: "2026-01-01", deletedAt: null };
 const wrappers: ReturnType<typeof mount>[] = [];
@@ -27,11 +33,47 @@ beforeEach(() => {
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
   vi.mocked(getHomeContent).mockRejectedValue(new Error("内容接口未接入")); vi.mocked(getSplashAd).mockResolvedValue(null);
+  vi.mocked(getProfile).mockResolvedValue({ id: "1", username: "tester", nickname: "测试用户", hasAvatar: false });
+
   vi.mocked(api.searchFiles).mockResolvedValue({ items: [], total: 0, page: 0, size: 20 });
   vi.mocked(api.listFiles).mockResolvedValue([file]); vi.mocked(api.listTrash).mockResolvedValue([]); vi.mocked(api.listFavorites).mockResolvedValue([{ ...file, favorite: true }]); vi.mocked(api.listHidden).mockResolvedValue([{ ...file, hidden: true }]); vi.mocked(api.trashFiles).mockResolvedValue([{ ...file, deletedAt: "today" }]);
   vi.mocked(api.getUsage).mockResolvedValue({ usedBytes: 1024, limitBytes: 2048, availableBytes: 1024, trashBytes: 0, reservedBytes: 0 });
 });
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.unstubAllGlobals(); });
+describe("share creation integration", () => {
+  it("opens settings without creating a link, then keeps the confirmed code only in current state", async () => {
+    vi.mocked(createShare).mockResolvedValue({ id: "51", token: "opaque", fileId: file.id, fileName: file.name, kind: "file", size: file.size, createdAt: "2026-10-08", expiresAt: "2030-01-01", status: "ACTIVE", hasExtractionCode: true });
+    const wrapper = await open();
+    await wrapper.get('.m-file-row input[type="checkbox"]').setValue(true);
+    await wrapper.findAll(".m-selection-actions button").find(button => button.text() === "分享")!.trigger("click");
+    expect(createShare).not.toHaveBeenCalled(); expect(wrapper.get("#share-settings-title").text()).toBe("分享设置");
+    await wrapper.get(".share-settings [type=checkbox]").setValue(true);
+    await wrapper.get("#share-extraction-code").setValue("Ab12");
+    await wrapper.get(".share-settings form").trigger("submit"); await flushPromises();
+    expect(createShare).toHaveBeenCalledWith(file.id, 604800, "Ab12");
+    expect(wrapper.find(".share-settings").exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "ShareLinkDialog" }).props("share").extractionCode).toBe("Ab12");
+    expect(useDrive().state.shares[0]?.extractionCode).toBe("Ab12");
+    useDrive().reset(); expect(useDrive().state.shares).toEqual([]);
+  });
+});
+
+describe("account page integration", () => {
+  it.each([390,1280])("opens and returns from account management at width %s", async width => {
+    window.innerWidth=width; const wrapper=await open();
+    if (width<768) await wrapper.findAll(".mobile-app nav button").find(button=>button.text()==="我的")!.trigger("click");
+    await wrapper.find(width<768 ? '.profile-avatar[aria-label="账号管理"]' : '.top-actions button[aria-label="账号管理"]').trigger("click");
+    await flushPromises(); expect(wrapper.find(".account-page h1").text()).toBe("账号管理");
+    await wrapper.find('.account-page button[aria-label="返回文件"]').trigger("click"); expect(wrapper.find(".account-page").exists()).toBe(false);
+    expect(useDrive().state.files).toHaveLength(1);
+  });
+  it.each(["password","deletion"] as const)("clears private file state and routes to login after %s",async reason=>{
+    const wrapper=await open();await wrapper.findAll(".mobile-app nav button").find(button=>button.text()==="我的")!.trigger("click");await wrapper.find('.profile-avatar').trigger("click");await flushPromises();
+    wrapper.findComponent({name:"AccountPage"}).vm.$emit("signedOut",reason,"2026-10-08T12:00:00Z");await flushPromises();
+    expect(invalidateSession).toHaveBeenCalledTimes(1);expect(useDrive().state.files).toEqual([]);
+    expect(routerReplace).toHaveBeenCalledWith({name:"login",query:reason==="password" ? {passwordChanged:"1"} : {accountDeleted:"1",purgeAfter:"2026-10-08T12:00:00Z"}});
+  });
+});
 describe("folder navigation and screenshot layout", () => {
   it("keeps the three reference actions connected to sign-in, transfers, and upload", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });

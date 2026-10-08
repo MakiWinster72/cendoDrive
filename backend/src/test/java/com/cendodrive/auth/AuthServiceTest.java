@@ -47,7 +47,7 @@ class AuthServiceTest {
         when(redis.opsForValue()).thenReturn(values);
         var result = service.login(new LoginRequest("Maki", "password123"));
         assertEquals(86400, result.expiresInSeconds());
-        verify(values).set(startsWith("session:"), eq("42"), eq(java.time.Duration.ofDays(1)));
+        verify(values).set(startsWith("session:"), eq("42:0"), eq(java.time.Duration.ofDays(1)));
         verify(limiter).check("maki");
         verify(limiter).success("maki");
         service.logout(result.token());

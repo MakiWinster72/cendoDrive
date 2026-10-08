@@ -14,6 +14,14 @@ export interface ShareRecord {
   createdAt: string;
   expiresAt: string;
   status: ShareStatus;
+  hasExtractionCode?: boolean;
+  // Kept only in the current owner's memory, never returned by the list endpoint.
+  extractionCode?: string;
+}
+
+export function shareClipboardText(share: ShareRecord, origin: string): string {
+  const link = `${origin}/share/${encodeURIComponent(share.token)}`;
+  return share.extractionCode ? `${link}\n提取码：${share.extractionCode}` : link;
 }
 
 export interface ShareAccessResponse {
@@ -36,10 +44,12 @@ const publicHttp = axios.create({
 export async function createShare(
   fileId: string,
   expiresInSeconds: number,
+  extractionCode?: string,
 ): Promise<ShareRecord> {
   const { data } = await http.post<ShareRecord>("/shares", {
     fileId,
     expiresInSeconds,
+    ...(extractionCode ? { extractionCode } : {}),
   });
   return data;
 }
@@ -56,11 +66,12 @@ export async function cancelShare(shareId: string): Promise<void> {
 export async function saveSharedFile(
   token: string,
   parentId: string | null = null,
+  extractionCode?: string,
 ): Promise<DriveItemResponse> {
   const { data } = await http.post<DriveItemResponse>(
     `/shares/${encodeURIComponent(token)}/save`,
     { parentId },
-    { timeout: 0 },
+    { timeout: 0, ...codeHeaders(extractionCode) },
   );
   return data;
 }
@@ -68,10 +79,11 @@ export async function saveSharedFile(
 export async function getPublicShare(
   token: string,
   signal?: AbortSignal,
+  extractionCode?: string,
 ): Promise<ShareAccessResponse> {
   const { data } = await publicHttp.get<ShareAccessResponse>(
     `/shares/${encodeURIComponent(token)}`,
-    { signal },
+    { signal, ...codeHeaders(extractionCode) },
   );
   return data;
 }
@@ -79,10 +91,11 @@ export async function getPublicShare(
 export async function downloadPublicShare(
   token: string,
   fallbackName: string,
+  extractionCode?: string,
 ): Promise<void> {
   const response = await publicHttp.get<Blob>(
     `/shares/${encodeURIComponent(token)}/download`,
-    { responseType: "blob", timeout: 0 },
+    { responseType: "blob", timeout: 0, ...codeHeaders(extractionCode) },
   ).catch(async (error: unknown) => {
     // Axios returns JSON error responses as Blob when responseType is blob.
     if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
@@ -108,11 +121,30 @@ export async function downloadPublicShare(
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+function codeHeaders(code?: string) {
+  return code ? { headers: { "X-Share-Code": code } } : {};
+}
+
+export function requiresShareCode(error: unknown): boolean {
+  return axios.isAxiosError<ShareApiError>(error) &&
+    ["SHARE_CODE_REQUIRED", "SHARE_CODE_INVALID"].includes(error.response?.data?.code || "");
+}
+
+export function isShareUnavailable(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
 export function shareErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError<ShareApiError>(error))
     return error instanceof Error ? error.message : fallback;
   if (!error.response) return "网络连接失败，请检查后端服务";
   switch (error.response.data?.code) {
+    case "SHARE_CODE_REQUIRED":
+      return "请输入提取码以访问分享";
+    case "SHARE_CODE_INVALID":
+      return "提取码不正确，请注意大小写";
+    case "RATE_LIMITED":
+      return "提取码尝试次数过多，请 15 分钟后重试";
     case "FILE_NOT_FOUND":
       return "文件不存在或无权分享";
     case "SHARE_NOT_FOUND":

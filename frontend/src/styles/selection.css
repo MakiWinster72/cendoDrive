@@ -26,8 +26,8 @@
   }
   .m-file-row.selected {
     background: #f4f6fa;
-    margin: 0 -22px;
-    padding: 0 22px;
+    margin: 0 calc(-1 * var(--mobile-gutter, 18px));
+    padding: 0 var(--mobile-gutter, 18px);
   }
   .m-file-row input:checked {
     background: #398ff5;

@@ -29,11 +29,11 @@ class ShareSecurityTest {
       "2026-10-01T12:00:00Z", null);
 
   @Test void anonymousCanReadAndDownloadButCannotManageOrSave() throws Exception {
-    when(shares.get(TOKEN)).thenReturn(new ShareDtos.ShareAccessResponse(FILE, "2026-10-02T12:00:00Z"));
+    when(shares.get(TOKEN, null, "127.0.0.1")).thenReturn(new ShareDtos.ShareAccessResponse(FILE, "2026-10-02T12:00:00Z"));
     mvc.perform(get("/api/shares/" + TOKEN)).andExpect(status().isOk())
         .andExpect(jsonPath("$.file.name").value("你好.txt"))
         .andExpect(header().string("Cache-Control", "no-store"));
-    when(shares.download(TOKEN)).thenReturn(new DriveService.Download("你好.txt", out -> out.write("hello".getBytes()), 5));
+    when(shares.download(TOKEN, null, "127.0.0.1")).thenReturn(new DriveService.Download("你好.txt", out -> out.write("hello".getBytes()), 5));
     var download = mvc.perform(get("/api/shares/" + TOKEN + "/download"))
         .andExpect(request().asyncStarted()).andReturn();
     mvc.perform(asyncDispatch(download)).andExpect(status().isOk()).andExpect(content().string("hello"))
@@ -49,11 +49,24 @@ class ShareSecurityTest {
   @Test void authenticatedSaveUsesBearerRecipientAndDestination() throws Exception {
     User recipient = mock(User.class);
     when(auth.authenticate("recipient-token")).thenReturn(recipient);
-    when(shares.save(recipient, TOKEN, new ShareDtos.SaveShareRequest(12L))).thenReturn(FILE);
+    when(shares.save(recipient, TOKEN, new ShareDtos.SaveShareRequest(12L), null, "127.0.0.1")).thenReturn(FILE);
     mvc.perform(post("/api/shares/" + TOKEN + "/save").header("Authorization", "Bearer recipient-token")
         .contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":12}"))
         .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value("42"));
-    verify(shares).save(recipient, TOKEN, new ShareDtos.SaveShareRequest(12L));
+    verify(shares).save(recipient, TOKEN, new ShareDtos.SaveShareRequest(12L), null, "127.0.0.1");
+  }
+
+  @Test void extractionCodeIsForwardedOnMetadataDownloadAndSave() throws Exception {
+    when(shares.get(TOKEN, "A1b2", "127.0.0.1")).thenReturn(new ShareDtos.ShareAccessResponse(FILE, "2026-10-02T12:00:00Z"));
+    mvc.perform(get("/api/shares/" + TOKEN).header("X-Share-Code", "A1b2")).andExpect(status().isOk());
+    when(shares.download(TOKEN, "A1b2", "127.0.0.1")).thenReturn(new DriveService.Download("hello.txt", out -> out.write("hello".getBytes()), 5));
+    var stream = mvc.perform(get("/api/shares/" + TOKEN + "/download").header("X-Share-Code", "A1b2")).andReturn();
+    mvc.perform(asyncDispatch(stream)).andExpect(status().isOk());
+    User user = mock(User.class); when(auth.authenticate("owner-token")).thenReturn(user);
+    when(shares.save(user, TOKEN, new ShareDtos.SaveShareRequest(null), "A1b2", "127.0.0.1")).thenReturn(FILE);
+    mvc.perform(post("/api/shares/" + TOKEN + "/save").header("Authorization", "Bearer owner-token").header("X-Share-Code", "A1b2")
+        .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isCreated());
+    verify(shares).save(user, TOKEN, new ShareDtos.SaveShareRequest(null), "A1b2", "127.0.0.1");
   }
 
   @Test void authenticatedListIsBoundToBearerPrincipal() throws Exception {
