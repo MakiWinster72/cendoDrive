@@ -33,7 +33,9 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 
 私聊和群聊支持文本与文件消息。`POST /api/chat/rooms/{room}/files` 接收 `{"fileId":"42"}`，仅允许成员发送本人有效的普通云盘文件，不支持文件夹或隐藏/回收站文件。本地文件使用已有上传接口先上传到发送者云盘根目录，再发送文件消息；发送失败可重试已上传文件，不会重复上传。
 
-`GET /api/chat/rooms/{room}/messages` 的文件消息附带 `attachment: {name, size}`。成员通过 `POST /api/chat/rooms/{room}/files/{messageId}/save` 转存到自己的云盘根目录。服务端从该聊天的消息解析发送者及源文件，不接受客户端指定所有者；转存执行容量、同名冲突和源文件有效性检查，并复制为独立存储。源文件失效后不能再转存，但已经转存的副本不受影响。新加入的群成员可以转存可见历史消息中的文件。
+`GET /api/chat/rooms/{room}/messages` 的文件消息附带 `attachment: {name, size}`。成员通过 `GET /api/chat/rooms/{room}/files/{messageId}` 获取可操作文件摘要，通过同路径的 `/download` 获取预览或下载内容；两个读取接口均禁止缓存，校验聊天成员、消息归属和源文件状态，不暴露发送者私有目录。
+
+成员通过 `POST /api/chat/rooms/{room}/files/{messageId}/save` 转存，传入 `{"parentId":"8"}` 选择自己的目录；省略请求体或传入 `{"parentId":null}` 则保存到根目录。文件操作页支持图片、PDF、文本、Markdown、DOCX 和浏览器可播放视频预览；不支持的格式显示“不支持预览此文件”，仍可下载或转存。选择页支持目录路径、当前目录搜索、名称/最近修改排序，以及发送前确认。转存页仅显示文件夹，加载失败时禁止确认；成功后明确提示独立副本。服务端从该聊天的消息解析发送者及源文件，不接受客户端指定所有者；转存执行容量、同名冲突和源文件有效性检查，并复制为独立存储。源文件失效后不能再转存，但已经转存的副本不受影响。新加入的群成员可以转存可见历史消息中的文件。
 
 V10 仅新增可空文件字段，旧文本消息保持兼容，不改写已应用迁移。`ChatFileWorkflowTest` 使用 H2 与内存存储替身验证上传、发送、越权拦截、独立转存及源文件删除后的副本下载。
 

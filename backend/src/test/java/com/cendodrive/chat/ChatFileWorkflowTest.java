@@ -54,6 +54,11 @@ class ChatFileWorkflowTest {
     var originalDownload=mvc.perform(get(detail+"/download").header("Authorization","Bearer token2")).andExpect(request().asyncStarted()).andReturn();
     assertEquals("hello",mvc.perform(asyncDispatch(originalDownload)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     mvc.perform(get(url+"/999999").header("Authorization","Bearer token2")).andExpect(status().isNotFound());
+    String otherRoom=mapper.readTree(mvc.perform(post("/api/chat/direct/3").header("Authorization","Bearer token1")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("id").asText();
+    String wrongRoom="/api/chat/rooms/"+otherRoom+"/files/"+message.get("id").asText();
+    mvc.perform(get(wrongRoom).header("Authorization","Bearer token1")).andExpect(status().isNotFound());
+    mvc.perform(get(wrongRoom+"/download").header("Authorization","Bearer token1")).andExpect(status().isNotFound());
+    mvc.perform(post(wrongRoom+"/save").header("Authorization","Bearer token1")).andExpect(status().isNotFound());
     mvc.perform(post(save)).andExpect(status().isUnauthorized());
     mvc.perform(post(save).header("Authorization","Bearer token3")).andExpect(status().isForbidden());
     String copy=mapper.readTree(mvc.perform(post(save).header("Authorization","Bearer token2").contentType(MediaType.APPLICATION_JSON).content("{\"ownerId\":3}")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("id").asText();
