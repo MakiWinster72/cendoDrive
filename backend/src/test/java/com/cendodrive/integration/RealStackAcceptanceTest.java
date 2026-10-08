@@ -23,6 +23,7 @@ import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.LinkedMultiValueMap;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
 /** Real sockets and real infrastructure; never point this at the user's database. */
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
@@ -178,7 +179,9 @@ class RealStackAcceptanceTest {
     // Age only the generated account in the disposable DB to exercise the actual seven-day purge.
     jdbc.update("UPDATE users SET deleted_at=? WHERE id=?",LocalDateTime.now(ZoneOffset.UTC).minusDays(8),aliceId);
     cleanup.purge(aliceId); assertFalse(users.existsById(aliceId));
-    assertThrows(IOException.class,() -> storage.download(original.getStorageKey(),new ByteArrayOutputStream()));
+    // A delete is acknowledged by one storage node before peers replay its tombstone.
+    await().atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(100)).untilAsserted(() ->
+        assertThrows(IOException.class,() -> storage.download(original.getStorageKey(),new ByteArrayOutputStream())));
     assertArrayEquals(CONTENT,download(copyUrl,b,null));
   }
 }
