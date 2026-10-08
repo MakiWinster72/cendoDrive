@@ -12,6 +12,7 @@ import { iconForFile } from "../components/fileIcon";
 import BrandLogo from "../components/BrandLogo.vue";
 import { formatSize } from "../stores/drive";
 import {
+  shareExpiryLabel,
   downloadPublicShare,
   getPublicShare,
   saveSharedFile,
@@ -99,7 +100,12 @@ async function save() {
   }
 }
 
-watch(token, () => { code.value = ""; needsCode.value = false; void loadShare(); }, { immediate: true });
+watch(token, () => {
+  const suppliedCode = new URLSearchParams((route.hash ?? "").slice(1)).get("code") ?? "";
+  code.value = /^[A-Za-z0-9]{4,16}$/.test(suppliedCode) ? suppliedCode : "";
+  needsCode.value = false;
+  void loadShare();
+}, { immediate: true });
 watch([loading, needsCode], async () => {
   if (!loading.value && needsCode.value && !access.value) { await nextTick(); codeInput.value?.focus(); }
 });
@@ -140,12 +146,7 @@ onUnmounted(() => {
         <h1>分享文件</h1>
         <strong class="shared-file-name">{{ file.name }}</strong>
         <p>
-          {{ formatSize(file.size) }} · 有效期至
-          {{
-            new Date(access.expiresAt).toLocaleString("zh-CN", {
-              hour12: false,
-            })
-          }}
+          {{ formatSize(file.size) }} · {{ shareExpiryLabel(access.expiresAt) }}
         </p>
         <div class="share-actions">
         <button

@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { Copy, Share2, X } from "@lucide/vue";
 import { iconForFile } from "./fileIcon";
-import type { ShareRecord } from "../api/shares";
+import { shareExpiryLabel, type ShareRecord } from "../api/shares";
 
 const props = withDefaults(
   defineProps<{ shares: ShareRecord[]; loading?: boolean }>(),
@@ -76,12 +76,7 @@ function shareLink(share: ShareRecord) {
         </div>
         <div class="share-list-footer">
           <small
-            >有效期至
-            {{
-              new Date(share.expiresAt).toLocaleString("zh-CN", {
-                hour12: false,
-              })
-            }}</small
+            >{{ shareExpiryLabel(share.expiresAt) }}</small
           ><button
             v-if="active(share)"
             type="button"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { Check, Copy, Link2, X } from "@lucide/vue";
-import { shareClipboardText, type ShareRecord } from "../api/shares";
+import { shareClipboardText, shareExpiryLabel, type ShareRecord } from "../api/shares";
 
 const props = defineProps<{ share: ShareRecord | null }>();
 const emit = defineEmits<{ close: [] }>();
@@ -85,10 +85,7 @@ async function copyLink() {
         {{ share.extractionCode ? `提取码：${share.extractionCode}` : '已设置提取码；为安全起见不再回显，请使用创建时保存的提取码。' }}
       </p>
       <p class="share-dialog-expiry">
-        有效期至
-        {{
-          new Date(share.expiresAt).toLocaleString("zh-CN", { hour12: false })
-        }}
+        {{ shareExpiryLabel(share.expiresAt) }}
       </p>
       <footer>
         <button type="button" @click="emit('close')">完成</button>
