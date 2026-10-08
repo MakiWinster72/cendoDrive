@@ -29,6 +29,8 @@ public class DriveFile {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    static final String TRASH_MARKER = "~trash~";
+
     protected DriveFile() {}
     private DriveFile(Long ownerId, Long parentId, String name) {
         this.ownerId = ownerId;
@@ -63,6 +65,16 @@ public class DriveFile {
     public boolean isDeleted() { return deletedAt != null; }
     void rename(String value) { name = value; }
     void moveTo(Long value) { parentId = value; }
-    void moveToTrash() { deletedAt = LocalDateTime.now(java.time.Clock.systemUTC()); }
-    void restore() { deletedAt = null; }
+    void moveToTrash() {
+        deletedAt = LocalDateTime.now(java.time.Clock.systemUTC());
+        name = name + TRASH_MARKER + id;
+    }
+    void restore() {
+        deletedAt = null;
+        name = displayName(name);
+    }
+    static String displayName(String value) {
+        int marker = value.lastIndexOf(TRASH_MARKER);
+        return marker < 0 ? value : value.substring(0, marker);
+    }
 }

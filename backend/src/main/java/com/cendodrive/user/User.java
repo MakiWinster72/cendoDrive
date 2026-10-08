@@ -45,6 +45,7 @@ public class User {
     public String getVipLevel() { return vipLevel; }
     public long getStorageUsed() { return storageUsed; }
     public long getStorageLimit() { return storageLimit; }
+    public void updateStorageUsed(long value) { storageUsed = value; }
     public boolean isActive() { return active; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

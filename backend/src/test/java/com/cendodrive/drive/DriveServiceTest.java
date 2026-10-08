@@ -3,6 +3,7 @@ package com.cendodrive.drive;
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
+import com.cendodrive.user.UserRepository;
 import com.cendodrive.storage.FileStorage;
 import org.springframework.mock.web.MockMultipartFile;
 import java.util.List;
@@ -18,13 +19,15 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class DriveServiceTest {
     @Mock DriveFileRepository files;
+    @Mock UserRepository users;
     @Mock FileStorage storage;
     @Mock User user;
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage");
+        service = new DriveService(files, users, storage, "/tmp/cendodrive-test-storage");
         lenient().when(user.getId()).thenReturn(7L);
+        lenient().when(user.getStorageLimit()).thenReturn(1024L * 1024 * 1024);
     }
 
     @Test void uploadsAndPersistsFastDfsFileId() throws Exception {
@@ -41,6 +44,16 @@ class DriveServiceTest {
         });
         assertEquals("12", service.upload(user, upload, null).id());
         verify(storage).upload(any(), eq(5L), eq("txt"));
+    }
+
+    @Test void rejectsUploadWhenStorageQuotaIsExceeded() throws Exception {
+        when(user.getStorageLimit()).thenReturn(4L);
+        when(files.sumFileSizeByOwnerId(7L)).thenReturn(4L);
+        var upload = new MockMultipartFile("file", "hello.txt", "text/plain", "hello".getBytes());
+        DriveFailure error = assertThrows(DriveFailure.class, () -> service.upload(user, upload, null));
+        assertEquals("STORAGE_QUOTA_EXCEEDED", error.code());
+        verify(storage, never()).upload(any(), anyLong(), anyString());
+        verify(files, never()).saveAndFlush(any());
     }
 
     @Test void listsOnlyTheAuthenticatedUsersRoot() {

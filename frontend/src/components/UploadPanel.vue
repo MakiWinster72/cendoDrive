@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check, FilePlus2, FileText, FolderPlus, Image, LoaderCircle, Music2, RotateCcw, Trash2, UploadCloud, Video, X } from 'lucide-vue-next'
 import { isUploadCancelled, uploadErrorMessage, uploadFile } from '../api/files'
+import { CHUNK_THRESHOLD, uploadFileChunked } from '../api/upload'
 import type { DriveItem } from '../stores/drive'
 
 interface FolderOption { id: string | null; name: string }
@@ -18,8 +19,10 @@ type UploadType = 'image' | 'video' | 'document' | 'audio' | 'other'
 type UploadStatus = 'waiting' | 'uploading' | 'success' | 'failed' | 'cancelled'
 interface UploadTask { id: string; file: File; status: UploadStatus; progress: number; parentId?: string | null; error?: string }
 
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024
 const fileInput = ref<HTMLInputElement>()
 const accept = ref('*/*')
+const oversizeNotice = ref('')
 const uploadTasks = ref<UploadTask[]>([])
 const selectedType = ref<UploadType | null>(null)
 const selectedFolderId = ref<string | null>(props.initialFolderId)
@@ -52,7 +55,10 @@ async function chooseType(type: UploadType, typeAccept: string) {
 function handleFileSelection(event: Event) {
   const input = event.target as HTMLInputElement
   const files = [...(input.files || [])]
-  uploadTasks.value.push(...files.map((file, index) => ({ id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`, file, status: 'waiting' as const, progress: 0 })))
+  const accepted = files.filter((file) => file.size <= MAX_UPLOAD_SIZE)
+  const rejected = files.length - accepted.length
+  oversizeNotice.value = rejected ? `已忽略 ${rejected} 个超过 100MB 的文件` : ''
+  uploadTasks.value.push(...accepted.map((file, index) => ({ id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`, file, status: 'waiting' as const, progress: 0 })))
   input.value = ''
 }
 
@@ -85,12 +91,15 @@ async function runUpload(task: UploadTask) {
   task.progress = 0
   task.error = undefined
   try {
-    const item = await uploadFile({
+    const options = {
       file: task.file,
       parentId: task.parentId ?? null,
       signal: controller.signal,
-      onProgress: (progress) => { task.progress = progress },
-    })
+      onProgress: (progress: number) => { task.progress = progress },
+    }
+    const item = task.file.size > CHUNK_THRESHOLD
+      ? await uploadFileChunked(options)
+      : await uploadFile(options)
     task.progress = 100
     task.status = 'success'
     emit('uploaded', item)
@@ -154,6 +163,8 @@ function statusText(status: UploadStatus) {
         <div class="upload-option option-note"><span><FilePlus2 :size="21" /></span><b>新建文档</b><small>稍后开放</small></div>
       </div>
 
+      <p v-if="oversizeNotice" class="upload-notice">{{ oversizeNotice }}</p>
+
       <div v-if="uploadTasks.length" class="selected-files">
         <div class="selected-files-heading"><div><strong>上传任务</strong><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small></div><span v-if="activeCount">{{ activeCount }} 个正在上传</span><span v-else>逐个显示上传结果</span></div>
         <ul>
@@ -192,9 +203,9 @@ function statusText(status: UploadStatus) {
 .desktop-dropzone{margin:24px 30px 22px;padding:25px 20px;border:1px dashed #b8caec;border-radius:17px;background:linear-gradient(135deg,#f7faff,#eef5ff);text-align:center}.dropzone-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 12px;border-radius:16px;background:#dce9ff;color:#2868ed}.desktop-dropzone strong{display:block;font-size:15px}.desktop-dropzone p{margin:7px 0 0;color:#8895a9;font-size:12px}
 .upload-section-heading{display:flex;align-items:center;justify-content:space-between;padding:0 30px 12px;color:#26344d;font-size:13px;font-weight:700}.upload-section-heading small{color:#a0a9b8;font-size:11px;font-weight:500}.upload-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 30px 24px}.upload-option{min-height:91px;padding:14px 12px;border:1px solid #edf0f5;border-radius:15px;background:#fff;color:#19243a;text-align:left}.upload-option button{cursor:pointer}.upload-option:hover{border-color:#9db9ef;background:#f7faff}.upload-option>span{display:grid;place-items:center;width:34px;height:34px;margin-bottom:8px;border-radius:10px}.upload-option b,.upload-option small{display:block}.upload-option b{font-size:12px}.upload-option small{margin-top:3px;color:#9aa5b5;font-size:10px}.option-image>span{background:#e7f1ff;color:#4285ed}.option-video>span{background:#e9f8f0;color:#21a96a}.option-document>span{background:#fff0e7;color:#ef8238}.option-audio>span{background:#f0ebff;color:#8469df}.option-other>span{background:#e8f7ff;color:#2793cf}.option-folder>span{background:#fff7de;color:#d69921}.option-note>span{background:#f1f3f6;color:#8e98a8}
 .selected-files{margin:0 30px 24px;padding:16px;border:1px solid #e7edf6;border-radius:15px;background:#fbfcff}.selected-files-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.selected-files-heading strong,.selected-files-heading small{display:block}.selected-files-heading strong{font-size:13px}.selected-files-heading small{margin-top:4px;color:#8d9aae;font-size:11px}.selected-files-heading>span{color:#7c8da7;font-size:10px}.selected-files ul{max-height:170px;margin:0;padding:0;overflow:auto;list-style:none}.selected-files li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #edf1f6}.file-badge{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:9px;background:#eeeaff;color:#7564e9}.file-meta{min-width:0;flex:1}.file-meta b,.file-meta small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-meta b{font-size:12px}.file-meta small{margin-top:3px;color:#8f9aac;font-size:10px}.selected-files li>button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:#a0aaba}.selected-files li>button:hover{background:#fff0f0;color:#e15d68}.file-input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.progress-line{display:flex;align-items:center;gap:8px;margin-top:7px}.progress-line>small{flex:0 0 32px;margin:0;text-align:right}.progress-track{height:4px;flex:1;overflow:hidden;border-radius:999px;background:#e8edf5}.progress-track span{display:block;height:100%;border-radius:inherit;background:#54a9eb;transition:width .18s ease}.progress-track span.success{background:#2fac78}.task-error{color:#d74d58!important;white-space:normal!important}.spin{animation:upload-spin 1s linear infinite}.start-upload-button:disabled{cursor:not-allowed;opacity:.55}
+.progress-line{display:flex;align-items:center;gap:8px;margin-top:7px}.progress-line>small{flex:0 0 32px;margin:0;text-align:right}.progress-track{height:4px;flex:1;overflow:hidden;border-radius:999px;background:#e8edf5}.progress-track span{display:block;height:100%;border-radius:inherit;background:#54a9eb;transition:width .18s ease}.progress-track span.success{background:#2fac78}.task-error{color:#d74d58!important;white-space:normal!important}.upload-notice{margin:-10px 30px 20px;color:#d74d58;font-size:11px;line-height:1.5}.spin{animation:upload-spin 1s linear infinite}.start-upload-button:disabled{cursor:not-allowed;opacity:.55}
  .folder-picker{margin:0 30px 18px;padding:13px;border:1px solid #e5ebf5;border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(35,62,104,.08)}.folder-picker-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;color:#26344d;font-size:12px}.folder-picker-heading button{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:7px;background:#f3f6fb;color:#718098}.folder-picker>button{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#4a5870;text-align:left;font-size:12px}.folder-picker>button:hover,.folder-picker>button.selected{background:#eef4ff;color:#2868ed}.folder-picker>button span{font-size:10px}.upload-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 30px;background:#fafbfd;color:#8995a8;font-size:11px}.upload-footer button{height:34px;padding:0 15px;border:1px solid #dce4f1;border-radius:9px;background:#fff;color:#3d6ec9;font-size:12px;font-weight:600}.upload-footer button:hover{border-color:#9db9ef;background:#f5f8ff}.destination-button{display:flex;align-items:center;gap:4px;min-width:0;flex:1;text-align:left}.destination-button b{overflow:hidden;color:#2868ed;text-overflow:ellipsis;white-space:nowrap}.destination-button span{margin-left:auto;color:#8d9bb0;font-size:20px;line-height:1}.start-upload-button{border-color:#8bc9f6!important;background:#8ed1f7!important;color:#fff!important}.start-upload-button:hover{border-color:#50afe8!important;background:#68c0f1!important}
- @media(max-width:700px){.upload-overlay{align-items:end;padding:0;background:rgba(17,29,52,.48)}.upload-panel{width:100%;border-radius:25px 25px 0 0;box-shadow:0 -18px 55px rgba(22,44,83,.18);animation:upload-sheet-in .22s ease-out}.upload-header{padding:22px 22px 17px}.upload-header h2{font-size:22px}.desktop-dropzone{display:none}.upload-section-heading{padding:20px 22px 12px}.upload-options{grid-template-columns:repeat(3,1fr);gap:9px;padding:0 22px 20px}.upload-option{min-height:84px;padding:12px 9px}.selected-files{margin:0 22px 20px}.folder-picker{margin:0 22px 16px}.upload-footer{padding:14px 22px max(14px,env(safe-area-inset-bottom));margin:0}.upload-footer span{max-width:200px;line-height:1.5}.destination-button{padding-left:0;padding-right:0}.start-upload-button{flex:0 0 auto;padding-inline:17px!important}}
+ @media(max-width:700px){.upload-overlay{align-items:end;padding:0;background:rgba(17,29,52,.48)}.upload-panel{width:100%;border-radius:25px 25px 0 0;box-shadow:0 -18px 55px rgba(22,44,83,.18);animation:upload-sheet-in .22s ease-out}.upload-header{padding:22px 22px 17px}.upload-header h2{font-size:22px}.desktop-dropzone{display:none}.upload-section-heading{padding:20px 22px 12px}.upload-options{grid-template-columns:repeat(3,1fr);gap:9px;padding:0 22px 20px}.upload-option{min-height:84px;padding:12px 9px}.selected-files{margin:0 22px 20px}.folder-picker{margin:0 22px 16px}.upload-notice{margin:-8px 22px 16px}.upload-footer{padding:14px 22px max(14px,env(safe-area-inset-bottom));margin:0}.upload-footer span{max-width:200px;line-height:1.5}.destination-button{padding-left:0;padding-right:0}.start-upload-button{flex:0 0 auto;padding-inline:17px!important}}
  @keyframes upload-sheet-in{from{transform:translateY(22px);opacity:.6}to{transform:translateY(0);opacity:1}}
  @keyframes upload-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.upload-panel{animation:none}}

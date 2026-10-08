@@ -17,7 +17,7 @@ public final class DriveDtos {
             @Schema(description = "UTC ISO-8601 时间", example = "2026-09-29T06:30:00Z") String updatedAt,
             @Schema(description = "移入回收站的 UTC 时间；未删除时为 null") String deletedAt) {
         static FileResponse from(DriveFile file) {
-            return new FileResponse(file.getId().toString(), file.getName(), file.getKind(), file.getSize(),
+            return new FileResponse(file.getId().toString(), DriveFile.displayName(file.getName()), file.getKind(), file.getSize(),
                     file.getParentId() == null ? null : file.getParentId().toString(),
                     file.getUpdatedAt().atOffset(ZoneOffset.UTC).toInstant().toString(),
                     file.getDeletedAt() == null ? null : file.getDeletedAt().atOffset(ZoneOffset.UTC).toInstant().toString());

@@ -35,6 +35,15 @@ public class ApiExceptionHandler {
                 fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Invalid input", fields));
     }
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> typeMismatch() {
+        return ResponseEntity.badRequest().body(ApiError.of("INVALID_INPUT", "Invalid request parameter"));
+    }
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    ResponseEntity<ApiError> missingParameter(org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiError.of("INVALID_INPUT", "Missing request parameter: " + ex.getParameterName()));
+    }
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> malformed() {
         return ResponseEntity.badRequest().body(ApiError.of("INVALID_JSON", "Invalid JSON body"));
@@ -63,10 +72,20 @@ public class ApiExceptionHandler {
                     && "uk_users_username".equalsIgnoreCase(constraint.getConstraintName())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
             }
-            if (cause instanceof java.sql.SQLIntegrityConstraintViolationException sql
-                    && sql.getMessage() != null
-                    && sql.getMessage().toLowerCase(Locale.ROOT).contains("uk_users_username")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException constraint
+                    && "uk_drive_files_sibling_name".equalsIgnoreCase(constraint.getConstraintName())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiError.of("NAME_CONFLICT", "An item with the same name already exists"));
+            }
+            if (cause instanceof java.sql.SQLIntegrityConstraintViolationException sql) {
+                String message = sql.getMessage() == null ? "" : sql.getMessage().toLowerCase(Locale.ROOT);
+                if (message.contains("uk_users_username")) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of("CONFLICT", "Username already exists"));
+                }
+                if (message.contains("uk_drive_files_sibling_name")) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(ApiError.of("NAME_CONFLICT", "An item with the same name already exists"));
+                }
             }
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

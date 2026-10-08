@@ -47,11 +47,22 @@ export function uploadErrorMessage(error: unknown): string {
     return '文件或目标文件夹信息无效'
   }
 
+  if (code === 'UPLOAD_NOT_FOUND') return '上传会话已失效，请重新上传'
+  if (code === 'INVALID_CHUNK') return '分片数据无效，请重试'
+  if (code === 'CHUNK_INCOMPLETE') return '分片尚未上传完整，请重试'
+  if (code === 'CHECKSUM_MISMATCH') return '文件校验失败，请重新上传'
+  if (code === 'UPLOAD_IN_PROGRESS') return '文件正在合并中，请稍后重试'
+  if (error.response.status === 413 || code === 'MAX_UPLOAD_SIZE_EXCEEDED') return '文件超过 100MB 大小限制'
+  if (code === 'STORAGE_QUOTA_EXCEEDED') return '存储空间不足，请清理文件后重试'
+  if (code === 'NAME_CONFLICT') return '目标文件夹已存在同名文件'
+  if (code === 'INVALID_NAME') return '文件名称不合法'
+  if (code === 'NOT_A_FOLDER') return '目标位置不是文件夹，请重新选择上传位置'
+  if (code === 'FILE_NOT_FOUND') return '目标文件夹不存在，请重新选择上传位置'
   if (error.response.status === 401 && code === 'UNAUTHORIZED') return '登录状态已失效，请重新登录'
   if (error.response.status === 404 && code === 'NOT_FOUND') return '上传接口或请求资源不存在'
   if (error.response.status === 405 && code === 'METHOD_NOT_ALLOWED') return '上传接口不支持此请求方式'
   if (error.response.status === 415 && code === 'UNSUPPORTED_MEDIA_TYPE') return '不支持此文件类型'
-  if (code === 'FILE_TOO_LARGE') return '文件超过大小限制'
+  if (code === 'STORAGE_UNAVAILABLE') return '存储服务暂不可用，请稍后重试'
   if (error.response.status >= 500 || code === 'INTERNAL_ERROR') return '服务器处理失败，请稍后重试'
   return '上传失败，请重试'
 }
