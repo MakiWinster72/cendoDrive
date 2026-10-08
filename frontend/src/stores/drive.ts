@@ -1,5 +1,6 @@
 import { computed, reactive } from "vue";
 import * as api from "../api/drive";
+import { useTransfers } from "./transfers";
 import * as shareApi from "../api/shares";
 
 export type FileKind = api.FileKind;
@@ -93,7 +94,8 @@ export function useDrive() {
   const download = (id: string) => {
     const item = get(id);
     if (!item) return Promise.reject(new Error("文件不存在"));
-    return run(() => api.downloadFile(item.id, item.name));
+    return run(() => useTransfers().enqueueDownload(item.name, item.size,
+      progress => api.downloadFile(item.id, item.name, progress)));
   };
   const addUploaded = (item: DriveItem) => { upsert(item); void loadUsage(); };
   const trash = (ids: string[]) => run(async () => { const items = await api.trashFiles(ids); items.forEach(upsert); return items; }, true);
@@ -109,6 +111,7 @@ export function useDrive() {
     await shareApi.cancelShare(id); const record = state.shares.find(item => item.id === id); if (record) record.status = "CANCELLED";
   });
   const reset = () => {
+    useTransfers().reset();
     state.files = []; state.shares = []; state.favorites = []; state.hidden = [];
     state.usage = null; state.usageError = ""; state.error = "";
   };

@@ -1,4 +1,4 @@
-/* 文件夹内页按移动参考图布局；不覆盖首页和根目录列表。 */
+/* 文件夹内页及移动文件页头部；不覆盖首页和根目录列表。 */
 .breadcrumb { flex-wrap: wrap; }
 .breadcrumb button { display: inline-flex; align-items: center; gap: 4px; }
 .breadcrumb [aria-current] { overflow-wrap: anywhere; }
@@ -8,7 +8,7 @@
     position: relative; display: flex; align-items: center; gap: 6px;
     height: 64px; padding: 14px 10px 8px; background: #fff;
   }
-  .m-folder-head > button, .m-folder-quick-sort {
+  .m-folder-head > button {
     flex: 0 0 38px; min-height: 44px; border: 0; background: transparent;
     display: grid; place-items: center; padding: 0; color: #080d1b;
   }
@@ -22,9 +22,15 @@
     font: inherit; font-size: 12px; font-weight: 600; color: #080d1b;
   }
   .m-folder-search input::placeholder { color: #828a9c; }
-  .m-folder-quick-sort svg { border: 2px solid currentColor; border-radius: 50%; padding: 3px; width: 23px; height: 23px; box-sizing: content-box; }
-  .m-folder-quick-sort, .m-folder-sort-label { position: relative; }
-  .m-folder-quick-sort select, .m-folder-sort-label select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .m-file-head { position: relative; }
+  .m-file-head > .m-file-head-actions { gap: 4px; }
+  .m-file-head-actions > button, .m-folder-head > .m-transfer-button {
+    display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0;
+    border: 0; background: transparent; color: #080d1b;
+  }
+  .m-transfer-button svg { border: 1.5px solid currentColor; border-radius: 50%; padding: 2.5px; width: 24px; height: 24px; box-sizing: border-box; }
+  .m-folder-sort-label { position: relative; }
+  .m-folder-sort-label select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
   .m-folder-menu { position: absolute; right: 14px; top: 58px; z-index: 11; padding: 5px; background: #fff; border: 1px solid #eef0f5; border-radius: 12px; box-shadow: 0 6px 24px #18202d14; }
   .m-folder-menu button { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 0; background: none; padding: 0 12px; color: #080d1b; }
   .m-folder-breadcrumb {
@@ -65,6 +71,6 @@
   .m-folder-files.is-grid .m-file-row.selected { margin: 0; padding: 0; border-radius: 8px; }
   .m-folder-files.is-grid .m-file-row small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .m-folder-files.is-grid > p { grid-column: 1 / -1; }
-  .m-folder-head button:focus-visible, .m-folder-search:focus-within, .m-folder-breadcrumb button:focus-visible, .m-folder-toolbar button:focus-visible, .m-folder-sort-label:focus-within, .m-folder-quick-sort:focus-within { outline: 2px solid #258eff; outline-offset: 2px; }
+  .m-folder-head button:focus-visible, .m-folder-search:focus-within, .m-folder-breadcrumb button:focus-visible, .m-folder-toolbar button:focus-visible, .m-folder-sort-label:focus-within, .m-file-head-actions > button:focus-visible { outline: 2px solid #258eff; outline-offset: 2px; }
   .m-folder-head button:disabled, .m-folder-breadcrumb button:disabled { opacity: .45; }
 }

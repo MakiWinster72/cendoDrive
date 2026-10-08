@@ -140,9 +140,13 @@ export async function emptyTrash(): Promise<void> {
 export async function downloadFile(
   id: string,
   fallbackName: string,
+  onProgress?: (value: number) => void,
 ): Promise<void> {
   const response = await http.get<Blob>(`/files/${id}/download`, {
     responseType: "blob",
+    onDownloadProgress: (event) => {
+      if (event.total) onProgress?.(event.loaded / event.total * 100);
+    },
   });
   const disposition = response.headers["content-disposition"] as
     string | undefined;

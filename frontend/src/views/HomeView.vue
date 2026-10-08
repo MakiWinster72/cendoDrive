@@ -65,6 +65,7 @@ import BrandLogo from "../components/BrandLogo.vue";
 import { fileCategory, iconForFile } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
+import TransferPage from "../components/TransferPage.vue";
 import FilePreview from "../components/FilePreview.vue";
 import FileTools from "../components/FileTools.vue";
 import InlineNameEditor from "../components/InlineNameEditor.vue";
@@ -131,6 +132,11 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">("home");
+const showTransfers = ref(false);
+function openTransfers() {
+  folderMenuOpen.value = false;
+  showTransfers.value = true;
+}
 watch([currentFolder, mode, keyword, mobileTab], cancelName, { flush: "sync" });
 const showMyShares = ref(false);
 const mySharesError = ref("");
@@ -570,6 +576,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <TransferPage v-if="showTransfers" @back="showTransfers = false" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <UploadPanel
@@ -736,14 +743,14 @@ onUnmounted(() => {
       <header v-if="currentFolder && !checked.length" class="m-folder-head" @keydown.esc="folderMenuOpen = false">
         <button type="button" aria-label="返回上一级" :disabled="drive.state.loading || nameSaving" @click="goParent"><ChevronLeft :size="24" /></button>
         <label class="m-folder-search"><Search :size="21" /><input v-model="keyword" aria-label="搜索当前文件夹" placeholder="支持文档全文、图中文字搜索啦" /></label>
-        <label class="m-folder-quick-sort" title="文件排序"><ArrowDownUp :size="22" /><select v-model="sortBy" aria-label="文件排序"><option value="time">按修改时间</option><option value="name">按名称</option><option value="size">按大小</option></select></label>
+        <button type="button" class="m-transfer-button" aria-label="传输列表" @click="openTransfers"><ArrowDownUp :size="16" /></button>
         <button type="button" aria-label="文件夹更多操作" :aria-expanded="folderMenuOpen" aria-controls="folder-menu" @click="folderMenuOpen = !folderMenuOpen"><MoreHorizontal :size="25" /></button>
         <div v-if="folderMenuOpen" id="folder-menu" class="m-folder-menu" @keydown.esc="folderMenuOpen = false">
           <button type="button" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="folderMenuOpen = false; createFolder()"><Folder :size="18" />新建文件夹</button>
           <button type="button" :disabled="!filteredFiles.length" @click="allVisibleSelected = true; folderMenuOpen = false"><CheckSquare :size="18" />选择文件</button>
         </div>
       </header>
-      <header v-else class="m-file-head">
+      <header v-else class="m-file-head" @keydown.esc="folderMenuOpen = false">
 
         <template v-if="checked.length && mode !== 'trash'"
           ><button
@@ -762,7 +769,14 @@ onUnmounted(() => {
           </button></template
         ><template v-else
           ><h1>{{ title }}</h1>
-          <div><button v-if="mode !== 'trash'" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="createFolder"><Folder :size="20" />新建文件夹</button><MoreHorizontal :size="24" /></div
+          <div class="m-file-head-actions">
+            <button type="button" class="m-transfer-button" aria-label="传输列表" @click="openTransfers"><ArrowDownUp :size="16" /></button>
+            <button type="button" aria-label="文件更多操作" :aria-expanded="folderMenuOpen" aria-controls="folder-menu" @click="folderMenuOpen = !folderMenuOpen"><MoreHorizontal :size="24" /></button>
+            <div v-if="folderMenuOpen" id="folder-menu" class="m-folder-menu">
+              <button v-if="mode !== 'trash'" type="button" class="m-new-folder" aria-label="新建文件夹" :disabled="drive.state.loading" @click="folderMenuOpen = false; createFolder()"><Folder :size="18" />新建文件夹</button>
+              <button type="button" :disabled="!filteredFiles.length" @click="allVisibleSelected = true; folderMenuOpen = false"><CheckSquare :size="18" />选择文件</button>
+            </div>
+          </div
         ></template>
       </header>
       <div v-if="!currentFolder" class="m-search">
