@@ -1,6 +1,7 @@
 myDocs/
 backend/target/
 backend/.env
+.env
 backend/src/main/resources/application.yml
 
 # Eclipse / Spring Tools 本机工程配置
