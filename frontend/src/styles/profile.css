@@ -6,7 +6,7 @@
   .profile-page {
     max-width: 520px;
     margin: auto;
-    padding: 26px 8px 110px;
+    padding: 26px var(--mobile-gutter) 0;
     color: #10182c;
   }
   .profile-page button {
@@ -18,7 +18,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 12px 24px;
+    padding: 8px 0 24px;
   }
   .profile-avatar {
     width: 48px;
@@ -415,32 +415,7 @@
     outline: 2px solid #386ff1;
     outline-offset: 3px;
   }
-  .mobile-app:has(.profile-page) .m-bottom-nav {
-    height: 78px;
-    box-shadow: 0 -8px 30px rgba(37, 51, 88, 0.06);
-  }
-  .mobile-app:has(.profile-page) .m-bottom-nav button {
-    gap: 5px;
-    font-size: 11px;
-  }
-  .mobile-app:has(.profile-page) .m-bottom-nav button.active svg {
-    fill: none;
-    stroke-width: 2.6;
-  }
-  .mobile-app:has(.profile-page) .m-bottom-nav .genflow i {
-    background: radial-gradient(
-      circle at 30% 25%,
-      #c5faff,
-      #61dcef 55%,
-      #58a4ec
-    );
-    box-shadow: 0 5px 16px rgba(59, 168, 211, 0.22);
-  }
-  .mobile-app:has(.profile-page) .m-bottom-nav em {
-    font-size: 10px;
-    top: 7px;
-    right: 18px;
-  }
+
 }
 @media (max-width: 370px) {
   .profile-header {

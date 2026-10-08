@@ -1410,7 +1410,7 @@ a {
     display: block;
     min-height: 100vh;
     min-height: 100dvh;
-    padding-bottom: 76px;
+    padding-bottom: var(--mobile-content-bottom);
     background: #f5f7fa;
     color: #18202d;
   }
@@ -1419,7 +1419,7 @@ a {
   }
   .m-file-head {
     height: 76px;
-    padding: 18px 22px 8px;
+    padding: 18px var(--mobile-gutter) 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1446,7 +1446,7 @@ a {
   }
   .m-search {
     height: 55px;
-    margin: 0 22px 8px;
+    margin: 0 var(--mobile-gutter) 8px;
     border-radius: 15px;
     background: #f0f2f7;
     display: flex;
@@ -1485,7 +1485,7 @@ a {
   }
   .m-filter {
     height: 83px;
-    padding: 8px 22px;
+    padding: 8px var(--mobile-gutter);
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -1516,7 +1516,7 @@ a {
   .m-file-list {
     background: #fff;
     min-height: calc(100dvh - 214px);
-    padding: 0 22px;
+    padding: 0 var(--mobile-gutter);
   }
   .m-file-row {
     height: 77px;
@@ -1570,7 +1570,7 @@ a {
   .m-fab {
     position: fixed;
     right: 20px;
-    bottom: 91px;
+    bottom: calc(var(--mobile-nav-height) + 16px);
     width: 54px;
     height: 54px;
     border: 0;
@@ -1582,71 +1582,7 @@ a {
     box-shadow: 0 6px 20px rgba(37, 157, 235, 0.35);
     z-index: 8;
   }
-  .m-bottom-nav {
-    position: fixed;
-    z-index: 10;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 74px;
-    padding-bottom: env(safe-area-inset-bottom);
-    background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 -2px 12px rgba(30, 48, 74, 0.06);
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-  }
-  .m-bottom-nav button {
-    border: 0;
-    background: transparent;
-    color: #8f98a6;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    position: relative;
-  }
-  .m-bottom-nav svg {
-    width: 22px;
-  }
-  .m-bottom-nav button.active {
-    color: #111927;
-  }
-  .m-bottom-nav button.active svg {
-    fill: #111927;
-  }
-  .m-bottom-nav .genflow i {
-    width: 54px;
-    height: 54px;
-    margin-top: -28px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: radial-gradient(
-      circle at 35% 30%,
-      #9dffff,
-      #37d3e8 55%,
-      #7dcdff
-    );
-    color: #fff;
-    box-shadow: 0 1px 9px rgba(30, 185, 216, 0.25);
-  }
-  .m-bottom-nav .genflow svg {
-    width: 25px;
-  }
-  .m-bottom-nav em {
-    position: absolute;
-    top: 9px;
-    right: 23px;
-    background: #ff3062;
-    color: #fff;
-    border-radius: 10px;
-    padding: 2px 5px;
-    font-size: 9px;
-    font-style: normal;
-  }
+
   .m-placeholder {
     height: calc(100dvh - 74px);
     display: flex;

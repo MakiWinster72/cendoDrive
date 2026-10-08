@@ -1,0 +1,55 @@
+/* Shared mobile geometry. Page styles must not override the bottom navigation. */
+@media (width < 768px) {
+  .mobile-app {
+    --mobile-gutter: 18px;
+    --mobile-nav-height: calc(72px + max(18px, env(safe-area-inset-bottom)));
+    --mobile-content-bottom: calc(var(--mobile-nav-height) + 16px);
+  }
+  .m-bottom-nav {
+    position: fixed;
+    z-index: 10;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    height: var(--mobile-nav-height);
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    background: #fff;
+    box-shadow: 0 -2px 12px #1e304a08;
+  }
+  .m-bottom-nav button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #858b9e;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .m-bottom-nav button:focus-visible { outline: 2px solid #438aff; outline-offset: -3px; border-radius: 8px; }
+  .m-bottom-nav svg { width: 25px; height: 25px; stroke: #a2a9bb; stroke-width: 2; flex-shrink: 0; }
+  .m-bottom-nav button.active { color: #080e1c; }
+  .m-bottom-nav button.active svg { stroke: #080e1c; stroke-width: 2.6; }
+  .m-bottom-nav em { position: absolute; top: 7px; right: calc(50% - 32px); padding: 0 5px; border: 2px solid #fff; border-radius: 12px; background: #f33061; color: #fff; font-size: 12px; font-style: normal; }
+  .m-bottom-nav .genflow i {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 49px;
+    height: 49px;
+    margin-top: -22px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 32% 23%, #c1f9ff 0%, #8ee6f5 25%, #5ed4ee 58%, #8addf5 78%, #4bc1e2 100%);
+    box-shadow: 0 -3px 12px #aebdc62b;
+    transform: rotate(-12deg);
+  }
+  .m-bottom-nav .genflow i svg { display: none; }
+  .m-bottom-nav .genflow i::before { content: ''; position: absolute; width: 4px; height: 6px; border-radius: 50%; background: #427a98; top: 17px; left: 29px; box-shadow: 8px 0 #427a98; }
+  .m-bottom-nav .genflow i::after { content: ''; position: absolute; width: 5px; height: 2px; border-radius: 50%; background: #427a98; top: 27px; left: 31px; }
+}
