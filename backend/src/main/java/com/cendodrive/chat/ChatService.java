@@ -2,6 +2,8 @@ package com.cendodrive.chat;
 
 import com.cendodrive.user.User;
 import java.util.*;
+import java.security.SecureRandom;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +12,8 @@ import org.springframework.http.HttpStatus;
 
 @Service
 public class ChatService {
+  private static final SecureRandom GROUP_RANDOM = new SecureRandom();
+  private static final int GROUP_ID_ATTEMPTS = 32;
   private final JdbcTemplate db;
   public ChatService(JdbcTemplate db) { this.db = db; }
   public record Person(long id, String username, String nickname) {}
@@ -49,18 +53,30 @@ public class ChatService {
   }
   @Transactional
   public Room create(User user, String name, String description, boolean searchable) {
-    String id=UUID.randomUUID().toString();
-    db.update("INSERT INTO chat_rooms(id,name,description,searchable) VALUES (?,?,?,?)",id,name.trim(),description.trim(),searchable);
-    db.update("INSERT INTO chat_members(room_id,user_id) VALUES (?,?)",id,user.getId());
-    return new Room(id,name.trim(),description.trim(),true,searchable);
+    for (int attempt=0; attempt<GROUP_ID_ATTEMPTS; attempt++) {
+      String id=nextGroupId();
+      try {
+        // The primary key resolves concurrent collisions; never overwrite an existing room.
+        db.update("INSERT INTO chat_rooms(id,name,description,searchable) VALUES (?,?,?,?)",id,name.trim(),description.trim(),searchable);
+      } catch (DuplicateKeyException collision) {
+        continue;
+      }
+      db.update("INSERT INTO chat_members(room_id,user_id) VALUES (?,?)",id,user.getId());
+      return new Room(id,name.trim(),description.trim(),true,searchable);
+    }
+    throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"群号分配繁忙，请稍后重试");
+  }
+  String nextGroupId() {
+    return String.format(Locale.ROOT, "%05x", GROUP_RANDOM.nextInt(1 << 20));
   }
   public List<Room> groups(String query) {
     if (query.isBlank()) return List.of();
     return db.query("SELECT id,name,description,searchable FROM chat_rooms WHERE searchable=TRUE AND direct_key IS NULL AND id=?",
-      (r,n)->new Room(r.getString(1),r.getString(2),r.getString(3),true,r.getBoolean(4)),query.trim());
+      (r,n)->new Room(r.getString(1),r.getString(2),r.getString(3),true,r.getBoolean(4)),query.trim().toLowerCase(Locale.ROOT));
   }
   @Transactional
   public void join(User user,String id) {
+    id=id.trim().toLowerCase(Locale.ROOT);
     var rows=db.queryForList("SELECT id FROM chat_rooms WHERE id=? AND searchable=TRUE AND direct_key IS NULL FOR UPDATE",id);
     if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"群不存在或不允许搜索加入");
     if (db.queryForObject("SELECT COUNT(*) FROM chat_members WHERE room_id=? AND user_id=?",Integer.class,id,user.getId())==0)
