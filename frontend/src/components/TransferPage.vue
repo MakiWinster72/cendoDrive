@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
-import { formatSize } from '../stores/drive';
+import { formatBytes, formatSize, useDrive } from '../stores/drive';
 import { iconForFile } from './fileIcon';
+import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from 'lucide-vue-next';
+const emit = defineEmits<{ back: []; manageStorage: [] }>();
 import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
 const emit = defineEmits<{ back: [] }>();
 const tab = ref<'download' | 'upload'>('download');
 const promo = ref(true), coupon = ref(true);
 const transfers = useTransfers();
+const drive = useDrive();
+const storageUsage = computed(() => drive.state.usage);
+const storagePercent = computed(() => {
+  const usage = storageUsage.value;
+  if (!usage?.limitBytes) return 0;
+  return Math.min(100, Math.max(0, (usage.usedBytes / usage.limitBytes) * 100));
+});
+onMounted(() => { if (!drive.state.usage) void drive.loadUsage(); });
 type Filter = 'all' | 'success' | 'active' | 'failed';
 const filter = ref<Filter>('all');
 const filters: { key: Filter; label: string }[] = [{ key: 'all', label: '全部任务' }, { key: 'success', label: '已完成' }, { key: 'active', label: '进行中' }, { key: 'failed', label: '任务失败' }];
@@ -111,6 +121,12 @@ function status(task: TransferTask) {
         <X />
       </button>
     </aside>
+    <footer class="transfer-storage" aria-label="网盘剩余空间">
+      <div class="storage-meter" aria-hidden="true"><span :style="{ width: `${storagePercent}%` }"></span></div>
+      <span v-if="storageUsage">剩余空间：{{ formatBytes(storageUsage.availableBytes) }} / {{ formatBytes(storageUsage.limitBytes) }}</span>
+      <span v-else>{{ drive.state.usageError ? '空间信息暂不可用' : '正在获取空间信息…' }}</span>
+      <button type="button" @click="emit('manageStorage')">点击管理<ChevronRight /></button>
+    </footer>
   </section>
 </template>
 
@@ -429,7 +445,7 @@ function status(task: TransferTask) {
 }
 .transfer-coupon {
   position: fixed;
-  bottom: 44px;
+  bottom: calc(55px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   display: flex;
@@ -473,6 +489,48 @@ function status(task: TransferTask) {
   color: #baab89;
   margin-left: 5px
 }
+.transfer-storage {
+  position: fixed;
+  z-index: 2;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 8px 18px max(8px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-top: 1px solid #f0f2f6;
+  background: rgb(255 255 255 / 96%);
+  color: #a2a9bc;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.storage-meter {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+  background: #edf3ff;
+}
+.storage-meter span {
+  display: block;
+  height: 100%;
+  background: #83b9ff;
+  transition: width .25s ease;
+}
+.transfer-storage > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.transfer-storage button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  color: #4288ff;
+  flex-shrink: 0;
+}
+.transfer-storage button svg { width: 15px; height: 15px; }
 @media (width >= 768px) {
   .transfer-header,.transfer-tabs {
     padding-left: 40px;
@@ -491,6 +549,7 @@ function status(task: TransferTask) {
     padding-left: 40px;
     padding-right: 40px
   }
+  .transfer-storage { padding-right: 40px; padding-left: 40px; }
   .transfer-promo strong {
     font-size: 18px
   }

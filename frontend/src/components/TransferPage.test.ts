@@ -20,4 +20,12 @@ describe('reference transfer page', () => {
     expect(template).toContain('role="progressbar"');
     expect(template).toContain('transfers.setDownloadLimit');
   });
+  it('shows a fixed storage summary and emits the manage action', () => {
+    expect(template).toContain('aria-label="网盘剩余空间"');
+    expect(template).toContain('formatBytes(storageUsage.availableBytes)');
+    expect(template).toContain('formatBytes(storageUsage.limitBytes)');
+    expect(template).toContain('@click="emit(\'manageStorage\')"');
+    expect(source).toContain('position: fixed;');
+    expect(source).toContain('env(safe-area-inset-bottom');
+  });
 });

@@ -705,7 +705,8 @@ onUnmounted(() => {
     :message="unavailableMessage"
     @close="unavailableMessage = ''"
   />
-  <TransferPage v-if="showTransfers" @back="showTransfers = false" />
+  <TransferPage v-if="showTransfers" @back="showTransfers = false" @manage-storage="showTransfers = false; mobileTab = 'profile'" />
+
   <AccountPage v-if="showAccount" @back="showAccount=false" @changed="refreshAvatar" @signed-out="accountSignedOut" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
