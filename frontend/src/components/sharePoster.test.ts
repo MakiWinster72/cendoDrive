@@ -11,6 +11,19 @@ describe("share browser adapters", () => {
     await copyShareText("https://drive.example/share/token\n提取码：Ab12");
     expect(writeText).toHaveBeenCalledWith("https://drive.example/share/token\n提取码：Ab12");
   });
+  it("waits for the real text when only writeText is available", async () => {
+    vi.stubGlobal("ClipboardItem", undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined); clipboard({ writeText });
+    let resolve!: (text: string) => void;
+    const copying = copyShareText(new Promise<string>(done => { resolve = done; }));
+    expect(writeText).not.toHaveBeenCalled(); resolve("生成后的真实链接"); await copying;
+    expect(writeText).toHaveBeenCalledWith("生成后的真实链接");
+  });
+  it("does not write a placeholder when asynchronous link creation fails", async () => {
+    const writeText = vi.fn(); clipboard({ writeText });
+    await expect(copyShareText(Promise.reject(new Error("offline")))).rejects.toThrow("offline");
+    expect(writeText).not.toHaveBeenCalled(); expect(document.querySelector("textarea")).toBeNull();
+  });
   it("falls back inside the open modal and restores the focused control", async () => {
     clipboard(undefined);
     const modal = document.createElement("dialog"), button = document.createElement("button");
