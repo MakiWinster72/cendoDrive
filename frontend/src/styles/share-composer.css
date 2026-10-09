@@ -39,9 +39,9 @@
 .share-qr-card { padding: 49px 14px 20px; border-radius: 18px; background: white; }
 .share-qr-poster { display: block; width: 100%; height: auto; object-fit: contain; -webkit-touch-callout: default; user-select: auto; }
 .share-qr-actions { display: flex; align-items: center; justify-content: space-around; margin: 12px 6px 0; padding-top: 18px; border-top: 1px dashed #dadde3; }
-.share-qr-actions button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; color: white; }
-.qr-wechat { background: #7bd126; --icon-bg: #7bd126; }.qr-moments { background: #21c685; }.qr-download { background: #009cff; }
-.qr-moments :deep(path) { fill: white; }.share-qr-actions :deep(svg) { width: 26px; height: 26px; }
+.share-qr-actions button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; color: white; --share-channel-color: #fff; }
+.qr-wechat { background: #7bd126; }.qr-moments { background: #21c685; }.qr-download { background: #009cff; }
+.share-qr-actions :deep(svg) { width: 26px; height: 26px; }
 .qr-close { display: grid; place-items: center; width: 44px; height: 44px; margin: 20px auto 0; padding: 0; color: white; background: none; border: 0; }.qr-error { color: white; }
 .share-toast { position: fixed; z-index: 1; left: 50%; bottom: max(34px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 56px); padding: 9px 15px; border-radius: 7px; background: rgb(20 22 28 / 82%); color: #fff; font-size: 12px; text-align: center; pointer-events: none; box-shadow: 0 2px 8px rgb(0 0 0 / 8%); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); }
