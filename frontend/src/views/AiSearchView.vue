@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import axios from "axios";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import AiSearchPanel from "../components/AiSearchPanel.vue";
 import FilePreview from "../components/FilePreview.vue";
@@ -8,23 +9,37 @@ import type { AiSearchHit } from "../api/aiSearchTypes";
 import { getFileDetails, type DriveItemResponse } from "../api/drive";
 
 const router = useRouter();
+const searchPanel = ref<InstanceType<typeof AiSearchPanel> | null>(null);
 const previewTarget = ref<DriveItemResponse | null>(null);
 const openError = ref("");
 
+function refreshWhenVisible() {
+  if (document.visibilityState === "visible") void searchPanel.value?.refresh();
+}
+
+onMounted(() => document.addEventListener("visibilitychange", refreshWhenVisible));
+onBeforeUnmount(() => document.removeEventListener("visibilitychange", refreshWhenVisible));
+
 async function openFile(hit: AiSearchHit) {
   openError.value = "";
+  let unavailable = false;
   try {
     const { file } = await getFileDetails(hit.fileId);
-    if (file.kind !== "file") throw new Error("不是文件");
+    if (file.kind !== "file" || file.deletedAt || file.hidden) {
+      unavailable = true;
+      throw new Error("文件不可用");
+    }
     previewTarget.value = file;
-  } catch {
-    openError.value = "文件已不可用，请刷新搜索结果后重试。";
+  } catch (error) {
+    unavailable ||= axios.isAxiosError(error) && [404, 410].includes(error.response?.status ?? 0);
+    openError.value = unavailable ? "文件已不可用，搜索结果已刷新。" : "打开文件失败，请稍后重试。";
+    if (unavailable) void searchPanel.value?.refresh();
   }
 }
 </script>
 
 <template>
-  <AiSearchPanel :search="searchAiFiles" @back="router.push({ name: 'home' })" @open="openFile" />
+  <AiSearchPanel ref="searchPanel" :search="searchAiFiles" @back="router.push({ name: 'home' })" @open="openFile" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
   <div v-if="openError" class="ai-open-error" role="alert">
     {{ openError }}<button type="button" @click="openError = ''">关闭</button>
