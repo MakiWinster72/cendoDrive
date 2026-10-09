@@ -141,4 +141,13 @@ describe('transfer queue', () => {
     expect(secondDevice.tasks.map(task => task.name)).toEqual(['phone.jpg']);
     expect(secondDevice.tasks[0]?.fileId).toBe('42');
   });
+  it('persists a file found for a legacy transfer record', async () => {
+    store.recordUpload('mo.png', 2048);
+    await store.refresh();
+    const task = store.tasks[0]!;
+    store.linkFile(task.id, '42');
+    await store.refresh();
+    expect(store.tasks[0]?.fileId).toBe('42');
+    expect((remote.get('account-a')?.get(task.id) as { fileId: string }).fileId).toBe('42');
+  });
 });

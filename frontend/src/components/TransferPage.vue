@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
-import { driveErrorMessage, getFileDetails, type DriveItemResponse } from '../api/drive';
+import { driveErrorMessage, getFileDetails, searchFiles, type DriveItemResponse } from '../api/drive';
 import { previewFormat } from '../preview/formats';
 import FilePreview from './FilePreview.vue';
 import { iconForFile } from './fileIcon';
@@ -18,10 +18,26 @@ onMounted(() => { void transfers.refresh(); });
 async function openTask(task: TransferTask) {
   openError.value = '';
   if (task.status !== 'success') { openError.value = `${task.name}：${status(task)}`; return; }
-  if (!task.fileId) { openError.value = '这条历史记录没有关联文件，无法打开预览。'; return; }
-  if (!previewFormat(task.name)) { openError.value = '此文件格式暂不支持在线预览，请从网盘下载查看。'; return; }
   opening.value = task.id;
-  try { previewFile.value = (await getFileDetails(task.fileId)).file; }
+  try {
+    let fileId = task.fileId;
+    if (!fileId && task.direction !== 'download') {
+      const matches: DriveItemResponse[] = [];
+      for (let page = 0; page < 10; page++) {
+        const result = await searchFiles({ q: task.name.slice(0, 100), scope: 'all', type: 'all', sort: 'name', page, size: 100 });
+        matches.push(...result.items.map(hit => hit.file).filter(file => file.kind === 'file' && file.name === task.name && file.size === task.size));
+        if (matches.length > 1) { openError.value = '网盘中有多个同名同大小文件，无法确定这条历史记录对应哪一个。'; return; }
+        if ((page + 1) * 100 >= result.total) break;
+        if (page === 9) { openError.value = '匹配结果过多，请在网盘中查找该文件。'; return; }
+      }
+      fileId = matches[0]?.id;
+    }
+    if (!fileId) { openError.value = '这条历史记录未找到对应的网盘文件，无法打开预览。'; return; }
+    const file = (await getFileDetails(fileId)).file;
+    if (!previewFormat(file.name)) { openError.value = '此文件格式暂不支持在线预览，请从网盘下载查看。'; return; }
+    previewFile.value = file;
+    if (!task.fileId) transfers.linkFile(task.id, file.id);
+  }
   catch (error) { openError.value = driveErrorMessage(error, '文件可能已删除或无权访问，无法打开预览。'); }
   finally { opening.value = null; }
 }

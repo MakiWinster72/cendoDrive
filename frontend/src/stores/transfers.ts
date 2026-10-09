@@ -162,6 +162,13 @@ export function useTransfers() {
   function recordFailure(direction: TransferTask['direction'], name: string, size: number, error: string) {
     recordResult(direction, name, size, error);
   }
+  function linkFile(taskId: string, fileId: string) {
+    ensureOwner();
+    const task = tasks.find(entry => entry.id === taskId && entry.status === 'success');
+    if (!task || task.fileId === fileId) return;
+    task.fileId = fileId;
+    queueChange(task, task.id);
+  }
   async function refresh() {
     ensureOwner();
     const id = owner;
@@ -185,5 +192,5 @@ export function useTransfers() {
     clearedUploads.clear();
     pendingChanges.clear(); pendingClears.clear();
   }
-  return { tasks, settings, syncUpload, enqueueDownload, recordTransfer, recordDownload, recordUpload, recordFailure, refresh, clearFinished, removeUpload, setDownloadLimit, reset, activeCount: computed(() => tasks.filter(isActive).length) };
+  return { tasks, settings, syncUpload, enqueueDownload, recordTransfer, recordDownload, recordUpload, recordFailure, linkFile, refresh, clearFinished, removeUpload, setDownloadLimit, reset, activeCount: computed(() => tasks.filter(isActive).length) };
 }
