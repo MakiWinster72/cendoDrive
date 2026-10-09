@@ -6,8 +6,11 @@
   .mobile-app:has(.m-home-top) {
     background: #f2f4f9;
     color: #090e1c;
-    padding-bottom: var(--mobile-content-bottom);
+    padding-bottom: calc(var(--mobile-content-bottom) + 44px);
   }
+  .m-home-capacity { position: fixed; z-index: 9; inset: auto 0 calc(var(--mobile-nav-height) + max(18px, env(safe-area-inset-bottom))) ; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 6px var(--mobile-gutter); box-sizing: border-box; border-top: 1px solid #edf0f5; background: rgb(255 255 255 / 96%); color: #98a1b2; font-size: 12px; }
+  .m-home-capacity > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-home-capacity button { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 6px 0 6px 8px; border: 0; background: transparent; color: #4388f4; font: inherit; white-space: nowrap; }
   .m-home-top {
     background: linear-gradient(180deg, #e7f6ff 0%, #fff 54%, #f2f4f9 100%);
     padding-bottom: 15px;

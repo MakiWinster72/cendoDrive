@@ -3,10 +3,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import {
   Check,
   FileText,
-  Link2,
   LoaderCircle,
   RotateCcw,
-  ScanLine,
   Trash2,
   X,
 } from "@lucide/vue";
@@ -20,7 +18,7 @@ import {
   uploadFileInChunks,
 } from "../api/chunkedUpload";
 import UploadActionIcon from "./UploadActionIcon.vue";
-import { ChevronRight, CloudDownload, ShieldCheck } from "@lucide/vue";
+import { ChevronRight, ShieldCheck } from "@lucide/vue";
 import type { DriveItem } from "../stores/drive";
 import { useTransfers } from "../stores/transfers";
 
@@ -318,11 +316,6 @@ function statusText(task: UploadTask) {
           <button type="button" @click="showUnavailable('BT任务')"><UploadActionIcon kind="bt" /><span>BT任务</span></button>
         </div>
         <p v-if="unavailableMessage" class="unavailable-message" role="status">{{ unavailableMessage }}</p>
-        <div class="upload-quick-actions" aria-label="其他添加方式">
-          <button type="button" disabled aria-label="扫一扫（暂未开放）"><ScanLine /><span>扫一扫<small>暂未开放</small></span></button>
-          <button type="button" disabled aria-label="链接任务（暂未开放）"><Link2 /><span>链接任务<small>暂未开放</small></span></button>
-          <button type="button" disabled aria-label="BT 任务（暂未开放）"><CloudDownload /><span>BT 任务<small>暂未开放</small></span></button>
-        </div>
         <h2 id="upload-title">上传文件</h2>
         <div class="upload-options">
           <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
@@ -331,22 +324,14 @@ function statusText(task: UploadTask) {
           <button class="upload-option" type="button" @click="chooseType('video', 'video/*')">
             <span class="action-art"><span class="action-badge vip-badge">SVIP</span><UploadActionIcon kind="video" /></span><span>视频</span>
           </button>
-          <button class="upload-option" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,application/*')">
-            <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
           <button class="upload-option" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx')">
             <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
-            <span class="action-art"><UploadActionIcon kind="music" /></span><span>音乐</span>
           </button>
           <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
             <span class="action-art"><UploadActionIcon kind="audio" /></span><span>音频</span>
           </button>
           <button class="upload-option" type="button" @click="showUnavailable('微信文件')">
             <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
-            <span class="action-art"><UploadActionIcon kind="file" /></span><span>其他文件</span>
           </button>
           <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
             <span class="action-art"><UploadActionIcon kind="file" /></span><span>其他文件</span>

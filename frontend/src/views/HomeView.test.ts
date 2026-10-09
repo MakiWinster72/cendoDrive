@@ -87,6 +87,20 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.m-head-actions button[aria-label="上传文件"]').trigger("click");
     expect(wrapper.findComponent({ name: "UploadPanel" }).props("open")).toBe(true);
   });
+  it("keeps both home eye controls as visibility toggles and shows storage management", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.find('.m-home-capacity').text()).toContain('剩余空间：1.0 KiB / 2.0 KiB');
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="隐藏转存与订阅"]').trigger('click');
+    expect(wrapper.find('.m-banner .m-saved-scroll').exists()).toBe(false);
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('.transfer-page').exists()).toBe(false);
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="显示转存与订阅"]').trigger('click');
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('false');
+    await wrapper.get('.m-home-capacity button').trigger('click');
+    expect(wrapper.find('.profile-page').exists()).toBe(true);
+  });
   it("routes the mobile search card and desktop AI entry to one page", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
     wrappers.push(wrapper);
