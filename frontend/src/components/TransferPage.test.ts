@@ -21,4 +21,12 @@ describe('reference transfer page', () => {
     expect(source).toContain('transfers.setDownloadLimit(value)');
     expect(template).toContain("tab = 'transfer'");
   });
+  it('shows a fixed storage summary and emits the manage action', () => {
+    expect(template).toContain('aria-label="网盘剩余空间"');
+    expect(template).toContain('formatBytes(storageUsage.availableBytes)');
+    expect(template).toContain('formatBytes(storageUsage.limitBytes)');
+    expect(template).toContain('@click="emit(\'manageStorage\')"');
+    expect(source).toContain('position: fixed;');
+    expect(source).toContain('env(safe-area-inset-bottom');
+  });
 });
