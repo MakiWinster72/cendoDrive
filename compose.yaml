@@ -10,6 +10,9 @@ services:
       CENDO_STORAGE_ROOT: /app/storage
       CENDO_UPLOAD_ROOT: /app/storage/uploads
       CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
+      CENDO_AI_CHAT_BASE_URL: ${CENDO_AI_CHAT_BASE_URL:-}
+      CENDO_AI_CHAT_MODEL: ${CENDO_AI_CHAT_MODEL:-}
+      CENDO_AI_CHAT_KEY: ${CENDO_AI_CHAT_KEY:-}
 
     volumes:
       - backend-storage:/app/storage
