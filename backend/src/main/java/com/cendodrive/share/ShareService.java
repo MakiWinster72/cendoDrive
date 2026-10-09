@@ -43,7 +43,7 @@ public class ShareService {
   @Transactional
   public ShareResponse create(User user, CreateShareRequest request) {
     if (request.fileId() == null || request.fileId() <= 0 || request.expiresInSeconds() == null
-        || request.expiresInSeconds() < 1 || request.expiresInSeconds() > 2592000)
+        || request.expiresInSeconds() < 0 || request.expiresInSeconds() > 2592000)
       throw new DriveFailure(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Invalid share settings");
     String codeHash = codes.hash(request.extractionCode());
     DriveFile file = drive.shareableFile(user, request.fileId());

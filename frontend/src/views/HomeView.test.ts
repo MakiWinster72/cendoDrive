@@ -47,13 +47,16 @@ describe("share creation integration", () => {
     const wrapper = await open();
     await wrapper.get('.m-file-row input[type="checkbox"]').setValue(true);
     await wrapper.findAll(".m-selection-actions button").find(button => button.text() === "分享")!.trigger("click");
-    expect(createShare).not.toHaveBeenCalled(); expect(wrapper.get("#share-settings-title").text()).toBe("分享设置");
-    await wrapper.get(".share-settings [type=checkbox]").setValue(true);
+    expect(createShare).not.toHaveBeenCalled(); expect(wrapper.get("#share-composer-title").text()).toBe("分享");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await wrapper.findAll('.share-setting').find(button => button.text().includes('随机生成提取码'))!.trigger('click');
     await wrapper.get("#share-extraction-code").setValue("Ab12");
-    await wrapper.get(".share-settings form").trigger("submit"); await flushPromises();
-    expect(createShare).toHaveBeenCalledWith(file.id, 604800, "Ab12");
-    expect(wrapper.find(".share-settings").exists()).toBe(false);
-    expect(wrapper.findComponent({ name: "ShareLinkDialog" }).props("share").extractionCode).toBe("Ab12");
+    await wrapper.get(".code-form").trigger("submit");
+    await wrapper.get('[data-action="copy"]').trigger("click"); await flushPromises();
+    expect(createShare).toHaveBeenCalledWith(file.id, 0, "Ab12");
+    expect(wrapper.get(".share-toast").text()).toBe("链接已复制");
+    expect(useDrive().state.shares[0]?.extractionCode).toBe("Ab12");
     expect(useDrive().state.shares[0]?.extractionCode).toBe("Ab12");
     useDrive().reset(); expect(useDrive().state.shares).toEqual([]);
   });
@@ -87,6 +90,20 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.m-head-actions button[aria-label="上传文件"]').trigger("click");
     expect(wrapper.findComponent({ name: "UploadPanel" }).props("open")).toBe(true);
   });
+  it("keeps both home eye controls as visibility toggles and shows storage management", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.find('.m-home-capacity').text()).toContain('剩余空间：1.0 KiB / 2.0 KiB');
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="隐藏转存与订阅"]').trigger('click');
+    expect(wrapper.find('.m-banner .m-saved-scroll').exists()).toBe(false);
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('.transfer-page').exists()).toBe(false);
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="显示转存与订阅"]').trigger('click');
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('false');
+    await wrapper.get('.m-home-capacity button').trigger('click');
+    expect(wrapper.find('.profile-page').exists()).toBe(true);
+  });
   it("routes the mobile search card and desktop AI entry to one page", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
     wrappers.push(wrapper);
@@ -95,6 +112,11 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.desktop-drive .ai-search-entry[aria-label="AI 搜索文件内容"]').trigger("click");
     expect(routerPush).toHaveBeenNthCalledWith(1, { name: "ai-search" });
     expect(routerPush).toHaveBeenNthCalledWith(2, { name: "ai-search" });
+    expect(wrapper.get(".genflow").text()).toBe("扣扣AI");
+    await wrapper.get(".genflow").trigger("click");
+    await wrapper.get('[aria-label="打开扣扣AI智能对话"]').trigger("click");
+    expect(routerPush).toHaveBeenNthCalledWith(3, { name: "ai" });
+    expect(routerPush).toHaveBeenNthCalledWith(4, { name: "ai" });
   });
   const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
   const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };

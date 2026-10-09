@@ -8,7 +8,7 @@ import {
   XCircle,
 } from "@lucide/vue";
 import { iconForFile } from "./fileIcon";
-import type { ShareRecord } from "../api/shares";
+import { shareExpiryLabel, type ShareRecord } from "../api/shares";
 
 type Filter = "all" | "active" | "expired" | "cancelled";
 const props = defineProps<{
@@ -165,7 +165,7 @@ function cancelSelected() {
             >
             <span class="my-shares-status" :class="state(share)">{{
               state(share) === "active"
-                ? `有效至 ${new Date(share.expiresAt).toLocaleDateString("zh-CN")}`
+                ? shareExpiryLabel(share.expiresAt)
                 : state(share) === "expired"
                   ? "已过期"
                   : "已取消"
