@@ -151,7 +151,7 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
         <button class="outline-button" @click="selectMode('chat')">先和扣扣AI聊聊 <MessageCircle :size="17" /></button>
       </section>
       <template v-else>
-        <section v-if="!current.messages.length" class="welcome">
+        <section v-if="!current.messages.length" class="ai-welcome">
           <div class="greeting-row">
             <div class="greeting"><h1>Hello<span>!</span></h1><h2>我是扣扣AI</h2><p>很高兴遇见你，有什么我可以帮你？</p></div>
             <div class="robot" aria-hidden="true"><div class="antenna" /><div class="robot-head"><div class="robot-face"><i /><i /></div><div class="robot-smile" /></div><div class="robot-body"><Sparkles :size="21" /></div><div class="robot-shadow" /></div>
@@ -206,7 +206,7 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #009eb4; outli
 .mode-menu b, .mode-menu small { display: block; } .mode-menu b { font-size: 14px; } .mode-menu small { color: var(--muted); margin-top: 5px; font-size: 11px; }
 .mode-menu i { width: 6px; height: 6px; border-radius: 50%; background: #0397ae; margin-left: auto; }
 .ai-scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 0 28px; }
-.welcome { max-width: 740px; margin: 70px auto 40px; }
+.ai-welcome { max-width: 740px; margin: 70px auto 40px; }
 .greeting-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .greeting h1 { font-size: clamp(48px, 7vw, 76px); font-weight: 800; line-height: 1.1; letter-spacing: -4px; margin: 0 0 18px; }
 .greeting h1 span { color: #009fb7; } .greeting h2 { font-size: 28px; margin: 0 0 12px; letter-spacing: -1px; } .greeting p { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
@@ -245,6 +245,6 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #009eb4; outli
 .search-intro { max-width: 650px; margin: 64px auto 50px; text-align: center; } .feature-tag { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dbeff2; padding: 7px 13px; border-radius: 20px; font-size: 12px; color: #087b8b; }
 .search-emblem { width: 94px; height: 94px; border-radius: 30px; margin: 32px auto; background: #e6f8fa; color: #1493a7; display: grid; place-items: center; } .search-intro h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.5; letter-spacing: -1.5px; margin: 0 0 18px; } .search-intro > p { color: var(--muted); font-size: 14px; line-height: 1.9; }
 .search-example { background: #f5f7f8; border-radius: 14px; padding: 20px 14px; margin: 26px auto; font-size: 14px; color: #596771; max-width: 420px; } .search-intro .future-note { font-size: 12px; max-width: 470px; margin: 0 auto 26px; } .outline-button { display: inline-flex; gap: 10px; align-items: center; border: 1px solid #d4e4e8; background: white; color: #087e92; border-radius: 12px; padding: 12px 18px; font-size: 13px; }
-@media (max-width: 600px) { .ai-header { padding: 16px 14px; } .header-actions { gap: 0; } .mode-control { margin-left: 40px; } .mode-trigger strong { font-size: 19px; } .ai-scroll { padding: 0 24px; } .welcome { margin-top: 54px; } .greeting-row { gap: 8px; } .greeting h1 { font-size: 52px; letter-spacing: -3px; } .greeting h2 { font-size: 22px; } .greeting p { font-size: 12px; max-width: 200px; } .robot { width: 118px; height: 143px; } .robot-head { height: 82px; border-radius: 28px; padding: 19px 12px; } .robot-face { height: 36px; gap: 22px; } .robot-body { height: 30px; width: 54px; margin-top: 6px; } .robot-shadow { width: 70px; height: 9px; } .suggestion-heading { margin-top: 40px; } .suggestions button { font-size: 12px; padding: 15px 14px; } .composer-wrap { padding: 12px 18px max(16px, env(safe-area-inset-bottom)); } .composer { padding: 14px 14px 10px; border-radius: 19px; } .composer-hint span { display: none; } .model-name { max-width: 150px; } .search-intro { margin-top: 42px; } }
+@media (max-width: 600px) { .ai-header { padding: 16px 14px; } .header-actions { gap: 0; } .mode-control { margin-left: 40px; } .mode-trigger strong { font-size: 19px; } .ai-scroll { padding: 0 24px; } .ai-welcome { margin-top: 54px; } .greeting-row { gap: 8px; } .greeting h1 { font-size: 52px; letter-spacing: -3px; } .greeting h2 { font-size: 22px; } .greeting p { font-size: 12px; max-width: 200px; } .robot { width: 118px; height: 143px; } .robot-head { height: 82px; border-radius: 28px; padding: 19px 12px; } .robot-face { height: 36px; gap: 22px; } .robot-body { height: 30px; width: 54px; margin-top: 6px; } .robot-shadow { width: 70px; height: 9px; } .suggestion-heading { margin-top: 40px; } .suggestions button { font-size: 12px; padding: 15px 14px; } .composer-wrap { padding: 12px 18px max(16px, env(safe-area-inset-bottom)); } .composer { padding: 14px 14px 10px; border-radius: 19px; } .composer-hint span { display: none; } .model-name { max-width: 150px; } .search-intro { margin-top: 42px; } }
 @media (max-width: 360px) { .ai-scroll { padding: 0 18px; } .robot { transform: scale(.85) rotate(8deg); margin: 0 -9px; } .greeting h1 { font-size: 44px; } .greeting h2 { font-size: 20px; } }
 </style>
