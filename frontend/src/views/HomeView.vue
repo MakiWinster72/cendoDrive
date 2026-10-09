@@ -151,6 +151,7 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">(new URLSearchParams(location.search).get("tab") === "share" ? "share" : "home");
+const savedVisible = ref(true);
 watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
 const homeContent = ref(demoHomeContent);
@@ -847,10 +848,11 @@ onUnmounted(() => {
           <div class="m-panel-actions">
             <button
               type="button"
-              aria-label="查看转存与订阅"
-              @click="mobileTab = 'share'"
+              :aria-label="savedVisible ? '隐藏转存与订阅' : '显示转存与订阅'"
+              :aria-pressed="!savedVisible"
+              @click="savedVisible = !savedVisible"
             >
-              <Eye :size="20" />
+              <Eye v-if="savedVisible" :size="20" /><EyeOff v-else :size="20" />
             </button>
             <button
               type="button"
@@ -861,7 +863,7 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
-        <div v-if="savedItems.length" class="m-saved-scroll">
+        <div v-if="savedVisible && savedItems.length" class="m-saved-scroll">
           <button
             v-for="item in savedItems"
             :key="item.id"
@@ -875,7 +877,7 @@ onUnmounted(() => {
             >
           </button>
         </div>
-        <p v-else class="m-home-empty">分享的文件会显示在这里</p>
+        <p v-else-if="savedVisible" class="m-home-empty">分享的文件会显示在这里</p>
       </section>
       <section class="m-memory">
         <div class="m-panel-title">
@@ -894,6 +896,10 @@ onUnmounted(() => {
           </button>
         </div>
       </section>
+      <div v-if="drive.state.usage" class="m-home-capacity" aria-label="网盘空间">
+        <span>剩余空间：{{ formatBytes(drive.state.usage.availableBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }}</span>
+        <button type="button" @click="mobileTab = 'profile'">点击管理<ChevronRight :size="15" /></button>
+      </div>
     </template>
     <template v-else-if="mobileTab === 'files'">
       <header v-if="currentFolder && !checked.length" class="m-folder-head" @keydown.esc="folderMenuOpen = false">
