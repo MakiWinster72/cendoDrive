@@ -28,6 +28,7 @@ describe("upload button state", () => {
     await wrapper.get(".start-upload-button").trigger("click");
     await flushPromises();
     expect(uploadFile).toHaveBeenCalledOnce();
+    expect(useTransfers().tasks.find(task => task.name === "笔记.md")?.fileId).toBe("42");
     expect(wrapper.find(".start-upload-button").exists()).toBe(false);
     expect(wrapper.get(".upload-complete-button").text()).toBe("上传完成");
     wrapper.unmount();

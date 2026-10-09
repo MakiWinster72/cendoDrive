@@ -6,6 +6,7 @@ import { listRooms, getMessages, sendMessage, sendFileMessage, type Room, type M
 import { useAuth } from '../stores/auth';
 import { driveErrorMessage, type DriveItemResponse } from '../api/drive';
 import { uploadFile, uploadErrorMessage } from '../api/files';
+import { useTransfers } from '../stores/transfers';
 import '../styles/chat.css';
 const route=useRoute(); const router=useRouter(); const auth=useAuth(); const id=String(route.params.id);
 const room=ref<Room>(); const messages=ref<Message[]>([]); const content=ref(''); const error=ref(''); const busy=ref(false); const list=ref<HTMLElement>();
@@ -22,9 +23,10 @@ async function upload(event: Event) {
   fileBusy.value=true; error.value=''; fileNotice.value='正在上传文件…';
   try {
     const uploaded=await uploadFile({file,parentId:null,signal:uploadAbort.signal,onProgress:p=>{fileNotice.value=`正在上传 ${p}%`;}});
+    useTransfers().recordUpload(uploaded.name,uploaded.size);
     pendingFile.value=uploaded; await choose(uploaded);
     if(pendingFile.value) fileNotice.value='已上传到云盘，但消息未发送，可重试';
-  } catch(e) { error.value=uploadErrorMessage(e); fileNotice.value=''; }
+  } catch(e) { error.value=uploadErrorMessage(e); fileNotice.value=''; useTransfers().recordFailure('upload',file.name,file.size,error.value); }
   finally { fileBusy.value=false; input.value=''; }
 }
 function size(bytes: number) { return bytes<1024 ? `${bytes} B` : bytes<1048576 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/1048576).toFixed(1)} MB`; }

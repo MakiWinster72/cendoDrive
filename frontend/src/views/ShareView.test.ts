@@ -6,7 +6,8 @@ import ShareView from "./ShareView.vue";
 import { downloadPublicShare, getPublicShare, saveSharedFile } from "../api/shares";
 
 const { ensureSession } = vi.hoisted(() => ({ ensureSession: vi.fn() }));
-vi.mock("../stores/auth", () => ({ useAuth: () => ({ ensureSession, loggedIn: { value: true }, verificationError: { value: "" } }) }));
+vi.mock("../stores/auth", () => ({ useAuth: () => ({ ensureSession, user: { value: { id: '1' } }, loggedIn: { value: true }, verificationError: { value: "" } }) }));
+vi.mock("../api/transfers", () => ({ saveTransferRecord: vi.fn(async () => {}), deleteTransferRecord: vi.fn(async () => {}), clearTransferRecords: vi.fn(async () => {}), listTransferRecords: vi.fn(async () => []) }));
 vi.mock("../api/shares", async original => ({ ...await original<typeof import("../api/shares")>(), getPublicShare: vi.fn(), downloadPublicShare: vi.fn(), saveSharedFile: vi.fn() }));
 const access = { file: { id: "42", name: "机密笔记.md", kind: "file" as const, size: 42, parentId: null, deletedAt: null, createdAt: "2026-10-08T00:00:00Z", updatedAt: "2026-10-08T00:00:00Z" }, expiresAt: "2030-01-01T00:00:00Z" };
 const failure = (code: string, status = 403) => ({ isAxiosError: true, response: { status, data: { code } } });

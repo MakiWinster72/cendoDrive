@@ -19,6 +19,7 @@ public class ShareLink {
   @Column(name = "expires_at", nullable = false) private LocalDateTime expiresAt;
   @Column(nullable = false) private boolean cancelled;
   @Column(name = "extraction_code_hash", length = 100) private String extractionCodeHash;
+  @Column(name = "extraction_code", length = 16) private String extractionCode;
 
   // MySQL DATETIME-compatible sentinel preserves the existing non-null expiry schema.
   static final Instant PERMANENT_EXPIRY = Instant.parse("9999-12-31T23:59:59Z");
@@ -51,6 +52,11 @@ public class ShareLink {
   public boolean isActiveAt(Instant now) { return !cancelled && now.isBefore(getExpiresAt()); }
   boolean hasExtractionCode() { return extractionCodeHash != null; }
   String getExtractionCodeHash() { return extractionCodeHash; }
-  void protect(String hash) { extractionCodeHash = hash; }
+  String getExtractionCode() { return extractionCode; }
+  void protect(String hash) { protect(hash, null); }
+  void protect(String hash, String code) {
+    extractionCodeHash = hash;
+    extractionCode = hash == null ? null : code;
+  }
   void cancel() { cancelled = true; }
 }

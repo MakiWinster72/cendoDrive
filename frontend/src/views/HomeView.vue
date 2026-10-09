@@ -96,7 +96,7 @@ import { useAuth } from "../stores/auth";
 import { formatBytes, formatSize, useDrive, type DriveItem } from "../stores/drive";
 import { shareClipboardText, shareErrorMessage, type ShareRecord } from "../api/shares";
 import { getHomeContent, getSplashAd, type SplashAdContent } from "../api/content";
-import { demoHomeContent } from "../api/contentDemo";
+import { demoHomeContent, demoSplashAd } from "../api/contentDemo";
 
 type Mode =
   | "all"
@@ -151,6 +151,7 @@ const sortBy = ref<"name" | "time" | "size">("time"),
   loggingOut = ref(false),
   downloading = ref(false);
 const mobileTab = ref<"home" | "files" | "share" | "profile">(new URLSearchParams(location.search).get("tab") === "share" ? "share" : "home");
+const savedVisible = ref(true);
 watch(keyword, () => { checked.value = []; });
 const showTransfers = ref(false);
 const homeContent = ref(demoHomeContent);
@@ -175,6 +176,7 @@ async function accountSignedOut(reason: "password"|"deletion",purgeAfter?: strin
   await router.replace({name:"login",query:reason==="password" ? {passwordChanged:"1"} : {accountDeleted:"1",purgeAfter}});
 }
 
+const splashAdDemo = ref(false);
 function openTransfers() {
   folderMenuOpen.value = false;
   showTransfers.value = true;
@@ -354,10 +356,30 @@ async function loadHomeContent() {
 }
 async function loadSplashAd() {
   try {
-    splashAd.value = await getSplashAd();
+    const ad = await getSplashAd();
+    splashAd.value = ad && !wasSplashSeen(ad.id) ? ad : null;
+    splashAdDemo.value = false;
   } catch {
-    splashAd.value = null;
+    if (import.meta.env.DEV && !wasSplashSeen(demoSplashAd.id)) {
+      splashAd.value = demoSplashAd;
+      splashAdDemo.value = true;
+    } else {
+      splashAd.value = null;
+      splashAdDemo.value = false;
+    }
   }
+}
+function wasSplashSeen(id: string) {
+  try { return sessionStorage.getItem(`cendo:splash-ad-seen:${id}`) === "1"; }
+  catch { return false; }
+}
+function closeSplashAd() {
+  if (splashAd.value) {
+    try { sessionStorage.setItem(`cendo:splash-ad-seen:${splashAd.value.id}`, "1"); }
+    catch { /* The ad still closes when session storage is unavailable. */ }
+  }
+  splashAd.value = null;
+  splashAdDemo.value = false;
 }
 function openContentTarget(targetUrl: string | null | undefined) {
   if (!targetUrl) {
@@ -675,7 +697,8 @@ onUnmounted(() => {
 <template>
   <SplashAdOverlay
     :ad="splashAd"
-    @close="splashAd = null"
+    :demo="splashAdDemo"
+    @close="closeSplashAd"
     @open="openContentTarget"
   />
   <UnavailableFeatureDialog
@@ -683,7 +706,8 @@ onUnmounted(() => {
     :message="unavailableMessage"
     @close="unavailableMessage = ''"
   />
-  <TransferPage v-if="showTransfers" @back="showTransfers = false" />
+  <TransferPage v-if="showTransfers" @back="showTransfers = false" @manage-storage="showTransfers = false; mobileTab = 'profile'" />
+
   <AccountPage v-if="showAccount" @back="showAccount=false" @changed="refreshAvatar" @signed-out="accountSignedOut" />
   <FileTools v-if="toolsTarget" :items="toolsTarget.items" :initial-action="toolsTarget.action" @close="toolsTarget = null" @changed="toolsChanged" @rename="startMobileRename" @trash="removeSelected" />
   <FilePreview v-if="previewTarget" :file="previewTarget" @close="previewTarget = null" />
@@ -824,10 +848,11 @@ onUnmounted(() => {
           <div class="m-panel-actions">
             <button
               type="button"
-              aria-label="查看转存与订阅"
-              @click="mobileTab = 'share'"
+              :aria-label="savedVisible ? '隐藏转存与订阅' : '显示转存与订阅'"
+              :aria-pressed="!savedVisible"
+              @click="savedVisible = !savedVisible"
             >
-              <Eye :size="20" />
+              <Eye v-if="savedVisible" :size="20" /><EyeOff v-else :size="20" />
             </button>
             <button
               type="button"
@@ -838,7 +863,7 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
-        <div v-if="savedItems.length" class="m-saved-scroll">
+        <div v-if="savedVisible && savedItems.length" class="m-saved-scroll">
           <button
             v-for="item in savedItems"
             :key="item.id"
@@ -852,7 +877,7 @@ onUnmounted(() => {
             >
           </button>
         </div>
-        <p v-else class="m-home-empty">分享的文件会显示在这里</p>
+        <p v-else-if="savedVisible" class="m-home-empty">分享的文件会显示在这里</p>
       </section>
       <section class="m-memory">
         <div class="m-panel-title">
@@ -871,6 +896,10 @@ onUnmounted(() => {
           </button>
         </div>
       </section>
+      <div v-if="drive.state.usage" class="m-home-capacity" aria-label="网盘空间">
+        <span>剩余空间：{{ formatBytes(drive.state.usage.availableBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }}</span>
+        <button type="button" @click="mobileTab = 'profile'">点击管理<ChevronRight :size="15" /></button>
+      </div>
     </template>
     <template v-else-if="mobileTab === 'files'">
       <header v-if="currentFolder && !checked.length" class="m-folder-head" @keydown.esc="folderMenuOpen = false">
@@ -1158,8 +1187,8 @@ onUnmounted(() => {
         "
       >
         <Folder /><span>文件</span></button
-      ><button class="genflow" type="button" @click="showUnavailable('库库 AI 功能暂未开放。')">
-        <i><Sparkles /></i><span>库库 AI</span></button
+      ><button class="genflow" type="button" @click="router.push({ name: 'ai' })">
+        <i><Sparkles /></i><span>扣扣AI</span></button
       ><button
         :class="{ active: mobileTab === 'share' }"
         @click="mobileTab = 'share'"
@@ -1240,6 +1269,9 @@ onUnmounted(() => {
             :placeholder="serverSearchEnabled ? '按文件名搜索' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
           /><kbd>⌘ K</kbd>
         </div>
+        <button class="ai-search-entry" type="button" aria-label="打开扣扣AI智能对话" @click="router.push({ name: 'ai' })">
+          <Sparkles :size="18" /><span>扣扣AI</span>
+        </button>
         <button class="ai-search-entry" type="button" aria-label="AI 搜索文件内容" @click="router.push({ name: 'ai-search' })">
           <WandSparkles :size="18" /><span>AI 搜索</span>
         </button>

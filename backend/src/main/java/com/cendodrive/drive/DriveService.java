@@ -4,6 +4,7 @@ import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.cendodrive.drive.DriveDtos.*;
 import com.cendodrive.user.User;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.storage.StorageCleanupService;
 import java.io.IOException;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
@@ -24,13 +25,16 @@ public class DriveService {
   private final Path storageRoot;
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
+  private final StorageCleanupService storageCleanup;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
   public DriveService(DriveFileRepository files, FileStorage fastDfs,
-      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota) {
+      @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota,
+      StorageCleanupService storageCleanup) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
+    this.storageCleanup = storageCleanup;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -116,7 +120,8 @@ public class DriveService {
 
   private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
-    return FileResponse.from(files.saveAndFlush(file));
+    file=files.saveAndFlush(file);
+    return FileResponse.from(file);
   }
 
   @Transactional(readOnly = true)
@@ -185,13 +190,11 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
-    List<Runnable> deletions = doomed.stream().filter(f -> !f.isFolder() && f.getStorageKey() != null)
-        .map(f -> (Runnable) () -> deleteStorage(f.getStorageBackend(), f.getStorageKey())).toList();
+    doomed.stream().filter(f -> !f.isFolder()).forEach(storageCleanup::enqueue);
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
     files.deleteAllInBatch(doomed);
     files.flush();
     quota.refresh(locked);
-    afterCommit(() -> deletions.forEach(Runnable::run));
   }
 
   List<DriveFile> subtree(User user, List<DriveFile> roots, boolean includeDeleted) {
@@ -216,14 +219,6 @@ public class DriveService {
         if (path.startsWith(storageRoot)) Files.deleteIfExists(path);
       }
     } catch (IOException | RuntimeException e) { LOG.warn("Storage cleanup failed for {}:{}", backend, key, e); }
-  }
-
-  private static void afterCommit(Runnable action) {
-    if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) { action.run(); return; }
-    org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-        new org.springframework.transaction.support.TransactionSynchronization() {
-          @Override public void afterCommit() { action.run(); }
-        });
   }
 
   private static void onRollback(Runnable action) {

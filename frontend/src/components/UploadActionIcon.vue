@@ -22,6 +22,20 @@ const id = useId();
       <rect x="5" y="11" width="46" height="43" rx="7" :fill="`url(#${id}-blue)`"/><path d="m43 27 13-8q7-3 7 4v18q0 8-7 4l-13-8q-7-5 0-10Z" :fill="`url(#${id}-pink)`"/><path d="m43 27 8-5v20l-8-5q-7-5 0-10Z" fill="#3478ff"/><circle cx="17" cy="23" r="3" fill="white"/>
     </g>
     <g v-else-if="kind === 'document'">
+      <path d="M14 6h24l13 13v37H14q-6 0-6-6V12q0-6 6-6Z" :fill="`url(#${id}-blue)`"/><path d="M38 6v12q0 3 3 3h10" fill="#a9eaff"/><path d="M19 31h20M19 40h20M19 49h14" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g v-else-if="kind === 'audio'">
+      <circle cx="30" cy="32" r="25" :fill="`url(#${id}-blue)`"/><path d="M13 34h5l4-11 7 22 6-29 7 31 4-13h5" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g v-else-if="kind === 'bt'">
+      <rect x="7" y="9" width="48" height="46" rx="9" :fill="`url(#${id}-blue)`"/><path d="M21 23h17m-17 9h17m-17 9h11" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M45 34h12m-6-6 6 6-6 6" stroke="#f2558c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g v-else-if="kind === 'link'">
+      <path d="m25 39-5 5a10 10 0 0 1-14-14l10-10a10 10 0 0 1 14 0" stroke="#418aff" stroke-width="8" stroke-linecap="round"/>
+      <path d="m39 25 5-5a10 10 0 0 1 14 14L48 44a10 10 0 0 1-14 0" stroke="#ee70ad" stroke-width="8" stroke-linecap="round"/>
+      <path d="m22 42 20-20" stroke="#5bc9ef" stroke-width="8" stroke-linecap="round"/>
+    </g>
+    <g v-else-if="kind === 'document'">
       <rect x="10" y="5" width="42" height="54" rx="7" :fill="`url(#${id}-blue)`"/><path d="M41 5v13h11" fill="#c4edff"/><path d="M20 30h22M20 40h16" stroke="white" stroke-width="4" stroke-linecap="round"/>
     </g>
     <g v-else-if="kind === 'music'">

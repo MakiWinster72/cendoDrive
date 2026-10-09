@@ -21,6 +21,15 @@ export const demoHomeContent: ContentHomeResponse = {
   },
 };
 
+export const demoSplashAd = {
+  id: "demo-splash-ad",
+  title: "让每一份文件都井然有序",
+  imageUrl: "/splash-ad-demo.svg",
+  targetUrl: "/membership",
+  displaySeconds: 5,
+  skipAfterSeconds: 1,
+};
+
 export const demoMembershipContent: MembershipContentResponse = {
   plans: [
     { id: "trial", name: "7天体验卡", price: "5.8", suffix: "", originalPrice: "22.2", badge: "国庆特惠", sortOrder: 0 },

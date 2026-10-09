@@ -23,11 +23,16 @@ cendo:
   storage:
     root: ${CENDO_STORAGE_ROOT:./storage}
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
+    cleanup-delay-ms: ${CENDO_STORAGE_CLEANUP_DELAY_MS:30000}
   upload:
     root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
     ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
-  user:
-    cleanup-delay-ms: ${CENDO_ACCOUNT_CLEANUP_DELAY_MS:3600000}
+  ai:
+    chat:
+      # OpenAI-compatible API base (include /v1 when required). Secrets stay server-side.
+      base-url: ${CENDO_AI_CHAT_BASE_URL:}
+      model: ${CENDO_AI_CHAT_MODEL:}
+      key: ${CENDO_AI_CHAT_KEY:}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}

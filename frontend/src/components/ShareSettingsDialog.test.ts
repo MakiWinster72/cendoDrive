@@ -58,7 +58,7 @@ describe("share settings", () => {
   });
   it("copies the link and current code without putting the code in the URL", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined); vi.stubGlobal("navigator", { clipboard: { writeText } });
-    wrapper = mount(ShareLinkDialog, { props: { share: { ...record, hasExtractionCode: true, extractionCode: "Ab12" } } });
+    wrapper = mount(ShareLinkDialog, { props: { share: { ...record, hasExtractionCode: true, extractionCode: "Ab12" } }, global: { stubs: { teleport: true } } });
     await wrapper.findAll("button")[1].trigger("click"); await flushPromises();
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/share/abc\n提取码：Ab12`);
     expect((wrapper.get("#share-link-value").element as HTMLInputElement).value).not.toContain("Ab12");

@@ -31,6 +31,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390, writable: true });
+  window.sessionStorage.removeItem("cendo:splash-ad-seen:demo-splash-ad");
   vi.resetAllMocks(); useDrive().reset(); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("alert", vi.fn());
   vi.mocked(getHomeContent).mockRejectedValue(new Error("内容接口未接入")); vi.mocked(getSplashAd).mockResolvedValue(null);
   vi.mocked(getProfile).mockResolvedValue({ id: "1", username: "tester", nickname: "测试用户", hasAvatar: false });
@@ -89,6 +90,20 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.m-head-actions button[aria-label="上传文件"]').trigger("click");
     expect(wrapper.findComponent({ name: "UploadPanel" }).props("open")).toBe(true);
   });
+  it("keeps both home eye controls as visibility toggles and shows storage management", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    expect(wrapper.find('.m-home-capacity').text()).toContain('剩余空间：1.0 KiB / 2.0 KiB');
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="隐藏转存与订阅"]').trigger('click');
+    expect(wrapper.find('.m-banner .m-saved-scroll').exists()).toBe(false);
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('.transfer-page').exists()).toBe(false);
+    await wrapper.get('.m-banner .m-panel-actions button[aria-label="显示转存与订阅"]').trigger('click');
+    expect(wrapper.get('.m-banner .m-panel-actions button').attributes('aria-pressed')).toBe('false');
+    await wrapper.get('.m-home-capacity button').trigger('click');
+    expect(wrapper.find('.profile-page').exists()).toBe(true);
+  });
   it("routes the mobile search card and desktop AI entry to one page", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
     wrappers.push(wrapper);
@@ -97,6 +112,11 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.desktop-drive .ai-search-entry[aria-label="AI 搜索文件内容"]').trigger("click");
     expect(routerPush).toHaveBeenNthCalledWith(1, { name: "ai-search" });
     expect(routerPush).toHaveBeenNthCalledWith(2, { name: "ai-search" });
+    expect(wrapper.get(".genflow").text()).toBe("扣扣AI");
+    await wrapper.get(".genflow").trigger("click");
+    await wrapper.get('[aria-label="打开扣扣AI智能对话"]').trigger("click");
+    expect(routerPush).toHaveBeenNthCalledWith(3, { name: "ai" });
+    expect(routerPush).toHaveBeenNthCalledWith(4, { name: "ai" });
   });
   const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
   const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };
@@ -378,6 +398,29 @@ describe("mobile profile unavailable destinations", () => {
 });
 
 describe("mobile home media shortcuts", () => {
+  it("shows a clearly labelled development splash demo when the ad API is missing", async () => {
+    vi.mocked(getSplashAd).mockRejectedValueOnce(new Error("splash endpoint not implemented"));
+    const wrapper = await open();
+    expect(document.body.querySelector(".splash-ad-demo-badge")?.textContent).toContain("演示广告");
+    expect(document.body.querySelector(".splash-ad-content")?.textContent).toContain("让每一份文件都井然有序");
+    (document.body.querySelector(".splash-ad-content") as HTMLButtonElement).click();
+    await flushPromises();
+    expect(routerPush).toHaveBeenCalledWith("/membership");
+    expect(window.sessionStorage.getItem("cendo:splash-ad-seen:demo-splash-ad")).toBe("1");
+    wrapper.unmount();
+  });
+
+  it("shows the splash ad only once per tab session", async () => {
+    vi.mocked(getSplashAd).mockRejectedValue(new Error("splash endpoint not implemented"));
+    const first = await open();
+    (document.body.querySelector(".splash-ad-content") as HTMLButtonElement).click();
+    await flushPromises();
+    first.unmount();
+    const second = await open();
+    expect(document.body.querySelector(".splash-ad-demo-badge")).toBeNull();
+    second.unmount();
+  });
+
   it("renders home promotion fields returned by the content endpoint", async () => {
     vi.mocked(getHomeContent).mockResolvedValueOnce({
       membershipEntry: { title: "服务端会员入口", subtitle: "后端返回副标题", targetUrl: "/membership" },

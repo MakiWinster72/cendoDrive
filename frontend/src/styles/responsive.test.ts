@@ -59,7 +59,8 @@ describe("responsive style ownership", () => {
       expect(source).toContain("var(--mobile-gutter)");
     }
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
-    expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
+    // The fixed homepage capacity bar needs clearance in addition to the shared navigation.
+    expect(home).toContain("padding-bottom: calc(var(--mobile-content-bottom) + 44px)");
     expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
     expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
   });

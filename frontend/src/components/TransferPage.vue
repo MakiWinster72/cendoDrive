@@ -1,13 +1,66 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
-import { formatSize } from '../stores/drive';
+import { formatBytes, formatSize, useDrive } from '../stores/drive';
+import { driveErrorMessage, getFileDetails, searchFiles, type DriveItemResponse } from '../api/drive';
+import { previewFormat } from '../preview/formats';
+import FilePreview from './FilePreview.vue';
 import { iconForFile } from './fileIcon';
 import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
-const emit = defineEmits<{ back: [] }>();
-const tab = ref<'download' | 'upload'>('download');
+const emit = defineEmits<{ back: []; manageStorage: [] }>();
+const tab = ref<TransferTask['direction']>('download');
 const promo = ref(true), coupon = ref(true);
 const transfers = useTransfers();
+const previewFile = ref<DriveItemResponse | null>(null);
+const openError = ref('');
+const opening = ref<string | null>(null);
+const limitMenuOpen = ref(false);
+const limitMenu = ref<HTMLElement | null>(null);
+const downloadLimits = [1, 2, 3, 5];
+function closeLimitMenu(event: PointerEvent) {
+  if (!limitMenu.value?.contains(event.target as Node)) limitMenuOpen.value = false;
+}
+function selectDownloadLimit(value: number) {
+  transfers.setDownloadLimit(value);
+  limitMenuOpen.value = false;
+}
+onMounted(() => { void transfers.refresh(); });
+onMounted(() => document.addEventListener('pointerdown', closeLimitMenu));
+onUnmounted(() => document.removeEventListener('pointerdown', closeLimitMenu));
+async function openTask(task: TransferTask) {
+  openError.value = '';
+  if (task.status !== 'success') { openError.value = `${task.name}：${status(task)}`; return; }
+  opening.value = task.id;
+  try {
+    let fileId = task.fileId;
+    if (!fileId && task.direction !== 'download') {
+      const matches: DriveItemResponse[] = [];
+      for (let page = 0; page < 10; page++) {
+        const result = await searchFiles({ q: task.name.slice(0, 100), scope: 'all', type: 'all', sort: 'name', page, size: 100 });
+        matches.push(...result.items.map(hit => hit.file).filter(file => file.kind === 'file' && file.name === task.name && file.size === task.size));
+        if (matches.length > 1) { openError.value = '网盘中有多个同名同大小文件，无法确定这条历史记录对应哪一个。'; return; }
+        if ((page + 1) * 100 >= result.total) break;
+        if (page === 9) { openError.value = '匹配结果过多，请在网盘中查找该文件。'; return; }
+      }
+      fileId = matches[0]?.id;
+    }
+    if (!fileId) { openError.value = '这条历史记录未找到对应的网盘文件，无法打开预览。'; return; }
+    const file = (await getFileDetails(fileId)).file;
+    if (!previewFormat(file.name)) { openError.value = '此文件格式暂不支持在线预览，请从网盘下载查看。'; return; }
+    previewFile.value = file;
+    if (!task.fileId) transfers.linkFile(task.id, file.id);
+  }
+  catch (error) { openError.value = driveErrorMessage(error, '文件可能已删除或无权访问，无法打开预览。'); }
+  finally { opening.value = null; }
+}
+const drive = useDrive();
+const storageUsage = computed(() => drive.state.usage);
+const storagePercent = computed(() => {
+  const usage = storageUsage.value;
+  if (!usage?.limitBytes) return 0;
+  return Math.min(100, Math.max(0, (usage.usedBytes / usage.limitBytes) * 100));
+});
+onMounted(() => { if (!drive.state.usage) void drive.loadUsage(); });
 type Filter = 'all' | 'success' | 'active' | 'failed';
 const filter = ref<Filter>('all');
 const filters: { key: Filter; label: string }[] = [{ key: 'all', label: '全部任务' }, { key: 'success', label: '已完成' }, { key: 'active', label: '进行中' }, { key: 'failed', label: '任务失败' }];
@@ -23,7 +76,7 @@ const groups = computed(() => {
   return [...result.entries()];
 });
 function status(task: TransferTask) {
-  if (task.status === 'success') return task.direction === 'download' ? '已下载至：浏览器下载目录' : '已上传至：千度网盘';
+  if (task.status === 'success') return task.direction === 'download' ? '已下载至：浏览器下载目录' : task.direction === 'transfer' ? '已转存至：千度网盘' : '已上传至：千度网盘';
   return task.error || ({ waiting: '等待传输', preparing: '正在计算文件校验值', uploading: '上传中', downloading: '下载中', failed: '传输失败', cancelled: '已取消' } as Record<string, string>)[task.status];
 }
 </script>
@@ -59,7 +112,7 @@ function status(task: TransferTask) {
     <nav class="transfer-tabs" aria-label="传输类型">
       <button :class="{ active: tab === 'download' }" @click="tab = 'download'">下载</button>
       <button :class="{ active: tab === 'upload' }" @click="tab = 'upload'">上传</button>
-      <button aria-label="转存（暂未开放）">转存</button>
+      <button :class="{ active: tab === 'transfer' }" @click="tab = 'transfer'">转存</button>
       <button aria-label="云添加（暂未开放）">云添加</button>
     </nav>
     <main class="transfer-content">
@@ -72,20 +125,27 @@ function status(task: TransferTask) {
       <div class="transfer-toolbar">
         <span>全部文件</span>
         <span>
-          <template v-if="tab === 'download'">同时下载数: <select aria-label="同时下载数" :value="transfers.settings.downloadLimit" @change="transfers.setDownloadLimit(Number(($event.target as HTMLSelectElement).value))">
-              <option v-for="n in [1, 2, 3, 5]" :key="n" :value="n">{{ n }}</option>
-            </select>
-            <ChevronDown />
+          <template v-if="tab === 'download'">同时下载数:
+            <span ref="limitMenu" class="download-limit">
+              <button type="button" aria-label="同时下载数" aria-haspopup="true" :aria-expanded="limitMenuOpen" @click="limitMenuOpen = !limitMenuOpen" @keydown.esc="limitMenuOpen = false">
+                {{ transfers.settings.downloadLimit }} <ChevronDown />
+              </button>
+              <span v-if="limitMenuOpen" class="download-limit-options" aria-label="选择同时下载数" @keydown.esc="limitMenuOpen = false">
+                <button v-for="n in downloadLimits" :key="n" type="button" :aria-label="`同时下载 ${n} 个`" :aria-pressed="transfers.settings.downloadLimit === n" @click="selectDownloadLimit(n)">{{ n }}</button>
+              </span>
+            </span>
           </template>
           <i>
           </i>
           <button @click="transfers.clearFinished(tab)">全部清除</button>
         </span>
       </div>
-      <p v-if="!groups.length" class="transfer-empty">暂无{{ filter === 'all' ? (tab === 'download' ? '下载' : '上传') : filters.find(item => item.key === filter)?.label }}任务</p>
+      <p v-if="openError" class="transfer-open-error" role="alert">{{ openError }}<button type="button" aria-label="关闭提示" @click="openError = ''"><X :size="16" /></button></p>
+      <p v-if="!groups.length" class="transfer-empty">暂无{{ filter === 'all' ? ({ download: '下载', upload: '上传', transfer: '转存' }[tab]) : filters.find(item => item.key === filter)?.label }}任务</p>
       <section v-for="[date, tasks] in groups" :key="date" class="transfer-group">
         <h2>{{ date }}</h2>
         <article v-for="task in tasks" :key="task.id" class="transfer-task">
+          <button type="button" class="task-open" :aria-label="`查看 ${task.name} 的文件内容`" :disabled="opening === task.id" @click="openTask(task)"></button>
           <component :is="iconForFile({ name: task.name, kind: 'file' })" class="task-icon" aria-hidden="true" />
           <div class="task-detail">
             <h3 :title="task.name">{{ task.name }}</h3>
@@ -111,34 +171,40 @@ function status(task: TransferTask) {
         <X />
       </button>
     </aside>
+    <FilePreview v-if="previewFile" :file="previewFile" @close="previewFile = null" />
+    <footer class="transfer-storage" aria-label="网盘剩余空间">
+      <div class="storage-meter" aria-hidden="true"><span :style="{ width: `${storagePercent}%` }"></span></div>
+      <span v-if="storageUsage">剩余空间：{{ formatBytes(storageUsage.availableBytes) }} / {{ formatBytes(storageUsage.limitBytes) }}</span>
+      <span v-else>{{ drive.state.usageError ? '空间信息暂不可用' : '正在获取空间信息…' }}</span>
+      <button type="button" @click="emit('manageStorage')">点击管理<ChevronRight /></button>
+    </footer>
   </section>
 </template>
 
 <style scoped>
-.transfer-toolbar select {
-  border: 0;
-  color: #4288ff;
-  background: white;
-  font: inherit;
-  appearance: none;
-  padding: 0 2px;
-  cursor: pointer
-}
-.transfer-toolbar>span>svg {
-  color: #4288ff
-}
+.download-limit { position: relative; display: inline-flex; }
+.transfer-toolbar .download-limit > button { color: #4288ff; padding: 2px; font: inherit; cursor: pointer; }
+.download-limit > button svg { vertical-align: middle; }
+.download-limit-options { position: absolute; top: 100%; right: 0; z-index: 2; display: grid; min-width: 48px; padding: 4px; border: 1px solid #e2e7ef; border-radius: 6px; background: white; box-shadow: 0 4px 12px #0002; }
+.transfer-toolbar .download-limit-options button { display: block; width: 100%; padding: 6px 10px; text-align: center; color: #4288ff; cursor: pointer; }
+.download-limit-options button:hover, .download-limit-options button[aria-pressed="true"] { background: #eef4ff; }
 .transfer-group h2 {
   font-size: 15px;
   margin: 20px 0 18px;
   font-weight: 750
 }
 .transfer-task {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 20px;
   margin: 0 7px 24px;
   min-width: 0
 }
+.transfer-page .task-open { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+.transfer-page .task-open:focus-visible { outline-offset: 2px; }
+.transfer-open-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: #fff2f2; color: #b43232; }
+.transfer-open-error button { flex: none; display: grid; place-items: center; }
 .task-detail {
   flex: 1;
   min-width: 0
@@ -429,7 +495,7 @@ function status(task: TransferTask) {
 }
 .transfer-coupon {
   position: fixed;
-  bottom: 44px;
+  bottom: calc(55px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   display: flex;
@@ -473,6 +539,48 @@ function status(task: TransferTask) {
   color: #baab89;
   margin-left: 5px
 }
+.transfer-storage {
+  position: fixed;
+  z-index: 2;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 8px 18px max(8px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-top: 1px solid #f0f2f6;
+  background: rgb(255 255 255 / 96%);
+  color: #a2a9bc;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.storage-meter {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+  background: #edf3ff;
+}
+.storage-meter span {
+  display: block;
+  height: 100%;
+  background: #83b9ff;
+  transition: width .25s ease;
+}
+.transfer-storage > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.transfer-storage button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  color: #4288ff;
+  flex-shrink: 0;
+}
+.transfer-storage button svg { width: 15px; height: 15px; }
 @media (width >= 768px) {
   .transfer-header,.transfer-tabs {
     padding-left: 40px;
@@ -491,6 +599,7 @@ function status(task: TransferTask) {
     padding-left: 40px;
     padding-right: 40px
   }
+  .transfer-storage { padding-right: 40px; padding-left: 40px; }
   .transfer-promo strong {
     font-size: 18px
   }

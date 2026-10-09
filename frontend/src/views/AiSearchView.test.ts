@@ -34,17 +34,39 @@ describe("AI search file opening", () => {
     wrapper.unmount();
   });
 
-  it("reports a deleted file and lets the user refresh results", async () => {
+  it("rejects a deleted file and refreshes stale results", async () => {
     vi.mocked(searchAiFiles).mockResolvedValueOnce([result]).mockResolvedValueOnce([]);
-    vi.mocked(getFileDetails).mockRejectedValue(new Error("not found"));
+    vi.mocked(getFileDetails).mockResolvedValue({ file: { ...file, deletedAt: "2026-10-09" }, createdAt: "", path: "/笔记.md", contentSize: 10, fileCount: 1, folderCount: 0 });
     const wrapper = await search();
     await wrapper.get(".ai-search-result button").trigger("click");
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain("文件已不可用");
-    await wrapper.get(".ai-search-results-heading button").trigger("click");
-    await flushPromises();
+    expect(wrapper.find("file-preview-stub").exists()).toBe(false);
     expect(vi.mocked(searchAiFiles)).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("没有找到匹配文件");
+    wrapper.unmount();
+  });
+
+  it("refreshes when returning to the page so a restored file appears", async () => {
+    vi.mocked(searchAiFiles).mockResolvedValueOnce([]).mockResolvedValueOnce([result]);
+    const wrapper = await search();
+    expect(wrapper.text()).toContain("没有找到匹配文件");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+    expect(vi.mocked(searchAiFiles)).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain(result.fileName);
+    wrapper.unmount();
+  });
+
+  it("keeps results available when file details fail temporarily", async () => {
+    vi.mocked(searchAiFiles).mockResolvedValue([result]);
+    vi.mocked(getFileDetails).mockRejectedValue(new Error("network unavailable"));
+    const wrapper = await search();
+    await wrapper.get(".ai-search-result button").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain("打开文件失败");
+    expect(wrapper.text()).toContain(result.fileName);
+    expect(vi.mocked(searchAiFiles)).toHaveBeenCalledOnce();
     wrapper.unmount();
   });
 });
