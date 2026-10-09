@@ -6,7 +6,7 @@
   .profile-page {
     width: 100%;
     margin: auto;
-    padding: 26px 10px 0;
+    padding: 26px var(--mobile-gutter) 0;
     color: #10182c;
   }
   .profile-page button {
