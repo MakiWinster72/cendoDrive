@@ -11,6 +11,7 @@ import {
 import { iconForFile } from "../components/fileIcon";
 import BrandLogo from "../components/BrandLogo.vue";
 import { formatSize } from "../stores/drive";
+import { useTransfers } from "../stores/transfers";
 import {
   downloadPublicShare,
   getPublicShare,
@@ -24,6 +25,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const auth = useAuth();
+const transfers = useTransfers();
 const token = computed(() => String(route.params.token || ""));
 const access = ref<ShareAccessResponse | null>(null);
 const loading = ref(false);
@@ -66,7 +68,10 @@ async function download() {
   error.value = "";
   try {
     await downloadPublicShare(requestedToken, file.value.name, code.value || undefined);
+    if (auth.loggedIn.value && file.value) transfers.recordDownload(file.value.name, file.value.size);
   } catch (reason) {
+    if (auth.loggedIn.value && file.value)
+      transfers.recordFailure('download', file.value.name, file.value.size, shareErrorMessage(reason, "下载失败，请稍后重试"));
     if (requestedToken === token.value)
       error.value = shareErrorMessage(reason, "下载失败，请稍后重试");
   } finally {
@@ -89,7 +94,12 @@ async function save() {
       return;
     }
     if (requestedToken !== token.value) return;
-    await saveSharedFile(requestedToken, null, code.value || undefined);
+    const copy = await saveSharedFile(requestedToken, null, code.value || undefined).catch(reason => {
+      if (file.value) transfers.recordFailure('transfer', file.value.name, file.value.size,
+        shareErrorMessage(reason, "转存失败，请稍后重试"));
+      throw reason;
+    });
+    transfers.recordTransfer(copy.name, copy.size);
     if (requestedToken === token.value) saved.value = true;
   } catch (reason) {
     if (requestedToken === token.value)

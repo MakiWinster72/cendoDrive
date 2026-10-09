@@ -8,16 +8,18 @@ import { useChatFile } from './useChatFile';
 import { saveChatFile } from '../api/chat';
 import { driveErrorMessage } from '../api/drive';
 import { formatSize } from '../stores/drive';
+import { useTransfers } from '../stores/transfers';
 import '../styles/chat-files.css';
 const router=useRouter(), {room,messageId,file,loading,error,load}=useChatFile();
+const transfers=useTransfers();
 const parent=ref<string | null>(null), directory=ref('我的云盘'), directoryReady=ref(false), busy=ref(false), saved=ref(false);
 watch([room,messageId],()=>{ parent.value=null; directory.value='我的云盘'; directoryReady.value=false; saved.value=false; });
 function location(id: string | null, name: string) { parent.value=id; directory.value=name; directoryReady.value=true; }
 async function save() {
   if(!file.value || busy.value || saved.value || !directoryReady.value) return;
   busy.value=true; error.value='';
-  try { await saveChatFile(room.value,messageId.value,parent.value); saved.value=true; }
-  catch(cause) { error.value=driveErrorMessage(cause,'转存失败，请确认剩余容量和文件状态后重试'); }
+  try { const copy=await saveChatFile(room.value,messageId.value,parent.value); transfers.recordTransfer(copy.name,copy.size); saved.value=true; }
+  catch(cause) { error.value=driveErrorMessage(cause,'转存失败，请确认剩余容量和文件状态后重试'); if(file.value) transfers.recordFailure('transfer',file.value.name,file.value.size,error.value); }
   finally { busy.value=false; }
 }
 </script>

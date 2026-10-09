@@ -8,14 +8,17 @@ import { useChatFile } from './useChatFile';
 import { downloadChatFile, previewChatFile } from '../api/chat';
 import { driveErrorMessage } from '../api/drive';
 import { formatSize } from '../stores/drive';
+import { useTransfers } from '../stores/transfers';
 import { previewFormat } from '../preview/formats';
 import '../styles/chat-files.css';
 const router=useRouter(), {room,messageId,file,loading,error,load}=useChatFile();
+const transfers=useTransfers();
 const preview=ref(false), unsupported=ref(false), downloading=ref(false), notice=ref('');
 watch([room,messageId],()=>{ preview.value=false; unsupported.value=false; notice.value=''; });
 async function downloadContent() {
   if(!file.value) throw new Error('文件不可用');
   await downloadChatFile(room.value,messageId.value,file.value.name);
+  transfers.recordDownload(file.value.name,file.value.size);
 }
 const format=computed(()=>file.value ? previewFormat(file.value.name) : null);
 function openPreview() { if(!file.value) return; unsupported.value=!format.value; preview.value=!!format.value; }
@@ -23,7 +26,7 @@ async function download() {
   if(!file.value || downloading.value) return;
   downloading.value=true; notice.value='';
   try { await downloadContent(); notice.value='下载已开始，请在浏览器下载列表查看'; }
-  catch(cause) { error.value=driveErrorMessage(cause,'下载失败，请重试'); }
+  catch(cause) { error.value=driveErrorMessage(cause,'下载失败，请重试'); if(file.value) transfers.recordFailure('download',file.value.name,file.value.size,error.value); }
   finally { downloading.value=false; }
 }
 async function fetchContent(signal: AbortSignal) {
