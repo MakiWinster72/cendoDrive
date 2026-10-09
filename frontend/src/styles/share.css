@@ -102,6 +102,8 @@
     padding: 0;
     list-style: none;
   }
+  .my-shares-items li { position: relative; padding-bottom: 40px; border-bottom: 1px solid #f0f3f7; }
+  .my-shares-preview { position: absolute; right: 18px; bottom: 6px; display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 12px; border: 1px solid #dce4f1; border-radius: 7px; background: #fff; color: #376bd5; }
   .my-shares-row {
     width: 100%;
     min-height: 82px;
