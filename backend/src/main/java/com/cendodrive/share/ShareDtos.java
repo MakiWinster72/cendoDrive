@@ -15,11 +15,12 @@ public final class ShareDtos {
   public record SaveShareRequest(@Positive Long parentId) {}
 
   public record ShareResponse(String id, String token, String fileId, String fileName,
-      String kind, long size, String createdAt, String expiresAt, String status, boolean hasExtractionCode) {
+      String kind, long size, String createdAt, String expiresAt, String status, boolean hasExtractionCode,
+      String extractionCode) {
     static ShareResponse from(ShareLink link) {
       return new ShareResponse(link.getId().toString(), link.getToken(), link.getFileId().toString(),
           link.getFileName(), "file", link.getSize(), link.getCreatedAt().toString(),
-          link.getExpiresAt().toString(), link.isCancelled() ? "CANCELLED" : "ACTIVE", link.hasExtractionCode());
+          link.getExpiresAt().toString(), link.isCancelled() ? "CANCELLED" : "ACTIVE", link.hasExtractionCode(), link.getExtractionCode());
     }
   }
 

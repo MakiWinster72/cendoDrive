@@ -50,7 +50,7 @@ public class ShareService {
     ShareLink link = ShareLink.create(user.getId(), file.getId(),
         UUID.randomUUID().toString().replace("-", ""), file.getName(), file.getSize(),
         clock.instant(), request.expiresInSeconds());
-    link.protect(codeHash);
+    link.protect(codeHash, request.extractionCode());
     link = links.saveAndFlush(link);
     access.enable(link, clock.instant());
     return ShareResponse.from(link);

@@ -87,7 +87,9 @@ class RealStackAcceptanceTest {
     if (code!=null) body.put("extractionCode",code);
     JsonNode result=ok(HttpMethod.POST,"/api/shares",bearer,body,201,null);
     shares.add(result.get("token").asText()); assertEquals(code!=null,result.get("hasExtractionCode").asBoolean());
-    assertNull(result.get("extractionCode")); assertNull(result.get("extractionCodeHash")); return result;
+    if (code != null) assertEquals(code, result.path("extractionCode").asText());
+    else assertTrue(result.path("extractionCode").isNull());
+    assertNull(result.get("extractionCodeHash")); return result;
   }
   byte[] download(String url,String bearer,String code) {
     var response=http.exchange(url,HttpMethod.GET,new HttpEntity<>(headers(bearer,code)),byte[].class);
