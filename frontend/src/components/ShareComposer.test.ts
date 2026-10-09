@@ -13,7 +13,7 @@ const open = async () => { wrapper = mount(ShareComposer, { props: { file }, att
 beforeEach(() => {
   vi.clearAllMocks(); HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   share.mockImplementation(async (_id: string, _seconds: number, code?: string) => ({ ...record, extractionCode: code, hasExtractionCode: !!code }));
-  vi.mocked(copyShareText).mockResolvedValue(undefined); vi.mocked(buildSharePoster).mockResolvedValue(new Blob(['qr'], { type: 'image/png' }));
+  vi.mocked(copyShareText).mockImplementation(async text => { await text; }); vi.mocked(buildSharePoster).mockResolvedValue(new Blob(['qr'], { type: 'image/png' }));
   vi.stubGlobal('URL', class extends URL { static createObjectURL = vi.fn(() => 'blob:poster'); static revokeObjectURL = vi.fn(); });
   Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
   Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
@@ -26,7 +26,7 @@ describe('share composer', () => {
     expect(wrapper.get('#share-composer-title').text()).toBe('分享');
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises();
     expect(share).toHaveBeenCalledWith('42', 0, expect.stringMatching(/^[a-z0-9]{4}$/));
-    expect(copyShareText).toHaveBeenCalledWith(expect.stringMatching(/\/share\/opaque#code=[a-z0-9]{4}\n提取码：/));
+    await expect(vi.mocked(copyShareText).mock.calls[0]![0]).resolves.toMatch(/\/share\/opaque#code=[a-z0-9]{4}\n提取码：/);
     expect(wrapper.get('.share-toast').text()).toBe('链接已复制');
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises(); expect(share).toHaveBeenCalledTimes(1);
     wrapper.unmount(); expect(document.body.style.overflow).toBe('');
@@ -37,7 +37,7 @@ describe('share composer', () => {
     await wrapper.get('[aria-label="使用提取码"]').setValue(false);
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises();
     expect(share).toHaveBeenLastCalledWith('42', 604800, undefined); expect(share).toHaveBeenCalledTimes(2);
-    expect(copyShareText).toHaveBeenLastCalledWith(`${window.location.origin}/share/opaque`);
+    await expect(vi.mocked(copyShareText).mock.lastCall![0]).resolves.toBe(`${window.location.origin}/share/opaque`);
   });
   it('validates edited codes and can disable auto-fill without changing the server share', async () => {
     await open(); await setting('随机生成提取码').trigger('click');
@@ -47,14 +47,14 @@ describe('share composer', () => {
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises();
     await wrapper.get('[aria-label="分享链接自动填充提取码"]').setValue(false);
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises();
-    expect(share).toHaveBeenCalledTimes(1); expect(copyShareText).toHaveBeenLastCalledWith(`${window.location.origin}/share/opaque\n提取码：Ab12`);
+    expect(share).toHaveBeenCalledTimes(1); await expect(vi.mocked(copyShareText).mock.lastCall![0]).resolves.toBe(`${window.location.origin}/share/opaque\n提取码：Ab12`);
   });
   it('locks duplicate actions and closing while creating, then permits retries after failure', async () => {
     let reject!: (reason: unknown) => void; share.mockImplementationOnce(() => new Promise((_resolve, r) => { reject = r; }));
     await open(); await wrapper.get('[data-action="copy"]').trigger('click');
     expect(wrapper.get('.share-close').attributes('disabled')).toBeDefined();
     await wrapper.get('[data-action="qr"]').trigger('click'); expect(share).toHaveBeenCalledTimes(1);
-    reject(new Error('offline')); await flushPromises(); expect(wrapper.find('[role="alert"]').exists()).toBe(true); expect(copyShareText).not.toHaveBeenCalled();
+    reject(new Error('offline')); await flushPromises(); expect(wrapper.find('[role="alert"]').exists()).toBe(true); expect(wrapper.find('.share-toast').exists()).toBe(false);
     await wrapper.get('[data-action="copy"]').trigger('click'); await flushPromises(); expect(share).toHaveBeenCalledTimes(2);
   });
   it('does not claim copy success or launch an app when clipboard writing fails', async () => {
