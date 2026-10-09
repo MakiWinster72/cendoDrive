@@ -19,16 +19,22 @@ beforeEach(() => {
 });
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()));
 
-describe("库库AI reference interface", () => {
-  it("renders all reference feature cards and returns to the previous page", async () => {
+describe("扣扣AI reference interface", () => {
+  it("opens on the Hello welcome page, fills suggestions and returns to the previous page", async () => {
     const wrapper = await open();
-    for (const title of ["视频课件", "音频会议纪要", "小说生成视频", "拍图写作", "AI写真", "播客解析", "PPT逐字稿", "视频精转文稿"]) expect(wrapper.text()).toContain(title);
+    expect(wrapper.text()).toContain("Hello"); expect(wrapper.text()).toContain("欢迎使用扣扣AI");
+    expect(wrapper.findAll(".quick-tools button")).toHaveLength(11);
+    await wrapper.findAll(".suggestion-list button")[1]!.trigger("click");
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("周末两天去哪儿玩");
     await wrapper.get('[aria-label="返回上一页"]').trigger("click");
     expect(routing.back).toHaveBeenCalledOnce();
   });
 
-  it("shows a placeholder for unopened entries and toggles the network-search appearance", async () => {
+  it("switches to standard mode and keeps unopened entries honest", async () => {
     const wrapper = await open();
+    await wrapper.get('[aria-label="切换AI模式"]').trigger("click");
+    await wrapper.findAll(".mode-popover>button")[1]!.trigger("click");
+    for (const title of ["视频课件", "音频会议纪要", "小说生成视频", "拍图写作", "AI写真", "播客解析", "PPT逐字稿", "视频精转文稿"]) expect(wrapper.text()).toContain(title);
     await wrapper.findAll(".tool-card")[0]!.trigger("click");
     expect(document.body.textContent).toContain("该功能尚未开放");
     await wrapper.get(".network-toggle").trigger("click");
