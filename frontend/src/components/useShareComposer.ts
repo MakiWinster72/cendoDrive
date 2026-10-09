@@ -54,19 +54,22 @@ export function useShareComposer(file: DriveItem) {
     catch (reason) { if (alive) error.value = shareErrorMessage(reason, "操作失败，请重试"); }
     finally { if (alive) busy.value = false; }
   }
+  function clipboardText(): Promise<string> {
+    return ensureShare().then(share => {
+      if (!alive) throw new DOMException("分享已关闭", "AbortError");
+      return shareClipboardText(share, window.location.origin, autoFill.value);
+    });
+  }
   async function copy() {
     await run(async () => {
-      const share = await ensureShare();
-      if (!alive) return;
-      await copyShareText(shareClipboardText(share, window.location.origin, autoFill.value));
+      // Start the clipboard operation in the click handler, not after link creation.
+      await copyShareText(clipboardText());
       notify("链接已复制");
     });
   }
   async function openApp(app: "wechat" | "qq") {
     await run(async () => {
-      const share = await ensureShare();
-      if (!alive) return;
-      await copyShareText(shareClipboardText(share, window.location.origin, autoFill.value));
+      await copyShareText(clipboardText());
       if (!alive) return;
       notify(`链接已复制，请在${app === "wechat" ? "微信" : "QQ"}中粘贴发送`);
       launchShareApp(app);

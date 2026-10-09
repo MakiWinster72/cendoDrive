@@ -45,10 +45,20 @@ export function launchShareApp(app: "wechat" | "qq"): void {
   document.body.appendChild(link); link.click(); link.remove();
 }
 
-export async function copyShareText(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return; }
+export async function copyShareText(text: string | Promise<string>): Promise<void> {
+  const pendingText = Promise.resolve(text);
+  if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+    // Safari checks the user gesture at write(), before the HTTP-generated text is ready.
+    const content = pendingText.then(value => new Blob([value], { type: "text/plain" }));
+    // A denied clipboard write may never consume its promised payload.
+    void content.catch(() => {});
+    await Promise.all([pendingText, navigator.clipboard.write([new ClipboardItem({ "text/plain": content })])]);
+    return;
+  }
+  const resolvedText = typeof text === "string" ? text : await pendingText;
+  if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(resolvedText); return; }
   const input = document.createElement("textarea");
-  input.value = text; input.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+  input.value = resolvedText; input.style.cssText = "position:fixed;opacity:0;pointer-events:none";
   (document.querySelector("dialog[open]") ?? document.body).appendChild(input);
   const focused = document.activeElement as HTMLElement | null;
   try { input.select(); if (!document.execCommand("copy")) throw new Error("无法复制"); }
