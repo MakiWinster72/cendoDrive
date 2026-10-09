@@ -58,7 +58,7 @@ async function download() {
   downloading.value = true;
   try {
     await (props.downloadContent ? props.downloadContent() : downloadFile(props.file.id, props.file.name));
-    if (!props.downloadContent) useTransfers().recordDownload(props.file.name, props.file.size);
+    if (!props.downloadContent) useTransfers().recordDownload(props.file.name, props.file.size, props.file.id);
   }
   catch (cause) { error.value = driveErrorMessage(cause, "下载失败，请重试"); if (!props.downloadContent) useTransfers().recordFailure('download', props.file.name, props.file.size, error.value); }
   finally { downloading.value = false; }

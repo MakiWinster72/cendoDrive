@@ -95,7 +95,7 @@ export function useDrive() {
     const item = get(id);
     if (!item) return Promise.reject(new Error("文件不存在"));
     return run(() => useTransfers().enqueueDownload(item.name, item.size,
-      progress => api.downloadFile(item.id, item.name, progress)));
+      progress => api.downloadFile(item.id, item.name, progress), item.id));
   };
   const addUploaded = (item: DriveItem) => { upsert(item); void loadUsage(); };
   const trash = (ids: string[]) => run(async () => { const items = await api.trashFiles(ids); items.forEach(upsert); return items; }, true);

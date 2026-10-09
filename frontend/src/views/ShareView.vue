@@ -99,7 +99,7 @@ async function save() {
         shareErrorMessage(reason, "转存失败，请稍后重试"));
       throw reason;
     });
-    transfers.recordTransfer(copy.name, copy.size);
+    transfers.recordTransfer(copy.name, copy.size, copy.id);
     if (requestedToken === token.value) saved.value = true;
   } catch (reason) {
     if (requestedToken === token.value)

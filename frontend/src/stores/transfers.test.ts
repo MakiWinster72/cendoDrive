@@ -131,7 +131,7 @@ describe('transfer queue', () => {
     expect(remote.get('account-a')?.size).toBe(0);
   });
   it('uploads a completed record and restores it with empty browser storage', async () => {
-    store.recordUpload('phone.jpg', 123);
+    store.recordUpload('phone.jpg', 123, '42');
     await store.refresh();
     expect(remote.get('account-a')?.size).toBe(1);
     store.reset(); localStorage.clear();
@@ -139,5 +139,6 @@ describe('transfer queue', () => {
     const secondDevice = (await import('./transfers')).useTransfers();
     await secondDevice.refresh();
     expect(secondDevice.tasks.map(task => task.name)).toEqual(['phone.jpg']);
+    expect(secondDevice.tasks[0]?.fileId).toBe('42');
   });
 });

@@ -43,7 +43,7 @@ class TransferRecordIntegrationTest {
   @Test void historyIsScopedToAccountAndSupportsUpsertAndClear() throws Exception {
     var body = """
         {"id":"client-1","direction":"upload","name":"report.pdf","size":42,
-         "status":"success","progress":100,"createdAt":1700000000000}
+         "status":"success","progress":100,"createdAt":1700000000000,"fileId":123}
         """;
     mvc.perform(post("/api/transfers").header("Authorization", "Bearer first")
         .contentType("application/json").content(body)).andExpect(status().isOk());
@@ -53,6 +53,7 @@ class TransferRecordIntegrationTest {
         .contentType("application/json").content(body.replace("report.pdf", "updated.pdf"))).andExpect(status().isOk());
     mvc.perform(get("/api/transfers").header("Authorization", "Bearer first"))
         .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value("updated.pdf"))
+        .andExpect(jsonPath("$[0].fileId").value("123"))
         .andExpect(jsonPath("$.length()").value(1));
     mvc.perform(delete("/api/transfers").header("Authorization", "Bearer first")
         .param("direction", "upload")).andExpect(status().isNoContent());

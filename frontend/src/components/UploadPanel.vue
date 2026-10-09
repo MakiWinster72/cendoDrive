@@ -52,6 +52,7 @@ interface UploadTask {
   mode?: UploadMode;
   parentId?: string | null;
   error?: string;
+  fileId?: string;
 }
 
 const panel = ref<HTMLElement>();
@@ -90,7 +91,7 @@ const transfers = useTransfers();
 watch(uploadTasks, (tasks) => {
   for (const task of tasks) transfers.syncUpload({
     id: task.id, name: task.file.name, size: task.file.size,
-    status: task.status, progress: task.progress, error: task.error,
+    status: task.status, progress: task.progress, error: task.error, fileId: task.fileId,
   });
 }, { deep: true, flush: "sync" });
 const selectedType = ref<UploadType | null>(null);
@@ -228,6 +229,7 @@ async function runUpload(task: UploadTask) {
           },
         });
     task.progress = 100;
+    task.fileId = item.id;
     task.status = "success";
     emit("uploaded", item);
   } catch (error) {

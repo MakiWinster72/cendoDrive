@@ -17,6 +17,7 @@ public class TransferRecord {
   @Column(nullable = false, length = 16) private String status;
   @Column(nullable = false) private int progress;
   @Column(length = 1000) private String error;
+  @Column(name = "file_id") private Long fileId;
   @Column(name = "created_at", nullable = false) private LocalDateTime createdAt;
 
   protected TransferRecord() {}
@@ -29,9 +30,10 @@ public class TransferRecord {
   void update(TransferDtos.SaveRequest request) {
     direction = request.direction(); name = request.name(); size = request.size();
     status = request.status(); progress = request.progress(); error = request.error();
+    if (request.fileId() != null) fileId = request.fileId();
   }
   TransferDtos.TransferResponse response() {
     return new TransferDtos.TransferResponse(clientId, direction, name, size, status, progress,
-        createdAt.toInstant(ZoneOffset.UTC).toEpochMilli(), error);
+        createdAt.toInstant(ZoneOffset.UTC).toEpochMilli(), error, fileId == null ? null : fileId.toString());
   }
 }

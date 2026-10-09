@@ -2,7 +2,7 @@ import { computed, reactive, watch } from 'vue';
 import { useAuth } from './auth';
 import { clearTransferRecords, deleteTransferRecord, listTransferRecords, saveTransferRecord } from '../api/transfers';
 export type TransferStatus = 'waiting' | 'preparing' | 'uploading' | 'downloading' | 'success' | 'failed' | 'cancelled';
-export interface TransferTask { id: string; direction: 'upload' | 'download' | 'transfer'; name: string; size: number; status: TransferStatus; progress: number; createdAt: number; error?: string; }
+export interface TransferTask { id: string; direction: 'upload' | 'download' | 'transfer'; name: string; size: number; status: TransferStatus; progress: number; createdAt: number; error?: string | null; fileId?: string | null; }
 const tasks = reactive<TransferTask[]>([]);
 const settings = reactive({ downloadLimit: 2 });
 const pending: { task: TransferTask; operation: (progress: (value: number) => void) => Promise<void>; resolve: () => void; reject: (error: unknown) => void }[] = [];
@@ -26,7 +26,8 @@ function savedTasks(id: string): TransferTask[] {
       typeof task.progress === 'number' && Number.isFinite(task.progress) &&
       (task.direction === 'upload' || task.direction === 'download' || task.direction === 'transfer') &&
       statuses.includes(task.status) &&
-      (task.error === undefined || typeof task.error === 'string')
+      (task.error == null || typeof task.error === 'string') &&
+      (task.fileId == null || typeof task.fileId === 'string')
     ).map(task => isActive(task)
       ? { ...task, status: 'cancelled' as const, error: '页面刷新，传输已中断' }
       : task);
@@ -119,14 +120,14 @@ export function useTransfers() {
       clearedUploads.delete(task.id);
     }
     const existing = tasks.find(entry => entry.id === task.id && entry.direction === 'upload');
-    const changed = !existing || existing.status !== task.status || existing.progress !== task.progress || existing.error !== task.error;
+    const changed = !existing || existing.status !== task.status || existing.progress !== task.progress || existing.error !== task.error || existing.fileId !== task.fileId;
     if (existing) Object.assign(existing, task);
     else tasks.push({ ...task, direction: 'upload', createdAt: Date.now() });
     if (changed && !isActive(task as TransferTask)) queueChange(existing ?? tasks.at(-1)!, task.id);
   }
-  function enqueueDownload(name: string, size: number, operation: (progress: (value: number) => void) => Promise<void>) {
+  function enqueueDownload(name: string, size: number, operation: (progress: (value: number) => void) => Promise<void>, fileId?: string) {
     ensureOwner();
-    const task = reactive<TransferTask>({ id: crypto.randomUUID(), name, size, direction: 'download', status: 'waiting', progress: 0, createdAt: Date.now() });
+    const task = reactive<TransferTask>({ id: crypto.randomUUID(), name, size, direction: 'download', status: 'waiting', progress: 0, createdAt: Date.now(), fileId });
     tasks.push(task);
     return new Promise<void>((resolve, reject) => { pending.push({ task, operation, resolve, reject }); pump(); });
   }
@@ -149,15 +150,15 @@ export function useTransfers() {
     const index = tasks.findIndex(task => task.id === id && task.direction === 'upload' && !['preparing', 'uploading'].includes(task.status));
     if (index >= 0) { tasks.splice(index, 1); queueChange(null, id); }
   }
-  function recordResult(direction: TransferTask['direction'], name: string, size: number, error?: string) {
+  function recordResult(direction: TransferTask['direction'], name: string, size: number, error?: string, fileId?: string) {
     ensureOwner();
     const task: TransferTask = { id: crypto.randomUUID(), direction, name, size,
-      status: error ? 'failed' : 'success', progress: error ? 0 : 100, createdAt: Date.now(), ...(error ? { error } : {}) };
+      status: error ? 'failed' : 'success', progress: error ? 0 : 100, createdAt: Date.now(), ...(error ? { error } : {}), ...(fileId ? { fileId } : {}) };
     tasks.push(task); queueChange(task, task.id);
   }
-  function recordTransfer(name: string, size: number) { recordResult('transfer', name, size); }
-  function recordDownload(name: string, size: number) { recordResult('download', name, size); }
-  function recordUpload(name: string, size: number) { recordResult('upload', name, size); }
+  function recordTransfer(name: string, size: number, fileId?: string) { recordResult('transfer', name, size, undefined, fileId); }
+  function recordDownload(name: string, size: number, fileId?: string) { recordResult('download', name, size, undefined, fileId); }
+  function recordUpload(name: string, size: number, fileId?: string) { recordResult('upload', name, size, undefined, fileId); }
   function recordFailure(direction: TransferTask['direction'], name: string, size: number, error: string) {
     recordResult(direction, name, size, error);
   }

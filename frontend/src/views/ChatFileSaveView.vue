@@ -18,7 +18,7 @@ function location(id: string | null, name: string) { parent.value=id; directory.
 async function save() {
   if(!file.value || busy.value || saved.value || !directoryReady.value) return;
   busy.value=true; error.value='';
-  try { const copy=await saveChatFile(room.value,messageId.value,parent.value); transfers.recordTransfer(copy.name,copy.size); saved.value=true; }
+  try { const copy=await saveChatFile(room.value,messageId.value,parent.value); transfers.recordTransfer(copy.name,copy.size,copy.id); saved.value=true; }
   catch(cause) { error.value=driveErrorMessage(cause,'转存失败，请确认剩余容量和文件状态后重试'); if(file.value) transfers.recordFailure('transfer',file.value.name,file.value.size,error.value); }
   finally { busy.value=false; }
 }

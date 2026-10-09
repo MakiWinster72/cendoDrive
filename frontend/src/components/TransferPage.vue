@@ -2,13 +2,29 @@
 import { computed, onMounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
+import { driveErrorMessage, getFileDetails, type DriveItemResponse } from '../api/drive';
+import { previewFormat } from '../preview/formats';
+import FilePreview from './FilePreview.vue';
 import { iconForFile } from './fileIcon';
 import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
 const emit = defineEmits<{ back: [] }>();
 const tab = ref<TransferTask['direction']>('download');
 const promo = ref(true), coupon = ref(true);
 const transfers = useTransfers();
+const previewFile = ref<DriveItemResponse | null>(null);
+const openError = ref('');
+const opening = ref<string | null>(null);
 onMounted(() => { void transfers.refresh(); });
+async function openTask(task: TransferTask) {
+  openError.value = '';
+  if (task.status !== 'success') { openError.value = `${task.name}：${status(task)}`; return; }
+  if (!task.fileId) { openError.value = '这条历史记录没有关联文件，无法打开预览。'; return; }
+  if (!previewFormat(task.name)) { openError.value = '此文件格式暂不支持在线预览，请从网盘下载查看。'; return; }
+  opening.value = task.id;
+  try { previewFile.value = (await getFileDetails(task.fileId)).file; }
+  catch (error) { openError.value = driveErrorMessage(error, '文件可能已删除或无权访问，无法打开预览。'); }
+  finally { opening.value = null; }
+}
 type Filter = 'all' | 'success' | 'active' | 'failed';
 const filter = ref<Filter>('all');
 const filters: { key: Filter; label: string }[] = [{ key: 'all', label: '全部任务' }, { key: 'success', label: '已完成' }, { key: 'active', label: '进行中' }, { key: 'failed', label: '任务失败' }];
@@ -83,10 +99,12 @@ function status(task: TransferTask) {
           <button @click="transfers.clearFinished(tab)">全部清除</button>
         </span>
       </div>
+      <p v-if="openError" class="transfer-open-error" role="alert">{{ openError }}<button type="button" aria-label="关闭提示" @click="openError = ''"><X :size="16" /></button></p>
       <p v-if="!groups.length" class="transfer-empty">暂无{{ filter === 'all' ? ({ download: '下载', upload: '上传', transfer: '转存' }[tab]) : filters.find(item => item.key === filter)?.label }}任务</p>
       <section v-for="[date, tasks] in groups" :key="date" class="transfer-group">
         <h2>{{ date }}</h2>
         <article v-for="task in tasks" :key="task.id" class="transfer-task">
+          <button type="button" class="task-open" :aria-label="`查看 ${task.name} 的文件内容`" :disabled="opening === task.id" @click="openTask(task)"></button>
           <component :is="iconForFile({ name: task.name, kind: 'file' })" class="task-icon" aria-hidden="true" />
           <div class="task-detail">
             <h3 :title="task.name">{{ task.name }}</h3>
@@ -112,6 +130,7 @@ function status(task: TransferTask) {
         <X />
       </button>
     </aside>
+    <FilePreview v-if="previewFile" :file="previewFile" @close="previewFile = null" />
   </section>
 </template>
 
@@ -134,12 +153,17 @@ function status(task: TransferTask) {
   font-weight: 750
 }
 .transfer-task {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 20px;
   margin: 0 7px 24px;
   min-width: 0
 }
+.transfer-page .task-open { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+.transfer-page .task-open:focus-visible { outline-offset: 2px; }
+.transfer-open-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: #fff2f2; color: #b43232; }
+.transfer-open-error button { flex: none; display: grid; place-items: center; }
 .task-detail {
   flex: 1;
   min-width: 0
