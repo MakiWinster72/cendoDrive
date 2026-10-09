@@ -33,10 +33,6 @@ cendo:
       base-url: ${CENDO_AI_CHAT_BASE_URL:}
       model: ${CENDO_AI_CHAT_MODEL:}
       key: ${CENDO_AI_CHAT_KEY:}
-    # Keep blank until Anna provides the internal service address. Pending tasks remain durable.
-    enabled: ${CENDO_AI_ENABLED:false}
-    base-url: ${ANNA_INDEX_BASE_URL:}
-    worker-delay-ms: ${CENDO_AI_WORKER_DELAY_MS:5000}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}
