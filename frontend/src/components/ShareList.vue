@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Copy, Eye, Share2, X } from "@lucide/vue";
+import { Copy, Share2, X } from "@lucide/vue";
 import { iconForFile } from "./fileIcon";
 import { shareExpiryLabel, type ShareRecord } from "../api/shares";
 
@@ -9,7 +9,6 @@ const props = withDefaults(
   { loading: false },
 );
 const emit = defineEmits<{
-  preview: [share: ShareRecord];
   copy: [share: ShareRecord];
   cancel: [share: ShareRecord];
 }>();
@@ -76,7 +75,6 @@ function shareLink(share: ShareRecord) {
           </button>
         </div>
         <div class="share-list-footer">
-          <button type="button" :disabled="loading" @click="emit('preview', share)"><Eye :size="15" />预览</button>
           <small
             >{{ shareExpiryLabel(share.expiresAt) }}</small
           ><button

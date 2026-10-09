@@ -444,9 +444,6 @@ async function openSearchHit(hit: FileSearchHit, locate = false) {
     mode.value = "all"; currentFolder.value = target; keyword.value = ""; mobileTab.value = "files";
   } catch { alert(drive.state.error); }
 }
-function previewShare(share: ShareRecord) {
-  previewTarget.value = { id: share.fileId, name: share.fileName, kind: share.kind, size: share.size, parentId: null, updatedAt: share.createdAt, deletedAt: null };
-}
 async function openItem(item: DriveItem) {
   if (mode.value === "trash" || drive.state.loading || nameSaving.value) return;
   if (item.kind === "folder") {
@@ -738,7 +735,6 @@ onUnmounted(() => {
       @back="showMyShares = false"
       @refresh="openMyShares"
       @open="createdShare = $event"
-      @preview="previewShare"
       @copy="copyShareLinks"
       @cancel="cancelShareRecords"
     />
@@ -1317,7 +1313,6 @@ onUnmounted(() => {
           v-if="mode === 'shares'"
           :shares="drive.state.shares"
           :loading="drive.state.loading"
-          @preview="previewShare"
           @copy="copyShareLink"
           @cancel="cancelShareRecord"
         />

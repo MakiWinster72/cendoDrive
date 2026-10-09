@@ -2,7 +2,6 @@
 import { computed, ref, watch } from "vue";
 import {
   Check,
-  Eye,
   ChevronLeft,
   Link2,
   Share2,
@@ -21,7 +20,6 @@ const emit = defineEmits<{
   back: [];
   refresh: [];
   open: [share: ShareRecord];
-  preview: [share: ShareRecord];
   copy: [shares: ShareRecord[]];
   cancel: [shares: ShareRecord[]];
 }>();
@@ -183,7 +181,6 @@ function cancelSelected() {
               ><Check v-if="selectedIds.includes(share.id)" :size="13"
             /></span>
           </button>
-          <button v-if="!selecting" type="button" class="my-shares-preview" :aria-label="`预览 ${share.fileName}`" :disabled="loading" @click="emit('preview', share)"><Eye :size="16" />预览</button>
         </li>
       </ul>
     </div>
