@@ -6,6 +6,7 @@ import com.cendodrive.common.ApiExceptionHandler.*;
 import com.cendodrive.drive.*;
 import com.cendodrive.share.ShareLinkRepository;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.transfer.TransferRecordRepository;
 import com.cendodrive.upload.*;
 import com.cendodrive.user.UserDtos.*;
 import java.awt.image.BufferedImage;
@@ -49,6 +50,7 @@ class UserAccountIntegrationTest {
   @Autowired DriveFileRepository files;
   @Autowired UploadSessionRepository uploads;
   @Autowired ShareLinkRepository shares;
+  @Autowired TransferRecordRepository transfers;
   @Autowired UserService service;
   @Autowired UserDeletionCleanup cleanup;
   @Autowired AuthService auth;
@@ -63,7 +65,7 @@ class UserAccountIntegrationTest {
   String token;
   static final Instant NOW=Instant.parse("2026-10-01T12:00:00Z");
   @BeforeEach void setup() {
-    shares.deleteAllInBatch(); uploads.deleteAllInBatch(); avatars.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
+    transfers.deleteAllInBatch(); shares.deleteAllInBatch(); uploads.deleteAllInBatch(); avatars.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
     when(clock.getZone()).thenReturn(ZoneOffset.UTC); at(NOW);
     ValueOperations<String,String> values=mock(ValueOperations.class);
     Map<String,String> sessions=new HashMap<>();
@@ -165,13 +167,15 @@ class UserAccountIntegrationTest {
     jdbc.update("UPDATE drive_files SET deleted_at=CURRENT_TIMESTAMP WHERE id=?",second.getId());
     var kept=files.saveAndFlush(DriveFile.uploaded(other.getId(),null,"转存副本.txt",5,"independent-copy"));
     uploads.saveAndFlush(new UploadSession("b".repeat(32),owner.getId(),null,"待上传.txt",10,"c".repeat(32),5,2,LocalDateTime.now().plusDays(30)));
+    jdbc.update("INSERT INTO transfer_records(owner_id,client_id,direction,name,size_bytes,status,progress,created_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+        owner.getId(),"upload-1","upload","待上传.txt",10,"success",100);
     Path parts=staging.resolve(owner.getId().toString()).resolve("b".repeat(32)); Files.createDirectories(parts); Files.writeString(parts.resolve("0.part"),"part");
     service.updateAvatar(fresh(),image(200,200,"png"));
     mark(); at(NOW.plus(Duration.ofDays(7)).minusNanos(1000)); cleanup.cleanup();
     assertTrue(users.existsById(owner.getId())); verifyNoInteractions(storage);
     at(NOW.plus(Duration.ofDays(7))); cleanup.cleanup();
     assertFalse(users.existsById(owner.getId())); assertFalse(avatars.existsById(owner.getId()));
-    assertTrue(files.findAllByOwnerId(owner.getId()).isEmpty()); assertEquals(0,uploads.count());
+    assertTrue(files.findAllByOwnerId(owner.getId()).isEmpty()); assertEquals(0,uploads.count()); assertEquals(0,transfers.count());
     assertFalse(Files.exists(parts)); assertTrue(files.existsById(kept.getId()));
     verify(storage).delete("first"); verify(storage).delete("second"); verify(storage,never()).delete("independent-copy");
     cleanup.cleanup(); verify(storage,times(1)).delete("first");

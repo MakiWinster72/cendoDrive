@@ -3,6 +3,7 @@ package com.cendodrive.user;
 import com.cendodrive.drive.*;
 import com.cendodrive.share.ShareLinkRepository;
 import com.cendodrive.storage.FileStorage;
+import com.cendodrive.transfer.TransferRecordRepository;
 import com.cendodrive.upload.UploadSessionRepository;
 import java.io.*;
 import java.nio.file.*;
@@ -22,17 +23,18 @@ public class UserDeletionCleanup {
   private final DriveFileRepository files;
   private final ShareLinkRepository shares;
   private final UploadSessionRepository uploads;
+  private final TransferRecordRepository transfers;
   private final UserAvatarRepository avatars;
   private final FileStorage storage;
   private final Path uploadRoot, storageRoot;
   private final Clock clock;
   private final TransactionTemplate tx;
   public UserDeletionCleanup(UserRepository users, DriveFileRepository files, ShareLinkRepository shares,
-      UploadSessionRepository uploads, UserAvatarRepository avatars, FileStorage storage,
+      UploadSessionRepository uploads, TransferRecordRepository transfers, UserAvatarRepository avatars, FileStorage storage,
       PlatformTransactionManager manager, Clock clock,
       @Value("${cendo.upload.root:./storage/uploads}") String uploadRoot,
       @Value("${cendo.storage.root:./storage}") String storageRoot) {
-    this.users=users; this.files=files; this.shares=shares; this.uploads=uploads; this.avatars=avatars;
+    this.users=users; this.files=files; this.shares=shares; this.uploads=uploads; this.transfers=transfers; this.avatars=avatars;
     this.storage=storage; this.tx=new TransactionTemplate(manager); this.clock=clock;
     this.uploadRoot=Path.of(uploadRoot).toAbsolutePath().normalize();
     this.storageRoot=Path.of(storageRoot).toAbsolutePath().normalize();
@@ -66,6 +68,7 @@ public class UserDeletionCleanup {
       catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
       shares.deleteAllByOwnerId(id);
       uploads.deleteAllByOwnerId(id);
+      transfers.deleteAllByOwnerId(id);
       avatars.deleteById(id);
       files.deleteAllByOwnerId(id);
       users.delete(user); users.flush();
