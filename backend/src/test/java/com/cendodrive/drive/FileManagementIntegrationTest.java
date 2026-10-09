@@ -6,7 +6,6 @@ import com.cendodrive.storage.StorageCleanupTask;
 import com.cendodrive.storage.StorageCleanupTaskRepository;
 import com.cendodrive.storage.StorageCleanupWorker;
 import com.cendodrive.upload.*;
-import com.cendodrive.index.*;
 import com.cendodrive.user.*;
 import com.cendodrive.common.ApiExceptionHandler.DriveFailure;
 import com.fasterxml.jackson.databind.*;
@@ -18,6 +17,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -39,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.driver-class-name=org.h2.Driver","spring.datasource.username=sa","spring.datasource.password=",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect","spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true","cendo.upload.cleanup-delay-ms=86400000",
-    "cendo.storage.cleanup-delay-ms=86400000","cendo.ai.worker-delay-ms=86400000"})
+    "cendo.storage.cleanup-delay-ms=86400000"})
 @AutoConfigureMockMvc
 class FileManagementIntegrationTest {
   static final Path STAGING=staging();
@@ -52,25 +53,26 @@ class FileManagementIntegrationTest {
   @Autowired UploadService uploads;
   @Autowired DriveService drive;
   @Autowired FileQuotaService quota;
-  @Autowired AiIndexTaskRepository indexTasks;
-  @Autowired AiIndexWorker indexWorker;
+  @Autowired JdbcTemplate jdbc;
+  @Autowired ApplicationContext context;
   @Autowired StorageCleanupTaskRepository cleanupTasks;
   @Autowired StorageCleanupWorker cleanupWorker;
   @Autowired TransactionTemplate transactions;
   @MockBean AuthService auth;
   @MockBean FileStorage storage;
-  @MockBean AiIndexClient indexClient;
+  long expectedLegacyTasks;
   User owner,other;
   Map<String,byte[]> blobs=new ConcurrentHashMap<>();
   Map<String,Long> sizes=new ConcurrentHashMap<>();
 
   @BeforeEach void setup() throws Exception {
-    cleanupTasks.deleteAllInBatch(); indexTasks.deleteAllInBatch(); sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
+    cleanupTasks.deleteAllInBatch(); sessions.deleteAllInBatch(); files.deleteAllInBatch(); users.deleteAllInBatch();
+    jdbc.update("DELETE FROM ai_index_tasks"); // Isolated H2 fixture only; runtime leaves this legacy table untouched.
+    expectedLegacyTasks=0;
     owner=users.saveAndFlush(new User("owner","test-hash","用户一"));
     other=users.saveAndFlush(new User("other","test-hash","用户二"));
     when(auth.authenticate("owner")).thenReturn(owner);
     when(auth.authenticate("other")).thenReturn(other);
-    when(indexClient.configured()).thenReturn(true);
     when(storage.upload(any(),anyLong(),anyString())).thenAnswer(call -> {
       InputStream input=call.getArgument(0); long size=call.getArgument(1);
       String key="group1/"+UUID.randomUUID();
@@ -86,10 +88,13 @@ class FileManagementIntegrationTest {
     doAnswer(call -> { blobs.remove(call.getArgument(0)); sizes.remove(call.getArgument(0)); return null; }).when(storage).delete(anyString());
   }
 
+  @AfterEach void noLegacyIndexTasksAreCreated() {
+    assertEquals(expectedLegacyTasks,jdbc.queryForObject("SELECT COUNT(*) FROM ai_index_tasks",Long.class));
+  }
+
   @Test void sharedCopiesRespectRecipientReservationsAndRefreshUsage() throws Exception {
     byte[] content="hello".getBytes();
     var source=drive.upload(other,new MockMultipartFile("file","shared.txt","text/plain",content),null);
-    long tasksBeforeSave=indexTasks.count();
     limit(9);
     byte[] pending=new byte[5];
     String reservation=init("owner","pending.bin",5,md5(pending),null,5,1,201).path("uploadId").asText();
@@ -101,7 +106,6 @@ class FileManagementIntegrationTest {
     assertEquals(5,usage().path("reservedBytes").asLong());
     sessions.deleteById(reservation);
     var copy=drive.saveSharedFile(owner,other,Long.valueOf(source.id()),null);
-    assertEquals(tasksBeforeSave,indexTasks.count(),"share saves do not enter this indexing scope");
     assertEquals(5,usage().path("usedBytes").asLong());
     assertEquals(5,users.findById(owner.getId()).orElseThrow().getStorageUsed());
     var original=files.findById(Long.valueOf(source.id())).orElseThrow();
@@ -131,9 +135,6 @@ class FileManagementIntegrationTest {
     JsonNode saved=merge("owner",id,hash,201);
     assertEquals(saved.path("id").asText(),merge("owner",id,hash,201).path("id").asText());
     assertEquals(1,files.count()); assertEquals(1,sizes.size());
-    assertEquals(1,indexTasks.count());
-    AiIndexTask task=indexTasks.findAll().getFirst();
-    assertEquals(AiIndexTask.Operation.UPSERT,task.getOperation()); assertEquals(saved.path("id").asLong(),task.getFileId());
     assertEquals(bytes.length,usage().path("usedBytes").asLong()); assertEquals(0,usage().path("reservedBytes").asLong());
     assertEquals(bytes.length,users.findById(owner.getId()).orElseThrow().getStorageUsed());
     assertFalse(Files.exists(STAGING.resolve(owner.getId().toString()).resolve(id)));
@@ -229,35 +230,29 @@ class FileManagementIntegrationTest {
     long parent=folder("parent",null); long child=folder("child",parent);
     long file=upload("private.txt","secret".getBytes(),child,201).path("id").asLong();
     call(postJson("/api/files/trash",Map.of("ids",List.of(parent))),"owner",200);
-    assertEquals(List.of(AiIndexTask.Operation.UPSERT,AiIndexTask.Operation.DEACTIVATE),
-        indexTasks.findAll().stream().map(AiIndexTask::getOperation).toList());
-    assertEquals(List.of(1L,2L),indexTasks.findAll().stream().map(AiIndexTask::getRevision).toList());
     call(get("/api/files/"+file+"/download"),"owner",404);
     call(get("/api/files/"+file+"/details"),"owner",404);
     call(get("/api/files").param("parentId",String.valueOf(child)),"owner",404);
     call(put("/api/files/"+file+"/rename").contentType("application/json").content("{\"name\":\"leak.txt\"}"),"owner",404);
     assertEquals(6,usage().path("trashBytes").asLong()); assertEquals(0,call(get("/api/files/folders"),"owner",200).size());
     call(post("/api/files/trash/delete").contentType("application/json").content(json.writeValueAsString(Map.of("ids",List.of(parent)))),"owner",204);
-    assertEquals(AiIndexTask.Operation.DELETE,indexTasks.findAll().getLast().getOperation());
-    assertEquals(3,indexTasks.findAll().getLast().getRevision());
     assertEquals(1,cleanupTasks.count()); assertFalse(sizes.isEmpty());
     cleanupWorker.cleanup();
     assertEquals(StorageCleanupTask.Status.SUCCEEDED,cleanupTasks.findAll().getFirst().getStatus());
     assertEquals(0,files.count()); assertTrue(sizes.isEmpty()); assertEquals(0,usage().path("usedBytes").asLong());
   }
 
-  @Test void restoreCreatesNewerUpsertOnlyForSearchableIndexedFiles() throws Exception {
+  @Test void restoreMakesOriginalAndCopiedFilesAccessible() throws Exception {
     long folder=folder("folder",null);
-    long indexed=upload("indexed.txt","hello".getBytes(),folder,201).path("id").asLong();
-    long copied=call(postJson("/api/files/copy",target(List.of(indexed),folder)),"owner",201).get(0).path("id").asLong();
+    long original=upload("original.txt","hello".getBytes(),folder,201).path("id").asLong();
+    long copied=call(postJson("/api/files/copy",target(List.of(original),folder)),"owner",201).get(0).path("id").asLong();
     call(postJson("/api/files/trash",Map.of("ids",List.of(folder))),"owner",200);
+    call(get("/api/files/"+original+"/download"),"owner",404);
+    call(get("/api/files/"+copied+"/download"),"owner",404);
     call(postJson("/api/files/trash/restore",Map.of("ids",List.of(folder))),"owner",200);
-    List<AiIndexTask> lifecycle=indexTasks.findAll();
-    assertEquals(List.of(AiIndexTask.Operation.UPSERT,AiIndexTask.Operation.DEACTIVATE,AiIndexTask.Operation.UPSERT),
-        lifecycle.stream().map(AiIndexTask::getOperation).toList());
-    assertEquals(List.of(1L,2L,3L),lifecycle.stream().map(AiIndexTask::getRevision).toList());
-    assertEquals(indexed,lifecycle.getLast().getFileId());
-    assertEquals(0,files.findById(copied).orElseThrow().getIndexRevision());
+    download(String.valueOf(original),"hello".getBytes());
+    download(String.valueOf(copied),"hello".getBytes());
+    assertEquals(10,usage().path("usedBytes").asLong());
   }
 
   @Test void failedPhysicalDeleteIsRecordedAndRetried() throws Exception {
@@ -281,31 +276,42 @@ class FileManagementIntegrationTest {
     assertFalse(sizes.containsKey(key)); verify(storage,times(2)).delete(key);
   }
 
-  @Test void indexDeliveryDoesNotChangeQuotaOrBlockFileTraffic() throws Exception {
-    byte[] content="index isolation".getBytes();
+  @Test void uploadsWorkWithoutLegacyIndexBeansWhileChatRemainsAvailable() throws Exception {
+    for (String bean:List.of("aiIndexClient","aiIndexWorker","aiIndexTaskService","aiIndexTaskRepository"))
+      assertFalse(context.containsBean(bean),"Legacy index bean must not be registered: "+bean);
+    assertTrue(context.containsBean("aiChatService"));
+    byte[] content="chat independent upload".getBytes();
     JsonNode uploaded=upload("isolated.txt",content,null,201);
-    verify(indexClient,never()).deliver(any());
-    JsonNode before=usage();
-    doThrow(new AiIndexClient.RetryableDeliveryException("Anna unavailable"))
-        .when(indexClient).deliver(any(AiIndexTask.class));
-    indexWorker.deliver();
-    AiIndexTask task=indexTasks.findAll().getFirst();
-    assertEquals(AiIndexTask.Status.RETRY,task.getStatus()); assertEquals(1,task.getAttempts());
-    JsonNode after=usage();
-    assertEquals(before.path("usedBytes").asLong(),after.path("usedBytes").asLong());
-    assertEquals(before.path("availableBytes").asLong(),after.path("availableBytes").asLong());
-    assertEquals(before.path("reservedBytes").asLong(),after.path("reservedBytes").asLong());
+    assertEquals(content.length,usage().path("usedBytes").asLong());
+    assertEquals(0,usage().path("reservedBytes").asLong());
     download(uploaded.path("id").asText(),content);
+  }
+
+  @Test void historicalIndexRowsAndRevisionsAreNotChangedByFileLifecycle() throws Exception {
+    long file=upload("legacy.txt","hello".getBytes(),null,201).path("id").asLong();
+    jdbc.update("UPDATE drive_files SET index_revision=7 WHERE id=?",file);
+    jdbc.update("INSERT INTO ai_index_tasks (event_id,file_id,owner_id,operation,revision,status,attempts,"
+        +"next_attempt_at,created_at,updated_at) VALUES (?,?,?,'UPSERT',7,'RETRY',3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+        "historical-event",file,owner.getId());
+    expectedLegacyTasks=1;
+    Map<String,Object> before=jdbc.queryForMap("SELECT * FROM ai_index_tasks WHERE event_id='historical-event'");
+    call(postJson("/api/files/trash",Map.of("ids",List.of(file))),"owner",200);
+    call(postJson("/api/files/trash/restore",Map.of("ids",List.of(file))),"owner",200);
+    assertEquals(7L,jdbc.queryForObject("SELECT index_revision FROM drive_files WHERE id=?",Long.class,file));
+    call(postJson("/api/files/trash",Map.of("ids",List.of(file))),"owner",200);
+    call(post("/api/files/trash/delete").contentType("application/json")
+        .content(json.writeValueAsString(Map.of("ids",List.of(file)))),"owner",204);
+    cleanupWorker.cleanup();
+    assertEquals(0,files.count());
+    assertEquals(before,jdbc.queryForMap("SELECT * FROM ai_index_tasks WHERE event_id='historical-event'"));
   }
 
   @Test void recursiveCopyPreservesHiddenFlagsButUsesIndependentContentAndQuota() throws Exception {
     long parent=folder("source",null); long child=folder("child",parent);
     long file=upload("hello.txt","hello".getBytes(),child,201).path("id").asLong();
-    long tasksBeforeCopy=indexTasks.count();
     call(postJson("/api/files/hidden",Map.of("ids",List.of(file),"value",true)),"owner",200);
     call(postJson("/api/files/favorite",Map.of("ids",List.of(file),"value",true)),"owner",200);
     JsonNode copied=call(postJson("/api/files/copy",target(List.of(parent,child),null)),"owner",201);
-    assertEquals(tasksBeforeCopy,indexTasks.count(),"copies do not enter this indexing scope");
     assertEquals(3,copied.size()); assertEquals("source - 副本",copied.get(0).path("name").asText());
     JsonNode copiedFile=copied.get(2); assertTrue(copiedFile.path("hidden").asBoolean()); assertFalse(copiedFile.path("favorite").asBoolean());
     assertEquals(10,usage().path("usedBytes").asLong());
