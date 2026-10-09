@@ -95,6 +95,11 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.desktop-drive .ai-search-entry[aria-label="AI 搜索文件内容"]').trigger("click");
     expect(routerPush).toHaveBeenNthCalledWith(1, { name: "ai-search" });
     expect(routerPush).toHaveBeenNthCalledWith(2, { name: "ai-search" });
+    expect(wrapper.get(".genflow").text()).toBe("扣扣AI");
+    await wrapper.get(".genflow").trigger("click");
+    await wrapper.get('[aria-label="打开扣扣AI智能对话"]').trigger("click");
+    expect(routerPush).toHaveBeenNthCalledWith(3, { name: "ai" });
+    expect(routerPush).toHaveBeenNthCalledWith(4, { name: "ai" });
   });
   const parent: DriveItem = { ...file, id: "7", name: "U鱼游戏 S1-S3 三季", kind: "folder", size: 0 };
   const child: DriveItem = { ...parent, id: "8", name: "S01", parentId: "7" };
