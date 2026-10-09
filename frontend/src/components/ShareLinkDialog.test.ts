@@ -14,7 +14,7 @@ describe('share link dialog', () => {
     (Array.from(dialog.querySelectorAll('button')).find(b => b.textContent?.includes('复制提取码')) as HTMLButtonElement).click(); await flushPromises();
     expect(writeText).toHaveBeenCalledWith('Ab12'); expect(dialog.textContent).toContain('已复制提取码');
     await page.setProps({ share: { ...share, id: '2', extractionCode: undefined } });
-    expect(document.body.querySelector('#share-code-value')).toBeNull(); expect(dialog.textContent).toContain('不再回显'); page.unmount();
+    expect(document.body.querySelector('#share-code-value')).toBeNull(); expect(dialog.textContent).toContain('此历史分享未保存可回显的提取码'); expect(dialog.textContent).not.toContain('为安全起见'); page.unmount();
   });
   it('reports clipboard errors and blocks inactive links', async () => {
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });

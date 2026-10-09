@@ -15,8 +15,8 @@ export interface ShareRecord {
   expiresAt: string;
   status: ShareStatus;
   hasExtractionCode?: boolean;
-  // Kept only in the current owner's memory, never returned by the list endpoint.
-  extractionCode?: string;
+  // Returned by owner create/list endpoints; legacy BCrypt-only shares have no recoverable code.
+  extractionCode?: string | null;
 }
 
 export const PERMANENT_SHARE_EXPIRY = "9999-12-31T23:59:59Z";

@@ -103,7 +103,7 @@ async function copyLink() {
           <button type="button" :disabled="!active" @click="copyCode"><Check v-if="codeCopied" :size="17" /><Copy v-else :size="17" />{{ codeCopied ? '已复制提取码' : '复制提取码' }}</button>
         </div>
       </div>
-      <p v-else-if="share.hasExtractionCode" class="share-dialog-code">已设置提取码；为安全起见不再回显，请使用创建时保存的提取码。</p>
+      <p v-else-if="share.hasExtractionCode" class="share-dialog-code">此历史分享未保存可回显的提取码。请使用原提取码，或重新创建分享以显示并复制提取码。</p>
       <p v-if="copyError" class="share-dialog-error" role="alert">{{ copyError }}</p>
       <p class="share-dialog-expiry">
         {{ shareExpiryLabel(share.expiresAt) }}
