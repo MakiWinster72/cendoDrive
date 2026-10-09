@@ -15,12 +15,26 @@ export interface ShareRecord {
   expiresAt: string;
   status: ShareStatus;
   hasExtractionCode?: boolean;
-  // Kept only in the current owner's memory, never returned by the list endpoint.
-  extractionCode?: string;
+  // Returned by owner create/list endpoints; legacy BCrypt-only shares have no recoverable code.
+  extractionCode?: string | null;
 }
 
-export function shareClipboardText(share: ShareRecord, origin: string): string {
-  const link = `${origin}/share/${encodeURIComponent(share.token)}`;
+export const PERMANENT_SHARE_EXPIRY = "9999-12-31T23:59:59Z";
+
+export function shareExpiryLabel(expiresAt: string): string {
+  return new Date(expiresAt).getTime() === new Date(PERMANENT_SHARE_EXPIRY).getTime()
+    ? "永久有效"
+    : `有效至 ${new Date(expiresAt).toLocaleString("zh-CN", { hour12: false })}`;
+}
+
+export function shareUrl(share: ShareRecord, origin: string, autoFill = false): string {
+  // Explicit opt-in: fragments are not transmitted in HTTP URLs or referrer headers.
+  return `${origin}/share/${encodeURIComponent(share.token)}` +
+    (autoFill && share.extractionCode ? `#code=${encodeURIComponent(share.extractionCode)}` : "");
+}
+
+export function shareClipboardText(share: ShareRecord, origin: string, autoFill = false): string {
+  const link = shareUrl(share, origin, autoFill);
   return share.extractionCode ? `${link}\n提取码：${share.extractionCode}` : link;
 }
 

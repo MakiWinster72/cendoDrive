@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/** Codes are never included in URLs, public metadata, or stored as plaintext. */
+/** Recipient verification uses BCrypt; codes are returned only in owner management responses. */
 @Component
 public class ShareCodeGuard {
   private final PasswordEncoder passwords;

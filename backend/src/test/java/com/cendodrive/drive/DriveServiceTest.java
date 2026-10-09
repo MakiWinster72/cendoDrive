@@ -6,7 +6,6 @@ import com.cendodrive.user.User;
 import com.cendodrive.user.UserRepository;
 import com.cendodrive.storage.FileStorage;
 import com.cendodrive.storage.StorageCleanupService;
-import com.cendodrive.index.AiIndexTaskService;
 import org.springframework.mock.web.MockMultipartFile;
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +24,11 @@ class DriveServiceTest {
     @Mock FileStorage storage;
     @Mock User user;
     @Mock FileQuotaService quota;
-    @Mock AiIndexTaskService indexTasks;
     @Mock StorageCleanupService storageCleanup;
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, indexTasks, storageCleanup);
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, storageCleanup);
         lenient().when(user.getId()).thenReturn(7L);
         lenient().when(user.getStorageLimit()).thenReturn(1024L * 1024 * 1024);
     }
@@ -49,7 +47,6 @@ class DriveServiceTest {
         });
         assertEquals("12", service.upload(user, upload, null).id());
         verify(storage).upload(any(), eq(5L), eq("txt"));
-        verify(indexTasks).enqueueUpsert(any(DriveFile.class));
     }
 
     @Test void rejectsUploadWhenStorageQuotaIsExceeded() throws Exception {
@@ -108,7 +105,6 @@ class DriveServiceTest {
         when(file.getKind()).thenReturn("folder");
         when(file.getUpdatedAt()).thenReturn(java.time.LocalDateTime.now());
         when(files.findByIdAndOwnerId(1L, 7L)).thenReturn(Optional.of(file));
-        when(files.findAllByOwnerId(7L)).thenReturn(List.of(file));
         when(files.saveAllAndFlush(anyList())).thenAnswer(call -> call.getArgument(0));
         service.trash(user, new FileIdsRequest(List.of(1L)));
         verify(file).moveToTrash();

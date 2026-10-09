@@ -35,9 +35,15 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: "/ai",
+      name: "ai",
+      component: () => import("../views/AiView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/ai-search",
       name: "ai-search",
-      component: () => import("../views/AiSearchView.vue"),
+      redirect: { name: "ai", query: { mode: "search" } },
       meta: { requiresAuth: true },
     },
     {

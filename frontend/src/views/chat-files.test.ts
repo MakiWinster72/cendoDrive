@@ -11,7 +11,7 @@ vi.mock('vue-router',()=>({useRouter:()=>({push}),useRoute:()=>({params:{id:'roo
 vi.mock('../api/chat',()=>({getChatFile:vi.fn(),previewChatFile:vi.fn(),downloadChatFile:vi.fn(),saveChatFile:vi.fn(),sendFileMessage:vi.fn()}));
 vi.mock('../api/drive',()=>({listFiles:vi.fn(),driveErrorMessage:(_e:unknown,f:string)=>f}));
 const file={id:'42',name:'项目归档.zip',kind:'file' as const,size:2048,parentId:null,updatedAt:'2026-01-01',deletedAt:null};
-beforeEach(()=>{vi.resetAllMocks();vi.mocked(api.getChatFile).mockResolvedValue(file);vi.mocked(drive.listFiles).mockResolvedValue([]);});
+beforeEach(()=>{vi.resetAllMocks();vi.mocked(api.getChatFile).mockResolvedValue(file);vi.mocked(drive.listFiles).mockResolvedValue([]);vi.mocked(api.saveChatFile).mockResolvedValue(file);});
 describe('聊天文件二级页面',()=>{
   it('不支持预览时明确提示，仍可下载与选择转存',async()=>{
     const wrapper=mount(Detail); await flushPromises();

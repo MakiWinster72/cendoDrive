@@ -36,11 +36,21 @@ class ShareRedisIntegrationTest {
     store.enable(link, Instant.now());
     Long ttl = redis.getExpire(ShareAccessStore.key(link.getToken()), TimeUnit.MILLISECONDS);
     assertNotNull(ttl);
-    assertTrue(ttl > 0 && ttl <= 2000, "Share key must never be permanent");
+    assertTrue(ttl > 0 && ttl <= 2000, "Timed share key must carry a TTL");
     assertTrue(store.allows(link));
     Thread.sleep(2100);
     assertFalse(store.allows(link));
     assertEquals(-2L, redis.getExpire(ShareAccessStore.key(link.getToken())));
+  }
+
+  @Test void permanentCredentialsHaveNoTtlButCanBeRevoked() {
+    link = ShareLink.create(1L, 1L, link.getToken(), "permanent.txt", 5, Instant.now(), 0);
+    ReflectionTestUtils.setField(link, "id", 1L);
+    store.enable(link, Instant.now());
+    assertEquals(-1L, redis.getExpire(ShareAccessStore.key(link.getToken())));
+    assertTrue(store.allows(link));
+    store.revoke(link);
+    assertFalse(store.allows(link));
   }
 
   @Test void mismatchedCredentialIsRejectedAndRevocationIsImmediate() {

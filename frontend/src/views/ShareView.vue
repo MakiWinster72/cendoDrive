@@ -11,7 +11,9 @@ import {
 import { iconForFile } from "../components/fileIcon";
 import BrandLogo from "../components/BrandLogo.vue";
 import { formatSize } from "../stores/drive";
+import { useTransfers } from "../stores/transfers";
 import {
+  shareExpiryLabel,
   downloadPublicShare,
   getPublicShare,
   saveSharedFile,
@@ -24,6 +26,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const auth = useAuth();
+const transfers = useTransfers();
 const token = computed(() => String(route.params.token || ""));
 const access = ref<ShareAccessResponse | null>(null);
 const loading = ref(false);
@@ -66,7 +69,10 @@ async function download() {
   error.value = "";
   try {
     await downloadPublicShare(requestedToken, file.value.name, code.value || undefined);
+    if (auth.loggedIn.value && file.value) transfers.recordDownload(file.value.name, file.value.size);
   } catch (reason) {
+    if (auth.loggedIn.value && file.value)
+      transfers.recordFailure('download', file.value.name, file.value.size, shareErrorMessage(reason, "下载失败，请稍后重试"));
     if (requestedToken === token.value)
       error.value = shareErrorMessage(reason, "下载失败，请稍后重试");
   } finally {
@@ -89,7 +95,12 @@ async function save() {
       return;
     }
     if (requestedToken !== token.value) return;
-    await saveSharedFile(requestedToken, null, code.value || undefined);
+    const copy = await saveSharedFile(requestedToken, null, code.value || undefined).catch(reason => {
+      if (file.value) transfers.recordFailure('transfer', file.value.name, file.value.size,
+        shareErrorMessage(reason, "转存失败，请稍后重试"));
+      throw reason;
+    });
+    transfers.recordTransfer(copy.name, copy.size, copy.id);
     if (requestedToken === token.value) saved.value = true;
   } catch (reason) {
     if (requestedToken === token.value)
@@ -99,7 +110,12 @@ async function save() {
   }
 }
 
-watch(token, () => { code.value = ""; needsCode.value = false; void loadShare(); }, { immediate: true });
+watch(token, () => {
+  const suppliedCode = new URLSearchParams((route.hash ?? "").slice(1)).get("code") ?? "";
+  code.value = /^[A-Za-z0-9]{4,16}$/.test(suppliedCode) ? suppliedCode : "";
+  needsCode.value = false;
+  void loadShare();
+}, { immediate: true });
 watch([loading, needsCode], async () => {
   if (!loading.value && needsCode.value && !access.value) { await nextTick(); codeInput.value?.focus(); }
 });
@@ -140,12 +156,7 @@ onUnmounted(() => {
         <h1>分享文件</h1>
         <strong class="shared-file-name">{{ file.name }}</strong>
         <p>
-          {{ formatSize(file.size) }} · 有效期至
-          {{
-            new Date(access.expiresAt).toLocaleString("zh-CN", {
-              hour12: false,
-            })
-          }}
+          {{ formatSize(file.size) }} · {{ shareExpiryLabel(access.expiresAt) }}
         </p>
         <div class="share-actions">
         <button

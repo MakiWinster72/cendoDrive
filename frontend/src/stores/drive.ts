@@ -80,7 +80,10 @@ export function useDrive() {
   const loadHidden = () => run(async () => {
     state.hidden = await api.listHidden(); state.hidden.forEach(upsert); return state.hidden;
   });
-  const loadShares = () => run(async () => { state.shares = await shareApi.listShares(); return state.shares; });
+  const loadShares = () => run(async () => {
+    state.shares = await shareApi.listShares();
+    return state.shares;
+  });
   const createFolder = (name: string, parentId: string | null) => run(async () => {
     const item = await api.createFolder(name, parentId); upsert(item); return item;
   });
@@ -95,7 +98,7 @@ export function useDrive() {
     const item = get(id);
     if (!item) return Promise.reject(new Error("文件不存在"));
     return run(() => useTransfers().enqueueDownload(item.name, item.size,
-      progress => api.downloadFile(item.id, item.name, progress)));
+      progress => api.downloadFile(item.id, item.name, progress), item.id));
   };
   const addUploaded = (item: DriveItem) => { upsert(item); void loadUsage(); };
   const trash = (ids: string[]) => run(async () => { const items = await api.trashFiles(ids); items.forEach(upsert); return items; }, true);

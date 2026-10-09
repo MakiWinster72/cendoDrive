@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { Download, X, FileText, RefreshCw } from "@lucide/vue";
 import { fetchPreviewFile } from "../api/preview";
 import { downloadFile, driveErrorMessage, type DriveItemResponse } from "../api/drive";
+import { useTransfers } from "../stores/transfers";
 import { decodeText, previewFormat } from "../preview/formats";
 import "../styles/preview.css";
 const PdfPreview = defineAsyncComponent(() => import("./PdfPreview.vue"));
@@ -55,8 +56,11 @@ async function load() {
 async function download() {
   if (downloading.value) return;
   downloading.value = true;
-  try { await (props.downloadContent ? props.downloadContent() : downloadFile(props.file.id, props.file.name)); }
-  catch (cause) { error.value = driveErrorMessage(cause, "下载失败，请重试"); }
+  try {
+    await (props.downloadContent ? props.downloadContent() : downloadFile(props.file.id, props.file.name));
+    if (!props.downloadContent) useTransfers().recordDownload(props.file.name, props.file.size, props.file.id);
+  }
+  catch (cause) { error.value = driveErrorMessage(cause, "下载失败，请重试"); if (!props.downloadContent) useTransfers().recordFailure('download', props.file.name, props.file.size, error.value); }
   finally { downloading.value = false; }
 }
 let disposed = false;

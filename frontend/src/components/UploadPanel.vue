@@ -3,10 +3,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import {
   Check,
   FileText,
-  Link2,
   LoaderCircle,
   RotateCcw,
-  ScanLine,
   Trash2,
   X,
 } from "@lucide/vue";
@@ -20,7 +18,7 @@ import {
   uploadFileInChunks,
 } from "../api/chunkedUpload";
 import UploadActionIcon from "./UploadActionIcon.vue";
-import { ChevronRight, CloudDownload, ShieldCheck } from "@lucide/vue";
+import { ChevronRight, ShieldCheck } from "@lucide/vue";
 import type { DriveItem } from "../stores/drive";
 import { useTransfers } from "../stores/transfers";
 
@@ -52,6 +50,7 @@ interface UploadTask {
   mode?: UploadMode;
   parentId?: string | null;
   error?: string;
+  fileId?: string;
 }
 
 const panel = ref<HTMLElement>();
@@ -90,10 +89,11 @@ const transfers = useTransfers();
 watch(uploadTasks, (tasks) => {
   for (const task of tasks) transfers.syncUpload({
     id: task.id, name: task.file.name, size: task.file.size,
-    status: task.status, progress: task.progress, error: task.error,
+    status: task.status, progress: task.progress, error: task.error, fileId: task.fileId,
   });
 }, { deep: true, flush: "sync" });
 const selectedType = ref<UploadType | null>(null);
+const unavailableMessage = ref("");
 const selectedFolderId = ref<string | null>(props.initialFolderId);
 const folderPickerOpen = ref(false);
 const controllers = new Map<string, AbortController>();
@@ -155,10 +155,15 @@ const selectedFolderName = computed(
 );
 
 async function chooseType(type: UploadType, typeAccept: string) {
+  unavailableMessage.value = "";
   selectedType.value = type;
   accept.value = typeAccept;
   await nextTick();
   fileInput.value?.click();
+}
+
+function showUnavailable(name: string) {
+  unavailableMessage.value = `${name}功能暂未开放`;
 }
 
 function handleFileSelection(event: Event) {
@@ -228,6 +233,7 @@ async function runUpload(task: UploadTask) {
           },
         });
     task.progress = 100;
+    task.fileId = item.id;
     task.status = "success";
     emit("uploaded", item);
   } catch (error) {
@@ -306,11 +312,12 @@ function statusText(task: UploadTask) {
         <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
       </div>
       <div class="upload-content">
-        <div class="upload-quick-actions" aria-label="其他添加方式">
-          <button type="button" disabled aria-label="扫一扫（暂未开放）"><ScanLine /><span>扫一扫<small>暂未开放</small></span></button>
-          <button type="button" disabled aria-label="链接任务（暂未开放）"><Link2 /><span>链接任务<small>暂未开放</small></span></button>
-          <button type="button" disabled aria-label="BT 任务（暂未开放）"><CloudDownload /><span>BT 任务<small>暂未开放</small></span></button>
+        <div class="quick-actions" aria-label="快捷功能">
+          <button type="button" @click="showUnavailable('扫一扫')"><UploadActionIcon kind="scan" /><span>扫一扫</span></button>
+          <button type="button" @click="showUnavailable('链接任务')"><UploadActionIcon kind="link" /><span>链接任务</span></button>
+          <button type="button" @click="showUnavailable('BT任务')"><UploadActionIcon kind="bt" /><span>BT任务</span></button>
         </div>
+        <p v-if="unavailableMessage" class="unavailable-message" role="status">{{ unavailableMessage }}</p>
         <h2 id="upload-title">上传文件</h2>
         <div class="upload-options">
           <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
@@ -323,9 +330,9 @@ function statusText(task: UploadTask) {
             <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
           </button>
           <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
-            <span class="action-art"><UploadActionIcon kind="music" /></span><span>音乐</span>
+            <span class="action-art"><UploadActionIcon kind="audio" /></span><span>音频</span>
           </button>
-          <button class="upload-option" type="button" aria-label="微信文件（暂未开放）">
+          <button class="upload-option" type="button" @click="showUnavailable('微信文件')">
             <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
           </button>
           <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
@@ -334,8 +341,8 @@ function statusText(task: UploadTask) {
           <button class="upload-option" type="button" @click="emit('createFolder')">
             <span class="action-art"><UploadActionIcon kind="folder" /></span><span>新建文件夹</span>
           </button>
-          <button class="upload-option" type="button" aria-label="新建笔记（暂未开放）">
-            <span class="action-art"><UploadActionIcon kind="note" /></span><span>新建笔记</span>
+          <button class="upload-option" type="button" @click="showUnavailable('新建文档')">
+            <span class="action-art"><UploadActionIcon kind="note" /></span><span>新建文档</span>
           </button>
         </div>
         <h2 class="ai-heading">智能生成</h2>
@@ -345,7 +352,7 @@ function statusText(task: UploadTask) {
             { kind: 'mic', label: 'AI录音速记' },
             { kind: 'ai-video', label: 'AI视频笔记' },
             { kind: 'story', label: 'AI照片故事' },
-          ]" :key="action.kind" class="upload-option" type="button" :aria-label="`${action.label}（暂未开放）`">
+          ]" :key="action.kind" class="upload-option" type="button" :aria-label="`${action.label}（暂未开放）`" @click="showUnavailable(action.label)">
             <span class="action-art"><UploadActionIcon :kind="action.kind" /></span><span>{{ action.label }}</span>
           </button>
         </div>
@@ -541,6 +548,11 @@ function statusText(task: UploadTask) {
 .backup-icon svg { width: 21px; height: 21px; }
 .backup-banner button { margin-left: auto; padding: 10px 12px; flex-shrink: 0; border: 0; border-radius: 9px; background: #e4eeff; color: #4185ff; font-weight: 600; }
 .upload-content { padding: 17px 17px 40px; }
+.quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; height: 54px; padding: 0 8px; border: 0; border-radius: 15px; background: rgb(255 255 255 / 82%); color: #27344a; font-size: 14px; font-weight: 600; }
+.quick-actions svg { flex: 0 0 auto; width: 30px; height: 30px; }
+.quick-actions button:active, .upload-option:active { transform: scale(.97); }
+.unavailable-message { margin: 10px 4px -5px; color: #526987; font-size: 12px; text-align: center; }
 .upload-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .upload-quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 58px; padding: 8px; border: 0; border-radius: 14px; background: #fff; color: #33435c; }
 .upload-quick-actions button:disabled { cursor: default; }
@@ -813,6 +825,10 @@ function statusText(task: UploadTask) {
   .backup-icon svg { width: 16px; height: 16px; }
   .backup-banner button { padding: 7px 8px; border-radius: 7px; }
   .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
+  .quick-actions { gap: 8px; }
+  .quick-actions button { height: 48px; gap: 6px; padding: 0 3px; border-radius: 13px; font-size: 12px; }
+  .quick-actions button > svg { width: 28px; height: 28px; }
+  .unavailable-message { margin-top: 8px; font-size: 11px; }
   .upload-quick-actions { gap: 6px; }
   .upload-quick-actions button { min-height: 48px; padding: 5px 3px; gap: 4px; border-radius: 12px; }
   .upload-quick-actions svg { width: 19px; height: 19px; }

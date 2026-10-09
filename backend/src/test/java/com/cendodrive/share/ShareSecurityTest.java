@@ -32,6 +32,8 @@ class ShareSecurityTest {
     when(shares.get(TOKEN, null, "127.0.0.1")).thenReturn(new ShareDtos.ShareAccessResponse(FILE, "2026-10-02T12:00:00Z"));
     mvc.perform(get("/api/shares/" + TOKEN)).andExpect(status().isOk())
         .andExpect(jsonPath("$.file.name").value("你好.txt"))
+        .andExpect(jsonPath("$.extractionCode").doesNotExist())
+        .andExpect(jsonPath("$.extractionCodeHash").doesNotExist())
         .andExpect(header().string("Cache-Control", "no-store"));
     when(shares.download(TOKEN, null, "127.0.0.1")).thenReturn(new DriveService.Download("你好.txt", out -> out.write("hello".getBytes()), 5));
     var download = mvc.perform(get("/api/shares/" + TOKEN + "/download"))
@@ -78,6 +80,27 @@ class ShareSecurityTest {
     verify(shares).list(owner);
   }
 
+  @Test void onlyOwnerManagementReturnsExtractionCode() throws Exception {
+    User owner = mock(User.class), other = mock(User.class);
+    when(auth.authenticate("owner-token")).thenReturn(owner);
+    when(auth.authenticate("other-token")).thenReturn(other);
+    ShareDtos.ShareResponse response = new ShareDtos.ShareResponse("51", TOKEN, "42", "hello.txt", "file", 5,
+        "2026-10-01T12:00:00Z", "2030-10-01T12:00:00Z", "ACTIVE", true, "A1b2");
+    when(shares.create(owner, new ShareDtos.CreateShareRequest(42L, 60L, "A1b2"))).thenReturn(response);
+    when(shares.list(owner)).thenReturn(List.of(response));
+    when(shares.list(other)).thenReturn(List.of());
+    mvc.perform(post("/api/shares").header("Authorization", "Bearer owner-token")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"fileId\":42,\"expiresInSeconds\":60,\"extractionCode\":\"A1b2\"}"))
+        .andExpect(status().isCreated()).andExpect(jsonPath("$.extractionCode").value("A1b2"))
+        .andExpect(jsonPath("$.extractionCodeHash").doesNotExist());
+    mvc.perform(get("/api/shares").header("Authorization", "Bearer owner-token"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$[0].extractionCode").value("A1b2"))
+        .andExpect(jsonPath("$[0].extractionCodeHash").doesNotExist());
+    mvc.perform(get("/api/shares").header("Authorization", "Bearer other-token"))
+        .andExpect(status().isOk()).andExpect(content().json("[]"));
+  }
+
   @Test void authenticatedFileDownloadCompletesAsyncButAnonymousRequestIsDenied() throws Exception {
     mvc.perform(get("/api/files/42/download")).andExpect(status().isUnauthorized());
     User recipient = mock(User.class);
@@ -88,9 +111,20 @@ class ShareSecurityTest {
     mvc.perform(asyncDispatch(result)).andExpect(status().isOk()).andExpect(content().string("hello"));
   }
 
+  @Test void acceptsPermanentExpiryThroughHttpValidation() throws Exception {
+    User owner = mock(User.class);
+    when(auth.authenticate("owner-token")).thenReturn(owner);
+    when(shares.create(owner, new ShareDtos.CreateShareRequest(42L, 0L)))
+        .thenReturn(new ShareDtos.ShareResponse("51", TOKEN, "42", "hello.txt", "file", 5,
+            "2026-10-01T12:00:00Z", ShareLink.PERMANENT_EXPIRY.toString(), "ACTIVE", false, null));
+    mvc.perform(post("/api/shares").header("Authorization", "Bearer owner-token")
+        .contentType(MediaType.APPLICATION_JSON).content("{\"fileId\":42,\"expiresInSeconds\":0}"))
+        .andExpect(status().isCreated()).andExpect(jsonPath("$.expiresAt").value("9999-12-31T23:59:59Z"));
+  }
+
   @Test void rejectsInvalidExpiryAndDestinationBeforeService() throws Exception {
     when(auth.authenticate("owner-token")).thenReturn(mock(User.class));
-    for (String input : List.of("{}", "{\"fileId\":42,\"expiresInSeconds\":0}",
+    for (String input : List.of("{}", "{\"fileId\":42,\"expiresInSeconds\":-1}",
         "{\"fileId\":42,\"expiresInSeconds\":2592001}"))
       mvc.perform(post("/api/shares").header("Authorization", "Bearer owner-token")
           .contentType(MediaType.APPLICATION_JSON).content(input)).andExpect(status().isBadRequest());

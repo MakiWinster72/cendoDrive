@@ -41,6 +41,8 @@ async function runSearch(input: string) {
 function submit() { return runSearch(query.value); }
 function refresh() { return runSearch(submittedQuery.value); }
 
+defineExpose({ refresh });
+
 onBeforeUnmount(() => controller?.abort());
 </script>
 
@@ -81,6 +83,7 @@ onBeforeUnmount(() => controller?.abort());
           <li v-for="hit in results" :key="hit.fileId" class="ai-search-result">
             <div class="ai-search-file"><FileText :size="22" aria-hidden="true" /><h3>{{ hit.fileName }}</h3></div>
             <p v-for="(snippet, index) in hit.snippets" :key="index" class="ai-search-snippet">{{ snippet }}</p>
+            <p v-if="!hit.snippets.length" class="ai-search-snippet ai-search-no-snippet">暂无可展示的相关片段</p>
             <button type="button" @click="emit('open', hit)">打开文件</button>
           </li>
         </ul>
@@ -94,7 +97,7 @@ onBeforeUnmount(() => controller?.abort());
 .ai-search-shell { width: min(900px, 100%); margin: 0 auto; padding: 24px 24px 64px; }
 .ai-search-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .ai-search-back, .ai-search-brand { display: inline-flex; align-items: center; gap: 8px; }
-.ai-search-back { border: 0; background: none; color: #3f526e; padding: 9px 0; }
+.ai-search-back { min-height: 44px; border: 0; background: none; color: #3f526e; padding: 9px 0; }
 .ai-search-brand { color: #2669d9; font-weight: 700; }
 .ai-search-intro { margin: 72px 0 36px; }
 .ai-search-intro h1 { margin: 0 0 12px; font-size: clamp(27px, 4vw, 38px); }
@@ -107,7 +110,7 @@ onBeforeUnmount(() => controller?.abort());
 .ai-search-form > button:disabled { opacity: .55; cursor: not-allowed; }
 .ai-search-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .ai-search-results h2 { font-size: 18px; margin: 0; overflow-wrap: anywhere; }
-.ai-search-results-heading button { flex: none; border: 0; background: none; color: #2877e5; font-weight: 600; }
+.ai-search-results-heading button { flex: none; min-height: 44px; border: 0; background: none; color: #2877e5; font-weight: 600; }
 .ai-search-results-heading button:disabled { opacity: .55; cursor: not-allowed; }
 .ai-search-state { margin: 0; padding: 32px; text-align: center; background: #fff; border-radius: 14px; color: #66758b; }
 .ai-search-state button { min-height: 38px; margin-top: 10px; }
@@ -116,7 +119,8 @@ onBeforeUnmount(() => controller?.abort());
 .ai-search-file { display: flex; align-items: center; gap: 10px; color: #2877e5; }
 .ai-search-file h3 { min-width: 0; overflow-wrap: anywhere; margin: 0; font-size: 16px; color: #17243b; }
 .ai-search-snippet { margin: 12px 0 0 32px; color: #52627a; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.ai-search-result button { min-height: 36px; margin: 18px 0 0 32px; }
+.ai-search-no-snippet { color: #8492a6; }
+.ai-search-result button { min-height: 44px; margin: 18px 0 0 32px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 640px) {
   .ai-search-shell { padding: 16px 16px 40px; }

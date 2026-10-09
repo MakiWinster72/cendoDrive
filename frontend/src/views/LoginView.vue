@@ -145,7 +145,6 @@ async function submit() {
             {{ loading ? "处理中…" : recoveryMode ? "验证密码并恢复" : "登录" }}
           </button>
         </form>
-        <div class="register"><button type="button" :disabled="loading" @click="recoveryMode=!recoveryMode;error='';recovered=false">{{ recoveryMode ? "返回登录" : "恢复 7 天内注销的账号" }}</button></div>
         <div class="register">
           还没有账号？<RouterLink to="/register"
             >立即注册 <ChevronRight :size="14"

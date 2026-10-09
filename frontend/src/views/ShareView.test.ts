@@ -6,7 +6,8 @@ import ShareView from "./ShareView.vue";
 import { downloadPublicShare, getPublicShare, saveSharedFile } from "../api/shares";
 
 const { ensureSession } = vi.hoisted(() => ({ ensureSession: vi.fn() }));
-vi.mock("../stores/auth", () => ({ useAuth: () => ({ ensureSession, loggedIn: { value: true }, verificationError: { value: "" } }) }));
+vi.mock("../stores/auth", () => ({ useAuth: () => ({ ensureSession, user: { value: { id: '1' } }, loggedIn: { value: true }, verificationError: { value: "" } }) }));
+vi.mock("../api/transfers", () => ({ saveTransferRecord: vi.fn(async () => {}), deleteTransferRecord: vi.fn(async () => {}), clearTransferRecords: vi.fn(async () => {}), listTransferRecords: vi.fn(async () => []) }));
 vi.mock("../api/shares", async original => ({ ...await original<typeof import("../api/shares")>(), getPublicShare: vi.fn(), downloadPublicShare: vi.fn(), saveSharedFile: vi.fn() }));
 const access = { file: { id: "42", name: "机密笔记.md", kind: "file" as const, size: 42, parentId: null, deletedAt: null, createdAt: "2026-10-08T00:00:00Z", updatedAt: "2026-10-08T00:00:00Z" }, expiresAt: "2030-01-01T00:00:00Z" };
 const failure = (code: string, status = 403) => ({ isAxiosError: true, response: { status, data: { code } } });
@@ -20,6 +21,18 @@ beforeEach(() => { vi.clearAllMocks(); ensureSession.mockResolvedValue(true); vi
 afterEach(() => { wrapper?.unmount(); wrapper = undefined; });
 
 describe("public extraction-code form", () => {
+  it("loads an opt-in fragment code through the header without a query parameter", async () => {
+    vi.mocked(getPublicShare).mockResolvedValue({ ...access, expiresAt: "9999-12-31T23:59:59Z" });
+    const page = await open("protected#code=Ab12");
+    expect(getPublicShare).toHaveBeenCalledWith("protected", expect.any(AbortSignal), "Ab12");
+    expect(page.text()).toContain("永久有效");
+    expect(router.currentRoute.value.query).toEqual({});
+  });
+  it("ignores malformed fragment codes", async () => {
+    vi.mocked(getPublicShare).mockResolvedValue(access);
+    await open("open#code=%3Cscript%3E");
+    expect(getPublicShare).toHaveBeenCalledWith("open", expect.any(AbortSignal), undefined);
+  });
   it("hides protected metadata until validation and passes the same code to download and save", async () => {
     vi.mocked(getPublicShare).mockRejectedValueOnce(failure("SHARE_CODE_REQUIRED")).mockResolvedValue(access);
     const page = await open(); expect(page.text()).toContain("请输入提取码"); expect(page.text()).not.toContain(access.file.name);
