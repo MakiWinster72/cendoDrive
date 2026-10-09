@@ -89,6 +89,26 @@ class AiChatSecurityTest {
     verify(ai,never()).stream(any(),any());
   }
 
+  @Test void streamReturnsOrdinaryJsonErrorsToSseClients() throws Exception {
+    when(auth.authenticate("token")).thenReturn(mock(User.class));
+    mvc.perform(post("/api/ai/chat/stream").header("Authorization","Bearer token")
+        .accept(MediaType.TEXT_EVENT_STREAM).contentType(MediaType.APPLICATION_JSON).content("{\"messages\":[]}"))
+        .andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    mvc.perform(post("/api/ai/chat/stream").header("Authorization","Bearer token")
+        .accept(MediaType.TEXT_EVENT_STREAM).contentType(MediaType.APPLICATION_JSON).content("{"))
+        .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_JSON"));
+    for (HttpStatus status : java.util.List.of(HttpStatus.SERVICE_UNAVAILABLE, HttpStatus.TOO_MANY_REQUESTS)) {
+      String code = status == HttpStatus.SERVICE_UNAVAILABLE ? "AI_NOT_CONFIGURED" : "AI_RATE_LIMITED";
+      doThrow(new AiFailure(status,code,"安全提示")).when(ai).validate(any());
+      mvc.perform(post("/api/ai/chat/stream").header("Authorization","Bearer token")
+          .accept(MediaType.TEXT_EVENT_STREAM).contentType(MediaType.APPLICATION_JSON)
+          .content("{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"))
+          .andExpect(status().is(status.value())).andExpect(request().asyncNotStarted())
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)).andExpect(jsonPath("$.code").value(code));
+    }
+  }
+
   @Test void unconfiguredReturnsActionable503() throws Exception {
     when(auth.authenticate("token")).thenReturn(mock(User.class));
     when(ai.chat(any())).thenThrow(new AiFailure(HttpStatus.SERVICE_UNAVAILABLE, "AI_NOT_CONFIGURED", "智能对话尚未配置"));
