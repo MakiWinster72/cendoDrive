@@ -52,6 +52,20 @@ describe("扣扣AI reference interface", () => {
     expect(wrapper.findAll(".assistant-message")).toHaveLength(2);
   });
 
+  it("shows Kuku thinking and completed-answer controls", async () => {
+    const reply = deferred<string>(); vi.mocked(sendChat).mockReturnValueOnce(reply.promise);
+    const wrapper = await open(); await ask(wrapper);
+    expect(wrapper.text()).toContain("思考中…");
+    expect(wrapper.text()).toContain("正在理解您的问题");
+    expect(wrapper.text()).toContain("任务处理中…");
+    expect(wrapper.find(".thinking-orb").exists()).toBe(true);
+    reply.resolve("你好呀！我是扣扣AI"); await flushPromises();
+    expect(wrapper.text()).toContain("你好呀！我是扣扣AI");
+    expect(wrapper.find('[aria-label="重新回答"]').exists()).toBe(true);
+    await wrapper.get('[aria-label="朗读回答"]').trigger("click");
+    expect(document.body.textContent).toContain("该功能尚未开放");
+  });
+
   it("supports Enter send, Shift+Enter and IME guards", async () => {
     const wrapper = await open(); const textarea = wrapper.get("textarea");
     await textarea.setValue("回车发送"); await textarea.trigger("keydown", { key: "Enter", shiftKey: true }); expect(sendChat).not.toHaveBeenCalled();
