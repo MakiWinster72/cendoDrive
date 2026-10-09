@@ -1181,8 +1181,8 @@ onUnmounted(() => {
         "
       >
         <Folder /><span>文件</span></button
-      ><button class="genflow" type="button" @click="showUnavailable('库库 AI 功能暂未开放。')">
-        <i><Sparkles /></i><span>库库 AI</span></button
+      ><button class="genflow" type="button" @click="router.push({ name: 'ai' })">
+        <i><Sparkles /></i><span>扣扣AI</span></button
       ><button
         :class="{ active: mobileTab === 'share' }"
         @click="mobileTab = 'share'"
@@ -1263,6 +1263,9 @@ onUnmounted(() => {
             :placeholder="serverSearchEnabled ? '按文件名搜索' : '筛选当前列表文件名'" aria-label="搜索文件名" maxlength="100"
           /><kbd>⌘ K</kbd>
         </div>
+        <button class="ai-search-entry" type="button" aria-label="打开扣扣AI智能对话" @click="router.push({ name: 'ai' })">
+          <Sparkles :size="18" /><span>扣扣AI</span>
+        </button>
         <button class="ai-search-entry" type="button" aria-label="AI 搜索文件内容" @click="router.push({ name: 'ai-search' })">
           <WandSparkles :size="18" /><span>AI 搜索</span>
         </button>
