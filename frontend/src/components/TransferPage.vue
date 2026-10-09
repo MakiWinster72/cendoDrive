@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
 import { driveErrorMessage, getFileDetails, searchFiles, type DriveItemResponse } from '../api/drive';
@@ -14,7 +14,19 @@ const transfers = useTransfers();
 const previewFile = ref<DriveItemResponse | null>(null);
 const openError = ref('');
 const opening = ref<string | null>(null);
+const limitMenuOpen = ref(false);
+const limitMenu = ref<HTMLElement | null>(null);
+const downloadLimits = [1, 2, 3, 5];
+function closeLimitMenu(event: PointerEvent) {
+  if (!limitMenu.value?.contains(event.target as Node)) limitMenuOpen.value = false;
+}
+function selectDownloadLimit(value: number) {
+  transfers.setDownloadLimit(value);
+  limitMenuOpen.value = false;
+}
 onMounted(() => { void transfers.refresh(); });
+onMounted(() => document.addEventListener('pointerdown', closeLimitMenu));
+onUnmounted(() => document.removeEventListener('pointerdown', closeLimitMenu));
 async function openTask(task: TransferTask) {
   openError.value = '';
   if (task.status !== 'success') { openError.value = `${task.name}：${status(task)}`; return; }
@@ -105,10 +117,15 @@ function status(task: TransferTask) {
       <div class="transfer-toolbar">
         <span>全部文件</span>
         <span>
-          <template v-if="tab === 'download'">同时下载数: <select aria-label="同时下载数" :value="transfers.settings.downloadLimit" @change="transfers.setDownloadLimit(Number(($event.target as HTMLSelectElement).value))">
-              <option v-for="n in [1, 2, 3, 5]" :key="n" :value="n">{{ n }}</option>
-            </select>
-            <ChevronDown />
+          <template v-if="tab === 'download'">同时下载数:
+            <span ref="limitMenu" class="download-limit">
+              <button type="button" aria-label="同时下载数" aria-haspopup="true" :aria-expanded="limitMenuOpen" @click="limitMenuOpen = !limitMenuOpen" @keydown.esc="limitMenuOpen = false">
+                {{ transfers.settings.downloadLimit }} <ChevronDown />
+              </button>
+              <span v-if="limitMenuOpen" class="download-limit-options" aria-label="选择同时下载数" @keydown.esc="limitMenuOpen = false">
+                <button v-for="n in downloadLimits" :key="n" type="button" :aria-label="`同时下载 ${n} 个`" :aria-pressed="transfers.settings.downloadLimit === n" @click="selectDownloadLimit(n)">{{ n }}</button>
+              </span>
+            </span>
           </template>
           <i>
           </i>
@@ -151,18 +168,12 @@ function status(task: TransferTask) {
 </template>
 
 <style scoped>
-.transfer-toolbar select {
-  border: 0;
-  color: #4288ff;
-  background: white;
-  font: inherit;
-  appearance: none;
-  padding: 0 2px;
-  cursor: pointer
-}
-.transfer-toolbar>span>svg {
-  color: #4288ff
-}
+.download-limit { position: relative; display: inline-flex; }
+.transfer-toolbar .download-limit > button { color: #4288ff; padding: 2px; font: inherit; cursor: pointer; }
+.download-limit > button svg { vertical-align: middle; }
+.download-limit-options { position: absolute; top: 100%; right: 0; z-index: 2; display: grid; min-width: 48px; padding: 4px; border: 1px solid #e2e7ef; border-radius: 6px; background: white; box-shadow: 0 4px 12px #0002; }
+.transfer-toolbar .download-limit-options button { display: block; width: 100%; padding: 6px 10px; text-align: center; color: #4288ff; cursor: pointer; }
+.download-limit-options button:hover, .download-limit-options button[aria-pressed="true"] { background: #eef4ff; }
 .transfer-group h2 {
   font-size: 15px;
   margin: 20px 0 18px;

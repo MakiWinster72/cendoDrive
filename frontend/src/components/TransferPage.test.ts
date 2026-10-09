@@ -18,7 +18,7 @@ describe('reference transfer page', () => {
     expect(source).toContain('useTransfers');
     expect(template).toContain('transfers.clearFinished(tab)');
     expect(template).toContain('role="progressbar"');
-    expect(template).toContain('transfers.setDownloadLimit');
+    expect(source).toContain('transfers.setDownloadLimit(value)');
     expect(template).toContain("tab = 'transfer'");
   });
 });

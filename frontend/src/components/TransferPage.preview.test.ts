@@ -6,8 +6,9 @@ import { getFileDetails, searchFiles } from '../api/drive';
 
 const tasks = vi.hoisted(() => [{ id: 'task-1', direction: 'upload' as const, name: 'photo.png', size: 2048, status: 'success' as const, progress: 100, createdAt: Date.now(), fileId: '42' as string | undefined }]);
 const linkFile = vi.hoisted(() => vi.fn());
+const setDownloadLimit = vi.hoisted(() => vi.fn());
 vi.mock('../stores/transfers', () => ({
-  useTransfers: () => ({ tasks, settings: { downloadLimit: 2 }, refresh: vi.fn(), clearFinished: vi.fn(), setDownloadLimit: vi.fn(), linkFile }),
+  useTransfers: () => ({ tasks, settings: { downloadLimit: 2 }, refresh: vi.fn(), clearFinished: vi.fn(), setDownloadLimit, linkFile }),
   isActive: () => false,
 }));
 vi.mock('../api/drive', () => ({
@@ -18,6 +19,17 @@ vi.mock('../api/drive', () => ({
 vi.mock('./FilePreview.vue', () => ({ default: { props: ['file'], template: '<div class="preview">{{ file.name }}</div>' } }));
 
 beforeEach(() => { vi.clearAllMocks(); tasks[0]!.fileId = '42'; });
+
+it('opens an in-page download limit menu and applies the selected value', async () => {
+  const wrapper = mount(TransferPage);
+  expect(wrapper.find('select[aria-label="同时下载数"]').exists()).toBe(false);
+  await wrapper.get('button[aria-label="同时下载数"]').trigger('click');
+  expect(wrapper.get('button[aria-label="同时下载数"]').attributes('aria-expanded')).toBe('true');
+  await wrapper.get('button[aria-label="同时下载 3 个"]').trigger('click');
+  expect(setDownloadLimit).toHaveBeenCalledWith(3);
+  expect(wrapper.find('.download-limit-options').exists()).toBe(false);
+  wrapper.unmount();
+});
 
 it('opens the actual uploaded file from its transfer record', async () => {
   vi.mocked(getFileDetails).mockResolvedValue({ file: { id: '42', name: 'photo.png', kind: 'file', size: 2048, parentId: null, updatedAt: '', deletedAt: null }, createdAt: '', path: '', contentSize: 2048, fileCount: 0, folderCount: 0 });
