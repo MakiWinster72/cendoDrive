@@ -1,7 +1,6 @@
 package com.cendodrive.transfer;
 
 import com.cendodrive.auth.AuthService;
-import com.cendodrive.index.AiIndexClient;
 import com.cendodrive.storage.FileStorage;
 import com.cendodrive.user.User;
 import com.cendodrive.user.UserRepository;
@@ -22,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.driver-class-name=org.h2.Driver", "spring.datasource.username=sa", "spring.datasource.password=",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect", "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true", "cendo.upload.cleanup-delay-ms=86400000",
-    "cendo.storage.cleanup-delay-ms=86400000", "cendo.ai.worker-delay-ms=86400000" })
+    "cendo.storage.cleanup-delay-ms=86400000" })
 @AutoConfigureMockMvc
 class TransferRecordIntegrationTest {
   @Autowired MockMvc mvc;
@@ -30,7 +29,6 @@ class TransferRecordIntegrationTest {
   @Autowired TransferRecordRepository records;
   @MockBean AuthService auth;
   @MockBean FileStorage storage;
-  @MockBean AiIndexClient indexClient;
 
   @BeforeEach void setup() {
     records.deleteAllInBatch(); users.deleteAllInBatch();
