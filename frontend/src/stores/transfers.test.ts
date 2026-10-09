@@ -1,7 +1,16 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+const authState = vi.hoisted(() => ({ id: 'account-a' }));
+vi.mock('./auth', () => ({ useAuth: () => ({ user: { value: { id: authState.id } } }) }));
 import { useTransfers, isActive } from './transfers';
+const values = new Map<string, string>();
+vi.stubGlobal('localStorage', {
+  getItem: (key: string) => values.get(key) ?? null,
+  setItem: (key: string, value: string) => { values.set(key, value); },
+  clear: () => values.clear(),
+});
 const store = useTransfers();
-beforeEach(() => { store.reset(); store.setDownloadLimit(2); });
+beforeEach(() => { store.reset(); localStorage.clear(); authState.id = 'account-a'; store.setDownloadLimit(2); });
 describe('transfer queue', () => {
   it('synchronizes upload progress and retry without duplicate tasks', () => {
     const task = { id: 'u', name: 'test.zip', size: 1024, status: 'waiting' as const, progress: 0 };
@@ -45,7 +54,7 @@ describe('transfer queue', () => {
     expect(secondRun).toHaveBeenCalledOnce();
     expect(store.tasks.every(task => task.status === 'success' && task.progress === 100)).toBe(true);
   });
-  it('clears account history and rejects queued work without restarting it after reset', async () => {
+  it('clears in-memory tasks and rejects queued work without restarting it after reset', async () => {
     store.setDownloadLimit(1);
     let finish!: () => void;
     const active = store.enqueueDownload('private.txt', 1, async () => { await new Promise<void>(resolve => { finish = resolve; }); });
@@ -70,5 +79,30 @@ describe('transfer queue', () => {
     expect(store.tasks[1]!.status).toBe('success');
     store.setDownloadLimit(100);
     expect(store.settings.downloadLimit).toBe(1);
+  });
+  it('restores history for the same account and marks interrupted work', async () => {
+    store.syncUpload({ id: 'finished', name: 'done.txt', size: 3, status: 'success', progress: 100 });
+    store.syncUpload({ id: 'running', name: 'busy.txt', size: 4, status: 'uploading', progress: 42 });
+    store.reset();
+    vi.resetModules();
+    const restored = (await import('./transfers')).useTransfers();
+    expect(restored.tasks.map(task => task.name)).toEqual(['done.txt', 'busy.txt']);
+    expect(restored.tasks[0]!.status).toBe('success');
+    expect(restored.tasks[1]).toMatchObject({ status: 'cancelled', error: '页面刷新，传输已中断' });
+    expect(restored.activeCount.value).toBe(0);
+  });
+  it('keeps records separate between accounts and persists clearing', () => {
+    store.syncUpload({ id: 'a', name: 'private.txt', size: 1, status: 'success', progress: 100 });
+    authState.id = 'account-b';
+    const other = useTransfers();
+    expect(other.tasks).toHaveLength(0);
+    other.syncUpload({ id: 'b', name: 'other.txt', size: 1, status: 'success', progress: 100 });
+    authState.id = 'account-a';
+    expect(useTransfers().tasks.map(task => task.name)).toEqual(['private.txt']);
+    store.clearFinished('upload');
+    store.reset();
+    expect(useTransfers().tasks).toHaveLength(0);
+    authState.id = 'account-b';
+    expect(useTransfers().tasks.map(task => task.name)).toEqual(['other.txt']);
   });
 });
