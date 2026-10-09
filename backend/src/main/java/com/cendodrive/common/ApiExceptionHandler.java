@@ -91,6 +91,11 @@ public class ApiExceptionHandler {
         .body(ApiError.of("RATE_LIMITED", "Too many login attempts"));
   }
 
+  @ExceptionHandler(com.cendodrive.ai.AiChatService.AiFailure.class)
+  ResponseEntity<ApiError> ai(com.cendodrive.ai.AiChatService.AiFailure ex) {
+    return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
+  }
+
   @ExceptionHandler(AuthFailure.class)
   ResponseEntity<ApiError> authentication(AuthFailure ex) {
     return ResponseEntity.status(ex.status()).body(ApiError.of("UNAUTHORIZED", ex.getMessage()));
