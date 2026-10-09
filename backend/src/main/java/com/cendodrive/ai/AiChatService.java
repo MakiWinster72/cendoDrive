@@ -3,6 +3,7 @@ package com.cendodrive.ai;
 import com.cendodrive.ai.AiChatDtos.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URI;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +63,7 @@ public class AiChatService {
     return new StatusResponse(!endpoint.isEmpty(), endpoint.isEmpty() ? null : model);
   }
 
-  public ChatResponse chat(ChatRequest request) {
+  public void validate(ChatRequest request) {
     if (!status().configured())
       throw new AiFailure(HttpStatus.SERVICE_UNAVAILABLE, "AI_NOT_CONFIGURED", "智能对话尚未配置，请联系管理员。");
     var messages = request.messages();
@@ -74,6 +75,11 @@ public class AiChatService {
     }
     if (messages.size() % 2 == 0 || total > 64000)
       throw new AiFailure(HttpStatus.BAD_REQUEST, "AI_INVALID_HISTORY", "请以用户问题结尾，对话总长度不能超过 64000 字符。");
+  }
+
+  public ChatResponse chat(ChatRequest request) {
+    validate(request);
+    var messages = request.messages();
     try {
       JsonNode response = client.post().uri(endpoint)
           .header(HttpHeaders.AUTHORIZATION, "Bearer " + key)
@@ -94,6 +100,43 @@ public class AiChatService {
       // Do not expose upstream bodies, URLs, keys or provider diagnostics.
       throw new AiFailure(HttpStatus.BAD_GATEWAY, "AI_UNAVAILABLE", "模型连接失败或响应超时，请稍后重试。");
     }
+  }
+
+  @FunctionalInterface
+  public interface StreamSink { void send(String event, Map<String, String> data) throws IOException; }
+
+  public void stream(ChatRequest request, StreamSink sink) throws IOException {
+    validate(request);
+    StreamSink downstream = (event, data) -> {
+      try { sink.send(event, data); }
+      catch (IOException ex) { throw new DownstreamClosed(ex); }
+    };
+    try {
+      client.post().uri(endpoint).header(HttpHeaders.AUTHORIZATION, "Bearer " + key)
+          .contentType(MediaType.APPLICATION_JSON).accept(MediaType.TEXT_EVENT_STREAM)
+          .body(Map.of("model", model, "messages", request.messages(), "stream", true))
+          .exchange((req, res) -> {
+            if (res.getStatusCode().value() == 429)
+              throw new AiFailure(HttpStatus.TOO_MANY_REQUESTS, "AI_RATE_LIMITED", "模型服务繁忙，请稍后重试。");
+            if (!res.getStatusCode().is2xxSuccessful())
+              throw new AiFailure(HttpStatus.BAD_GATEWAY, "AI_UPSTREAM_ERROR", "模型服务暂不可用，请稍后重试。");
+            MediaType type = res.getHeaders().getContentType();
+            if (type == null || !MediaType.TEXT_EVENT_STREAM.isCompatibleWith(type))
+              throw new AiFailure(HttpStatus.BAD_GATEWAY, "AI_INVALID_RESPONSE", "模型服务不支持流式回答，请检查配置。");
+            AiChatStreamReader.read(res.getBody(), downstream);
+            return null;
+          });
+    } catch (DownstreamClosed ex) {
+      throw (IOException)ex.getCause();
+    } catch (AiFailure ex) {
+      sink.send("error", Map.of("code", ex.code(), "message", ex.getMessage()));
+    } catch (RestClientException ex) {
+      sink.send("error", Map.of("code", "AI_UNAVAILABLE", "message", "模型连接失败或响应超时，请稍后重试。"));
+    }
+  }
+
+  private static final class DownstreamClosed extends RuntimeException {
+    DownstreamClosed(IOException cause) { super(cause); }
   }
 
   public static class AiFailure extends RuntimeException {
