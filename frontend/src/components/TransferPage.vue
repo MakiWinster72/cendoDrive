@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useTransfers, isActive, type TransferTask } from '../stores/transfers';
 import { formatSize } from '../stores/drive';
 import { iconForFile } from './fileIcon';
 import { ArrowLeft, CheckSquare, Hexagon, ChevronRight, ShieldCheck, X, ChevronDown } from '@lucide/vue';
 const emit = defineEmits<{ back: [] }>();
-const tab = ref<'download' | 'upload'>('download');
+const tab = ref<TransferTask['direction']>('download');
 const promo = ref(true), coupon = ref(true);
 const transfers = useTransfers();
+onMounted(() => { void transfers.refresh(); });
 type Filter = 'all' | 'success' | 'active' | 'failed';
 const filter = ref<Filter>('all');
 const filters: { key: Filter; label: string }[] = [{ key: 'all', label: '全部任务' }, { key: 'success', label: '已完成' }, { key: 'active', label: '进行中' }, { key: 'failed', label: '任务失败' }];
@@ -23,7 +24,7 @@ const groups = computed(() => {
   return [...result.entries()];
 });
 function status(task: TransferTask) {
-  if (task.status === 'success') return task.direction === 'download' ? '已下载至：浏览器下载目录' : '已上传至：千度网盘';
+  if (task.status === 'success') return task.direction === 'download' ? '已下载至：浏览器下载目录' : task.direction === 'transfer' ? '已转存至：千度网盘' : '已上传至：千度网盘';
   return task.error || ({ waiting: '等待传输', preparing: '正在计算文件校验值', uploading: '上传中', downloading: '下载中', failed: '传输失败', cancelled: '已取消' } as Record<string, string>)[task.status];
 }
 </script>
@@ -59,7 +60,7 @@ function status(task: TransferTask) {
     <nav class="transfer-tabs" aria-label="传输类型">
       <button :class="{ active: tab === 'download' }" @click="tab = 'download'">下载</button>
       <button :class="{ active: tab === 'upload' }" @click="tab = 'upload'">上传</button>
-      <button aria-label="转存（暂未开放）">转存</button>
+      <button :class="{ active: tab === 'transfer' }" @click="tab = 'transfer'">转存</button>
       <button aria-label="云添加（暂未开放）">云添加</button>
     </nav>
     <main class="transfer-content">
@@ -82,7 +83,7 @@ function status(task: TransferTask) {
           <button @click="transfers.clearFinished(tab)">全部清除</button>
         </span>
       </div>
-      <p v-if="!groups.length" class="transfer-empty">暂无{{ filter === 'all' ? (tab === 'download' ? '下载' : '上传') : filters.find(item => item.key === filter)?.label }}任务</p>
+      <p v-if="!groups.length" class="transfer-empty">暂无{{ filter === 'all' ? ({ download: '下载', upload: '上传', transfer: '转存' }[tab]) : filters.find(item => item.key === filter)?.label }}任务</p>
       <section v-for="[date, tasks] in groups" :key="date" class="transfer-group">
         <h2>{{ date }}</h2>
         <article v-for="task in tasks" :key="task.id" class="transfer-task">

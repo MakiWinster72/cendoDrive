@@ -9,7 +9,7 @@ describe('reference transfer page', () => {
     expect(template).toContain('千度网盘保障你的传输安全');
     expect(template).not.toContain('百度网盘');
   });
-  it.each(['转存', '云添加'])('keeps %s a no-op', label => {
+  it.each(['云添加'])('keeps %s a no-op', label => {
     const button = template.match(new RegExp(`<button[^>]*aria-label="${label}（暂未开放）"[^>]*>`))?.[0];
     expect(button).toBeDefined();
     expect(button).not.toContain('@click');
@@ -19,5 +19,6 @@ describe('reference transfer page', () => {
     expect(template).toContain('transfers.clearFinished(tab)');
     expect(template).toContain('role="progressbar"');
     expect(template).toContain('transfers.setDownloadLimit');
+    expect(template).toContain("tab = 'transfer'");
   });
 });
