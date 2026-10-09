@@ -12,6 +12,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify-icons/ri": "^2.0.0",
+    "@iconify/vue": "^5.0.3",
     "@lucide/vue": "^1.53.0",
     "axios": "^1.12.2",
     "dompurify": "^3.4.16",
