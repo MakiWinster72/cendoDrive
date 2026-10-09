@@ -80,7 +80,13 @@ export function useDrive() {
   const loadHidden = () => run(async () => {
     state.hidden = await api.listHidden(); state.hidden.forEach(upsert); return state.hidden;
   });
-  const loadShares = () => run(async () => { state.shares = await shareApi.listShares(); return state.shares; });
+  const loadShares = () => run(async () => {
+    const records = await shareApi.listShares();
+    const codes = new Map(state.shares.filter(item => item.extractionCode).map(item => [item.id, item.extractionCode]));
+    state.shares = records.map(item => item.hasExtractionCode && codes.has(item.id)
+      ? { ...item, extractionCode: codes.get(item.id) } : item);
+    return state.shares;
+  });
   const createFolder = (name: string, parentId: string | null) => run(async () => {
     const item = await api.createFolder(name, parentId); upsert(item); return item;
   });
