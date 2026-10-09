@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
 import { chatContext, getChatStatus, sendChat, type ChatMessage } from "./aiChat";
@@ -24,5 +25,7 @@ describe("AI chat client", () => {
     expect(messages.at(-1)).toEqual({ role: "user", content: "now" });
     expect(messages.reduce((sum, m) => sum + m.content.length, 0)).toBeLessThanOrEqual(64000);
     expect(messages.every(m => m.content.length <= 8000)).toBe(true); expect(history).toHaveLength(60);
+    const partial = { role: "assistant" as const, content: "partial", interrupted: true };
+    expect(chatContext([{ role: "user", content: "hi" }, partial], "continue")[1]).toEqual({ role: "assistant", content: "partial" });
   });
 });

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import { ArrowUp, ChevronDown, History, MessageCircle, Plus, Search, Sparkles, Square, X } from "@lucide/vue";
 import AiMessage from "../components/AiMessage.vue";
-import { chatContext, getChatStatus, sendChat, type ChatMessage, type ChatStatus } from "../api/aiChat";
+import { chatContext, getChatStatus, streamChat, type ChatMessage, type ChatStatus } from "../api/aiChat";
 
 const router = useRouter();
 const route = useRoute();
@@ -19,13 +19,15 @@ const composing = ref(false);
 const pending = ref(false);
 const scroller = ref<HTMLElement>();
 const input = ref<HTMLTextAreaElement>();
-interface Conversation { id: number; title: string; messages: ChatMessage[]; draft: string }
+interface ConversationMessage extends ChatMessage { interrupted?: boolean }
+interface Conversation { id: number; title: string; messages: ConversationMessage[]; draft: string }
 const conversations = ref<Conversation[]>([]);
 let nextId = 1;
 const current = ref<Conversation>({ id: nextId++, title: "新对话", messages: [], draft: "" });
 let request: AbortController | undefined;
 let statusRequest: AbortController | undefined;
 let rollback: (() => void) | undefined;
+let retainPartial: (() => boolean) | undefined;
 const suggestions = ["帮我写一份清晰的工作周报", "用简单的语言解释什么是人工智能", "帮我规划高效的一天"];
 const canSend = computed(() => !!draft.value.trim() && draft.value.length <= 8000 && status.value?.configured && !pending.value);
 const saved = computed(() => conversations.value.filter(c => c.messages.length));
@@ -45,15 +47,19 @@ async function loadStatus() {
     if (statusRequest === controller) statusLoading.value = false;
   }
 }
-async function scrollBottom() {
+async function scrollBottom(behavior: ScrollBehavior = "smooth") {
   await nextTick();
-  scroller.value?.scrollTo?.({ top: scroller.value.scrollHeight, behavior: "smooth" });
+  scroller.value?.scrollTo?.({ top: scroller.value.scrollHeight, behavior });
 }
-function cancel() {
+function saveConversation(conversation: Conversation) {
+  conversation.title = conversation.messages[0]!.content.slice(0, 28);
+  if (!conversations.value.some(c => c.id === conversation.id)) conversations.value.unshift(conversation);
+}
+function cancel(keepPartial = false) {
   request?.abort();
   request = undefined;
-  rollback?.();
-  rollback = undefined;
+  if (!keepPartial || !retainPartial?.()) rollback?.();
+  rollback = undefined; retainPartial = undefined;
   pending.value = false;
 }
 async function send() {
@@ -66,22 +72,35 @@ async function send() {
   pending.value = true;
   error.value = "";
   draft.value = "";
+  const start = conversation.messages.length;
   conversation.messages.push({ role: "user", content: question });
-  rollback = () => { conversation.messages.pop(); draft.value = question; };
+  rollback = () => { conversation.messages.splice(start); draft.value = question; };
+  retainPartial = () => {
+    const answer = conversation.messages[start + 1];
+    if (!answer?.content.trim()) return false;
+    answer.interrupted = true; saveConversation(conversation); return true;
+  };
+  const updateAnswer = (content: string) => {
+    if (request !== controller || controller.signal.aborted) return;
+    const node = scroller.value;
+    const follow = !node || node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+    const answer = conversation.messages[start + 1];
+    if (answer) answer.content = content;
+    else conversation.messages.push({ role: "assistant", content });
+    if (follow) void scrollBottom("auto");
+  };
   void scrollBottom();
   try {
-    const content = await sendChat(messages, controller.signal);
+    const content = await streamChat(messages, controller.signal, updateAnswer);
     if (request !== controller || controller.signal.aborted) return;
-    conversation.messages.push({ role: "assistant", content });
-    conversation.title = conversation.messages[0]!.content.slice(0, 28);
-    if (!conversations.value.some(c => c.id === conversation.id)) conversations.value.unshift(conversation);
-    rollback = undefined;
-    void scrollBottom();
+    updateAnswer(content); saveConversation(conversation);
+    rollback = undefined; retainPartial = undefined;
   } catch (cause) {
     if (request !== controller || controller.signal.aborted) return;
     rollback?.();
-    rollback = undefined;
-    const code = (cause as { response?: { data?: { code?: string } } }).response?.data?.code;
+    rollback = undefined; retainPartial = undefined;
+    const failure = cause as { code?: string; response?: { data?: { code?: string } } };
+    const code = failure.code ?? failure.response?.data?.code;
     error.value = code === "AI_RATE_LIMITED" ? "模型服务繁忙，请稍后重试。" : code === "AI_NOT_CONFIGURED" ? "智能对话尚未配置，请联系管理员。" : "回答失败或超时，请重试。你的问题已保留。";
   } finally {
     if (request === controller) { pending.value = false; request = undefined; }
@@ -136,7 +155,7 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
     <aside v-if="historyOpen" id="ai-history" class="history-panel" aria-label="对话历史列表">
       <div><h2>对话历史</h2><button class="icon-button" aria-label="关闭对话历史" @click="historyOpen = false"><X :size="18" /></button></div>
       <p>仅保留在当前页面，离开或刷新后清空。</p>
-      <p v-if="!saved.length" class="empty-history">还没有完成的对话，开始聊聊吧。</p>
+      <p v-if="!saved.length" class="empty-history">还没有对话，开始聊聊吧。</p>
       <button v-for="conversation in saved" :key="conversation.id" class="history-item" :aria-pressed="current.id === conversation.id" @click="selectConversation(conversation)"><MessageCircle :size="18" /><span>{{ conversation.title }}</span></button>
     </aside>
 
@@ -163,8 +182,9 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
           <article v-for="(message, index) in current.messages" :key="index" :class="['message', message.role]">
             <span class="message-author">{{ message.role === 'user' ? '你' : '扣扣AI' }}</span>
             <div v-if="message.role === 'user'" class="user-content">{{ message.content }}</div><AiMessage v-else :content="message.content" />
+            <p v-if="message.interrupted" class="interrupted-note">回答已停止，内容未完成。</p>
           </article>
-          <div v-if="pending" class="thinking" role="status"><span /><span /><span />扣扣AI正在思考…</div>
+          <div v-if="pending" class="thinking" role="status"><span /><span /><span />{{ current.messages.at(-1)?.role === 'assistant' ? '扣扣AI正在回答…' : '扣扣AI正在思考…' }}</div>
         </section>
       </template>
     </div>
@@ -177,7 +197,7 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
       <form class="composer" @submit.prevent="send">
         <textarea ref="input" v-model="draft" aria-label="输入你的问题" placeholder="有问题，尽管问我…" rows="2" maxlength="8000" :readonly="pending" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false" />
         <div class="composer-tools"><span><Sparkles :size="15" />智能对话<span class="model-name" v-if="status?.configured"> · {{ status.model }}</span></span>
-          <button v-if="pending" type="button" class="send-button" aria-label="停止回答" @click="cancel"><Square :size="16" /></button>
+          <button v-if="pending" type="button" class="send-button" aria-label="停止回答" @click="cancel(true)"><Square :size="16" /></button>
           <button v-else type="submit" class="send-button" aria-label="发送问题" :disabled="!canSend"><ArrowUp :size="22" /></button>
         </div>
       </form>
@@ -238,6 +258,7 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #009eb4; outli
 .conversation { width: min(100%, 740px); margin: 28px auto; }
 .message { margin-bottom: 28px; font-size: 14px; } .message-author { display: block; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 .message.user { margin-left: auto; width: fit-content; max-width: 85%; } .message.user .message-author { text-align: right; } .user-content { border-radius: 18px 18px 4px 18px; background: #eaf7f9; padding: 12px 18px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.interrupted-note { color: #735127; font-size: 12px; margin: 12px 0 0; }
 .thinking { color: #64727c; display: flex; align-items: center; gap: 5px; font-size: 12px; margin: 10px 0 24px; } .thinking span { width: 5px; height: 5px; border-radius: 50%; background: #28a7bc; } .thinking span:last-of-type { margin-right: 8px; }
 .history-panel { position: absolute; z-index: 4; right: max(28px, calc((100vw - 1004px) / 2)); top: 90px; width: min(350px, calc(100% - 40px)); max-height: 65vh; overflow: auto; background: #fff; padding: 18px; border: 1px solid #e4ecef; box-shadow: 0 12px 40px #24333c18; border-radius: 18px; }
 .history-panel > div { display: flex; justify-content: space-between; align-items: center; } .history-panel h2 { font-size: 16px; margin: 0; } .history-panel p { font-size: 11px; line-height: 1.7; color: var(--muted); } .history-panel .empty-history { padding: 18px 0; }

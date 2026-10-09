@@ -49,7 +49,7 @@ V10 仅新增可空文件字段，旧文本消息保持兼容，不改写已应�
 
 后端通过配置的 OpenAI 兼容服务完成多轮对话，不把模型密钥发送至浏览器。启动前设置 `CENDO_AI_CHAT_BASE_URL`、`CENDO_AI_CHAT_MODEL`、`CENDO_AI_CHAT_KEY`，或者本地 `cendo.ai.chat.base-url/model/key`；三项全部留空关闭聊天，部分配置会在启动时拒绝。当前AI仅使用这三项模型配置，不依赖文件索引服务。
 
-认证接口为 `GET /api/ai/chat/status` 和 `POST /api/ai/chat`。详细请求、限制、错误映射及人工验收步骤见 [AI 智能对话接口与配置](../docs/AI智能对话接口与配置.md)。
+认证接口为 `GET /api/ai/chat/status`、`POST /api/ai/chat/stream`（SSE 增量回答）和兼容保留的 `POST /api/ai/chat`。详细请求、限制、错误映射及人工验收步骤见 [AI 智能对话接口与配置](../docs/AI智能对话接口与配置.md)。
 
 ## 文件名搜索
 
