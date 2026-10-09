@@ -183,6 +183,8 @@ function openTransfers() {
 }
 watch([currentFolder, mode, keyword, mobileTab], cancelName, { flush: "sync" });
 const showMyShares = ref(false);
+const shareUnread = ref(24);
+const shareSubpageActive = ref(false);
 const mySharesError = ref("");
 const recentVisible = ref(true);
 const recentItems = computed(() =>
@@ -1166,10 +1168,11 @@ onUnmounted(() => {
         </button>
       </main>
     </template>
-    <MobileShareHub v-else />
+    <MobileShareHub v-else @open-my-shares="openMyShares" @unread-count="shareUnread = $event" @official-view="shareSubpageActive = $event" />
     <nav
       v-if="
         !showMyShares &&
+        !(mobileTab === 'share' && shareSubpageActive) &&
         !(mobileTab === 'files' && checked.length && mode !== 'trash')
       "
       class="m-bottom-nav"
@@ -1193,7 +1196,7 @@ onUnmounted(() => {
         :class="{ active: mobileTab === 'share' }"
         @click="mobileTab = 'share'"
       >
-        <Send /><em>99</em><span>共享</span></button
+        <Send /><em v-if="shareUnread">{{ shareUnread > 99 ? '99+' : shareUnread }}</em><span>共享</span></button
       ><button
         :class="{ active: mobileTab === 'profile' }"
         @click="mobileTab = 'profile'"

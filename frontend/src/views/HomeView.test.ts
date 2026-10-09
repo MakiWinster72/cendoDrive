@@ -104,6 +104,36 @@ describe("folder navigation and screenshot layout", () => {
     await wrapper.get('.m-home-capacity button').trigger('click');
     expect(wrapper.find('.profile-page').exists()).toBe(true);
   });
+  it("switches between shared messages, chat-file history, file sharing, and official account chat", async () => {
+    const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await wrapper.findAll('.m-bottom-nav button').find(button => button.text().includes('共享'))!.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.share-hub-tabs button.selected').text()).toBe('消息');
+    expect(wrapper.findAll('.share-hub-shortcuts button').map(button => button.text())).toEqual(['新建群聊', '加好友/群', '转存和订阅', '通讯录']);
+    expect(wrapper.get('.m-bottom-nav button em').text()).toBe('24');
+    expect(wrapper.findAll('.message-inbox-list .share-hub-message')).toHaveLength(3);
+    await wrapper.get('.message-inbox-list .share-hub-message:nth-child(2)').trigger('click');
+    expect(wrapper.get('.official-header h1').text()).toBe('会员专属助手');
+    await wrapper.get('.official-header button[aria-label="返回官方账号"]').trigger('click');
+    await wrapper.get('.share-hub-icon[aria-label="查看官方账号"]').trigger('click');
+    expect(wrapper.get('.official-directory-header h1').text()).toContain('官方账号');
+    expect(wrapper.findAll('.official-directory-list .share-hub-message')).toHaveLength(3);
+    await wrapper.get('.official-directory-list .share-hub-message:last-child').trigger('click');
+    expect(wrapper.get('.official-header h1').text()).toBe('百度网盘企业助手');
+    expect(wrapper.get('.official-campaign').text()).toContain('送5000积分');
+    await wrapper.get('.official-header button[aria-label="返回官方账号"]').trigger('click');
+    await wrapper.get('.official-directory-header button[aria-label="返回消息"]').trigger('click');
+    await wrapper.findAll('.share-hub-tabs button').find(button => button.text() === '聊天文件')!.trigger('click');
+    expect(wrapper.get('.chat-files-filter button.active').text()).toBe('最近查看');
+    expect(wrapper.get('.share-hub-empty').text()).toContain('看过的好友/群文件会在这里');
+    await wrapper.findAll('.chat-files-filter button').find(button => button.text() === '我点赞的')!.trigger('click');
+    expect(wrapper.get('.share-hub-empty').text()).toContain('点赞过的聊天文件');
+    await wrapper.findAll('.share-hub-tabs button').find(button => button.text() === '文件共享')!.trigger('click');
+    expect(wrapper.findAll('.sharing-actions > button')).toHaveLength(5);
+    expect(wrapper.get('.sharing-actions').text()).toContain('我的分享链接');
+  });
   it("routes the mobile search card and desktop AI entry to one page", async () => {
     const wrapper = mount(HomeView, { attachTo: document.body, global: { stubs: { UploadPanel: true, FileTools: true, FilePreview: true, ShareLinkDialog: true, ShareList: true, MobileMyShares: true } } });
     wrappers.push(wrapper);
