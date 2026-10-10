@@ -1645,7 +1645,7 @@ onUnmounted(() => {
             <template v-if="drive.state.usage">
               <div><strong>{{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }}</strong><span>{{ profileUsagePercent.toFixed(1) }}%</span></div>
               <div class="storage-track" role="progressbar" aria-label="已用容量" :aria-valuenow="profileUsagePercent" :aria-valuemin="0" :aria-valuemax="100"><i :style="{ width: `${profileUsagePercent}%` }"></i></div>
-              <small>可用 {{ formatBytes(drive.state.usage.availableBytes) }} · 回收站 {{ formatBytes(drive.state.usage.trashBytes) }} · 上传预留 {{ formatBytes(drive.state.usage.reservedBytes) }}</small>
+              <small>可用 {{ formatBytes(drive.state.usage.availableBytes) }}</small>
             </template>
             <p v-else-if="!drive.state.usageError">容量加载中…</p>
             <p v-if="drive.state.usageError" role="alert">{{ drive.state.usageError }}</p>

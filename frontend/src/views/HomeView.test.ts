@@ -1020,7 +1020,9 @@ describe("mobile profile storage usage", () => {
     const card = wrapper.get(".profile-storage");
     expect(card.text()).toContain("512 B / 1.0 KiB");
     expect(card.text()).toContain("50.0%");
-    expect(card.text()).toContain("上传预留");
+    expect(card.text()).toContain("可用 384 B");
+    expect(card.text()).not.toContain("回收站");
+    expect(card.text()).not.toContain("上传预留");
     expect(card.get("[role=progressbar]").attributes("aria-valuenow")).toBe(
       "50",
     );
