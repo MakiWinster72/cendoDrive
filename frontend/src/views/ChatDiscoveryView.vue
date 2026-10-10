@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   ChevronLeft,
   Search,
@@ -21,6 +21,7 @@ import { useAuth } from "../stores/auth";
 import "../styles/chat.css";
 import "../styles/chat-entry.css";
 const router = useRouter();
+const searchOnly = useRoute().query?.mode === "search";
 const auth = useAuth();
 const query = ref("");
 const users = ref<Person[]>([]);
@@ -84,7 +85,7 @@ const entries = [
 </script>
 <template>
   <main class="chat-page discovery-page">
-    <header class="chat-header">
+    <header v-if="!searchOnly" class="chat-header">
       <button
         aria-label="返回共享"
         @click="router.push({ path: '/', query: { tab: 'share' } })"
@@ -94,7 +95,28 @@ const entries = [
       <h1>加好友/群</h1>
       <span></span>
     </header>
-    <form class="chat-search" @submit.prevent="search">
+    <header v-else class="friend-search-header">
+      <button
+        type="button"
+        aria-label="返回消息"
+        @click="router.push({ path: '/', query: { tab: 'share' } })"
+      >
+        <ChevronLeft />
+      </button>
+      <form class="chat-search" @submit.prevent="search">
+        <Search />
+        <input
+          v-model="query"
+          aria-label="搜索用户、群或标签"
+          placeholder="搜/用户/群/标签"
+          maxlength="64"
+        />
+        <button type="submit" :disabled="busy">
+          {{ busy ? "搜索中" : "搜索" }}
+        </button>
+      </form>
+    </header>
+    <form v-if="!searchOnly" class="chat-search" @submit.prevent="search">
       <Search /><input
         v-model="query"
         aria-label="搜索用户ID、用户名或群号"
@@ -104,7 +126,7 @@ const entries = [
         {{ busy ? "搜索中" : "搜索" }}
       </button>
     </form>
-    <section class="discovery-cards">
+    <section v-if="!searchOnly" class="discovery-cards">
       <button @click="notice = '我的二维码仅作展示，暂未开放'">
         <svg class="qr-art" viewBox="0 0 28 28" aria-hidden="true">
           <defs>
@@ -185,7 +207,7 @@ const entries = [
         <button :disabled="actionBusy" @click="join(room)">加入群聊</button>
       </div>
     </section>
-    <section class="discovery-entries">
+    <section v-if="!searchOnly" class="discovery-entries">
       <button
         v-for="entry in entries"
         :key="entry.label"

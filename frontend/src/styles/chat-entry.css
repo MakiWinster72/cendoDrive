@@ -124,6 +124,63 @@
   height: 12px;
   color: #cdd1da;
 }
+.discovery-page .friend-search-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  flex: 0 0 48px;
+  margin: -4px 0 0;
+}
+.discovery-page .friend-search-header > button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 40px;
+  flex: 0 0 24px;
+  padding: 0;
+  background: transparent;
+  color: #111827;
+}
+.discovery-page .friend-search-header > button svg {
+  width: 24px;
+  height: 24px;
+}
+.discovery-page .friend-search-header .chat-search {
+  display: flex;
+  min-width: 0;
+  height: 40px;
+  flex: 1;
+  box-sizing: border-box;
+  gap: 7px;
+  margin: 0;
+  padding: 0 6px 0 12px;
+  border: 2px solid #171d29;
+  border-radius: 13px;
+  background: #fff;
+}
+.discovery-page .friend-search-header .chat-search svg {
+  width: 17px;
+  height: 17px;
+  color: #101725;
+}
+.discovery-page .friend-search-header .chat-search input {
+  min-width: 0;
+  font-size: 14px;
+}
+.discovery-page .friend-search-header .chat-search input::placeholder {
+  color: #9298a4;
+  font-weight: 500;
+}
+.discovery-page .friend-search-header .chat-search button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  background: #e4f1ff;
+  color: #3188eb;
+  font-size: 13px;
+  font-weight: 650;
+}
 .group-page > form {
   min-height: 100dvh;
 }

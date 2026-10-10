@@ -16,10 +16,13 @@ vi.mock("../api/files", () => ({
   uploadFile: vi.fn(),
   uploadErrorMessage: () => "上传失败",
 }));
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, route } = vi.hoisted(() => ({
+  push: vi.fn(),
+  route: { params: { id: "room" }, query: {} as Record<string, string> },
+}));
 vi.mock("vue-router", () => ({
   useRouter: () => ({ push }),
-  useRoute: () => ({ params: { id: "room" } }),
+  useRoute: () => route,
 }));
 vi.mock("../stores/auth", () => ({
   useAuth: () => ({ user: { value: { id: "1" } } }),
@@ -45,6 +48,7 @@ const room = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  route.query = {};
   vi.mocked(api.searchGroups).mockResolvedValue([]);
   vi.mocked(api.listRooms).mockResolvedValue([room]);
   vi.mocked(api.getMessages).mockResolvedValue([]);
@@ -150,6 +154,22 @@ describe("聊天页面", () => {
     await flushPromises();
     expect(api.openDirect).toHaveBeenCalledWith(2);
     expect(push).toHaveBeenCalledWith("/chat/room");
+    wrapper.unmount();
+  });
+  it("好友消息搜索模式只显示搜索栏和搜索按钮", () => {
+    route.query = { mode: "search" };
+    const wrapper = mount(Discovery);
+    expect(wrapper.find(".friend-search-header").exists()).toBe(true);
+    expect(
+      wrapper
+        .get('input[aria-label="搜索用户、群或标签"]')
+        .attributes("placeholder"),
+    ).toBe("搜/用户/群/标签");
+    expect(
+      wrapper.get('.friend-search-header button[type="submit"]').text(),
+    ).toBe("搜索");
+    expect(wrapper.find(".discovery-cards").exists()).toBe(false);
+    expect(wrapper.find(".discovery-entries").exists()).toBe(false);
     wrapper.unmount();
   });
   it("创建群聊受必填限制，计数正确且展示开关不传后端", async () => {

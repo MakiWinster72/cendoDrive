@@ -346,6 +346,23 @@ describe("folder navigation and screenshot layout", () => {
       wrapper.findAll(".message-inbox-list .share-hub-message"),
     ).toHaveLength(3);
     await wrapper
+      .get(".message-inbox-list .share-hub-message:first-child")
+      .trigger("click");
+    expect(wrapper.get(".system-notifications-header h1").text()).toBe(
+      "系统通知",
+    );
+    expect(wrapper.get(".system-notifications-empty").text()).toContain(
+      "还没有收到通知",
+    );
+    expect(wrapper.find(".m-bottom-nav").exists()).toBe(false);
+    await wrapper
+      .get('.system-notifications-header button[aria-label="返回消息"]')
+      .trigger("click");
+    await wrapper
+      .get(".message-inbox-list .share-hub-message:last-child")
+      .trigger("click");
+    expect(routerPush).toHaveBeenCalledWith("/friends?mode=search");
+    await wrapper
       .get(".message-inbox-list .share-hub-message:nth-child(2)")
       .trigger("click");
     expect(wrapper.get(".official-header h1").text()).toBe("会员专属助手");
@@ -456,7 +473,7 @@ describe("folder navigation and screenshot layout", () => {
       wrapper.find(".m-folder-search input").attributes("placeholder"),
     ).toBe("按文件名搜索");
     expect(wrapper.find(".m-folder-breadcrumb").text()).toContain(
-      "我的网盘/U鱼游戏 S1-S3 三季",
+      "我的网盘 /U鱼游戏 S1-S3 三季",
     );
     expect(
       wrapper.find('.m-folder-breadcrumb [aria-current="page"]').text(),
