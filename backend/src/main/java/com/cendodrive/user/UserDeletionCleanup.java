@@ -24,16 +24,17 @@ public class UserDeletionCleanup {
   private final UploadSessionRepository uploads;
   private final UserAvatarRepository avatars;
   private final FileStorage storage;
+  private final com.cendodrive.ai.claw.ClawIndexQueue claw;
   private final Path uploadRoot, storageRoot;
   private final Clock clock;
   private final TransactionTemplate tx;
   public UserDeletionCleanup(UserRepository users, DriveFileRepository files, ShareLinkRepository shares,
       UploadSessionRepository uploads, UserAvatarRepository avatars, FileStorage storage,
-      PlatformTransactionManager manager, Clock clock,
+      PlatformTransactionManager manager, Clock clock, com.cendodrive.ai.claw.ClawIndexQueue claw,
       @Value("${cendo.upload.root:./storage/uploads}") String uploadRoot,
       @Value("${cendo.storage.root:./storage}") String storageRoot) {
     this.users=users; this.files=files; this.shares=shares; this.uploads=uploads; this.avatars=avatars;
-    this.storage=storage; this.tx=new TransactionTemplate(manager); this.clock=clock;
+    this.storage=storage; this.tx=new TransactionTemplate(manager); this.clock=clock; this.claw=claw;
     this.uploadRoot=Path.of(uploadRoot).toAbsolutePath().normalize();
     this.storageRoot=Path.of(storageRoot).toAbsolutePath().normalize();
   }
@@ -55,6 +56,7 @@ public class UserDeletionCleanup {
       DriveFile file=candidates.get(0);
       try { deleteStorage(file); }
       catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
+      claw.removed(file);
       files.delete(file); files.flush();
       return true;
     }))) { /* Persist progress before processing another key. */ }

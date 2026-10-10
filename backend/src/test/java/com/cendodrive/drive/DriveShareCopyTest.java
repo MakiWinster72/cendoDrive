@@ -27,7 +27,7 @@ class DriveShareCopyTest {
   DriveFile original;
 
   @BeforeEach void setup() {
-    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test", quota, storageCleanup);
+    drive = new DriveService(files, storage, "/tmp/cendo-share-copy-test", quota, storageCleanup, org.mockito.Mockito.mock(com.cendodrive.ai.claw.ClawIndexQueue.class));
     lenient().when(quota.check(eq(recipient), anyLong(), isNull())).thenReturn(recipient);
     lenient().when(owner.getId()).thenReturn(7L);
     lenient().when(recipient.getId()).thenReturn(8L);

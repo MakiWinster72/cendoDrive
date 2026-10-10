@@ -58,10 +58,16 @@ public class ClawVectorStore {
   }
   private static Map<String,Object> match(String key,Object value) { return Map.of("key",key,"match",Map.of("value",value)); }
   public void delete(long owner,long file,Long generation) {
+    deleteCollection(settings.collection(),owner,file,generation);
+  }
+  public void deleteCollection(String collection,long owner,long file,Long generation) {
     settings.requireEnabled();
+    if(!collection.matches("[a-zA-Z0-9_-]{1,80}")) throw new IllegalArgumentException("Invalid vector collection");
     var conditions=new ArrayList<Map<String,Object>>(); conditions.add(match("owner_id",owner)); conditions.add(match("file_id",file));
     if(generation!=null) conditions.add(match("generation",generation));
-    post("/points/delete?wait=true",Map.of("filter",Map.of("must",conditions)),true);
+    var request=client.post().uri(settings.vectorBaseUrl+"/collections/"+collection+"/points/delete?wait=true").contentType(MediaType.APPLICATION_JSON);
+    if(!settings.vectorKey.isBlank()) request.header("api-key",settings.vectorKey);
+    ClawHttp.json(request.body(Map.of("filter",Map.of("must",conditions))),"CLAW_VECTOR_UNAVAILABLE",true);
   }
   public List<Hit> query(long owner,List<Long> allowedIds,List<Double> vector) {
     settings.requireEnabled(); if(allowedIds.isEmpty()) return List.of();

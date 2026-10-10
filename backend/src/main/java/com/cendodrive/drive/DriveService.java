@@ -26,15 +26,17 @@ public class DriveService {
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
   private final StorageCleanupService storageCleanup;
+  private final com.cendodrive.ai.claw.ClawIndexQueue claw;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
   public DriveService(DriveFileRepository files, FileStorage fastDfs,
       @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota,
-      StorageCleanupService storageCleanup) {
+      StorageCleanupService storageCleanup, com.cendodrive.ai.claw.ClawIndexQueue claw) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
     this.storageCleanup = storageCleanup;
+    this.claw = claw;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -121,6 +123,7 @@ public class DriveService {
   private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
     file=files.saveAndFlush(file);
+    claw.enqueue(file);
     return FileResponse.from(file);
   }
 
@@ -168,6 +171,7 @@ public class DriveService {
         fail(HttpStatus.CONFLICT, "PARENT_IN_TRASH", "Parent folder is still in trash");
       requireAvailableName(user.getId(), file.getParentId(), file.getName(), file);
       file.restore();
+      claw.changed(file);
     });
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
@@ -190,7 +194,7 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
-    doomed.stream().filter(f -> !f.isFolder()).forEach(storageCleanup::enqueue);
+    doomed.stream().filter(f -> !f.isFolder()).forEach(f -> { storageCleanup.enqueue(f); claw.removed(f); });
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
     files.deleteAllInBatch(doomed);
     files.flush();
@@ -247,6 +251,7 @@ public class DriveService {
     String name = validName(request.name());
     requireAvailableName(user.getId(), file.getParentId(), name, file);
     file.rename(name);
+    if(!file.isFolder()) claw.changed(file);
     return FileResponse.from(files.saveAndFlush(file));
   }
 
@@ -264,6 +269,7 @@ public class DriveService {
     }
     requireAvailableName(user.getId(), targetId, file.getName(), file);
     file.moveTo(targetId);
+    claw.changed(file);
     return FileResponse.from(files.saveAndFlush(file));
   }
 
