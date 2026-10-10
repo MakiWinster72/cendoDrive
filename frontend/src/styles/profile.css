@@ -227,6 +227,22 @@
     padding: 11px 12px;
     position: relative;
   }
+  .profile-storage {
+    height: auto;
+    min-width: 0;
+  }
+  .profile-storage small,
+  .profile-storage p {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .profile-storage > div strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .profile-storage > div:first-child {
     display: flex;
     align-items: center;
@@ -250,7 +266,7 @@
   }
   .storage-track i {
     display: block;
-    width: 79%;
+    width: 0;
     height: 100%;
     background: #f7a243;
   }

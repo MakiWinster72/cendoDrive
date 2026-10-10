@@ -472,9 +472,9 @@ describe("folder navigation and screenshot layout", () => {
     expect(
       wrapper.find(".m-folder-search input").attributes("placeholder"),
     ).toBe("按文件名搜索");
-    expect(wrapper.find(".m-folder-breadcrumb").text()).toContain(
-      "我的网盘 /U鱼游戏 S1-S3 三季",
-    );
+    expect(
+      wrapper.find(".m-folder-breadcrumb").text().replace(/\s/g, ""),
+    ).toContain("我的网盘/U鱼游戏S1-S3三季");
     expect(
       wrapper.find('.m-folder-breadcrumb [aria-current="page"]').text(),
     ).toBe(parent.name);
@@ -1002,6 +1002,56 @@ describe("mobile file management wiring", () => {
   });
 });
 
+describe("mobile profile storage usage", () => {
+  it("loads real owner usage on entry and refreshes the displayed capacity", async () => {
+    const wrapper = await open();
+    vi.mocked(api.getUsage).mockResolvedValue({
+      usedBytes: 512,
+      limitBytes: 1024,
+      availableBytes: 384,
+      trashBytes: 128,
+      reservedBytes: 128,
+    });
+    await wrapper
+      .findAll(".mobile-app nav button")
+      .find((button) => button.text() === "我的")!
+      .trigger("click");
+    await flushPromises();
+    const card = wrapper.get(".profile-storage");
+    expect(card.text()).toContain("512 B / 1.0 KiB");
+    expect(card.text()).toContain("50.0%");
+    expect(card.text()).toContain("上传预留");
+    expect(card.get("[role=progressbar]").attributes("aria-valuenow")).toBe(
+      "50",
+    );
+    vi.mocked(api.getUsage).mockResolvedValue({
+      usedBytes: 2048,
+      limitBytes: 1024,
+      availableBytes: 0,
+      trashBytes: 0,
+      reservedBytes: 0,
+    });
+    await card.get("button").trigger("click");
+    await flushPromises();
+    expect(card.get("[role=progressbar]").attributes("aria-valuenow")).toBe(
+      "100",
+    );
+  });
+  it("shows retry feedback rather than demo values if usage cannot be loaded", async () => {
+    const wrapper = await open();
+    useDrive().state.usage = null;
+    vi.mocked(api.getUsage).mockRejectedValue(new Error("容量获取失败"));
+    await wrapper
+      .findAll(".mobile-app nav button")
+      .find((button) => button.text() === "我的")!
+      .trigger("click");
+    await flushPromises();
+    const card = wrapper.get(".profile-storage");
+    expect(card.get("[role=alert]").text()).toContain("容量获取失败");
+    expect(card.text()).toContain("重试容量");
+    expect(card.text()).not.toContain("1.6T");
+  });
+});
 describe("mobile profile unavailable destinations", () => {
   it.each([
     [".membership-cta", "membership"],

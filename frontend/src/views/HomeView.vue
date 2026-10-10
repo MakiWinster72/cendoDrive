@@ -202,6 +202,12 @@ const mobileTab = ref<"home" | "files" | "share" | "profile">(
     ? "share"
     : "home",
 );
+const profileUsagePercent = computed(() => {
+  const usage = drive.state.usage;
+  if (!usage || usage.limitBytes <= 0) return 0;
+  return Math.min(100, Math.max(0, usage.usedBytes / usage.limitBytes * 100));
+});
+watch(mobileTab, (tab) => { if (tab === 'profile') void drive.loadUsage(); });
 const savedVisible = ref(true);
 watch(keyword, () => {
   checked.value = [];
@@ -1636,14 +1642,14 @@ onUnmounted(() => {
         </section>
         <div class="profile-card-pair">
           <section class="profile-storage">
-            <div><strong>1.6T / 2T</strong><span>79%</span></div>
-            <div class="storage-track"><i></i></div>
-            <button
-              type="button"
-              @click="showUnavailable('容量管理功能暂未开放。')"
-            >
-              管理空间 <ChevronRight :size="17" />
-            </button>
+            <template v-if="drive.state.usage">
+              <div><strong>{{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }}</strong><span>{{ profileUsagePercent.toFixed(1) }}%</span></div>
+              <div class="storage-track" role="progressbar" aria-label="已用容量" :aria-valuenow="profileUsagePercent" :aria-valuemin="0" :aria-valuemax="100"><i :style="{ width: `${profileUsagePercent}%` }"></i></div>
+              <small>可用 {{ formatBytes(drive.state.usage.availableBytes) }} · 回收站 {{ formatBytes(drive.state.usage.trashBytes) }} · 上传预留 {{ formatBytes(drive.state.usage.reservedBytes) }}</small>
+            </template>
+            <p v-else-if="!drive.state.usageError">容量加载中…</p>
+            <p v-if="drive.state.usageError" role="alert">{{ drive.state.usageError }}</p>
+            <button type="button" @click="drive.loadUsage">{{ drive.state.usageError ? '重试容量' : '刷新容量' }} <ChevronRight :size="17" /></button>
           </section>
           <section class="profile-missions">
             <div class="mission-orb"><Crown /></div>
