@@ -33,6 +33,18 @@ cendo:
       base-url: ${CENDO_AI_CHAT_BASE_URL:}
       model: ${CENDO_AI_CHAT_MODEL:}
       key: ${CENDO_AI_CHAT_KEY:}
+    claw:
+      enabled: ${CENDO_AI_CLAW_ENABLED:false}
+      embedding:
+        # Blank base/key inherit chat configuration; use an API base ending in /v1.
+        base-url: ${CENDO_AI_EMBEDDING_BASE_URL:}
+        model: ${CENDO_AI_EMBEDDING_MODEL:Qwen/Qwen3-VL-Embedding-8B}
+        key: ${CENDO_AI_EMBEDDING_KEY:}
+        dimensions: ${CENDO_AI_EMBEDDING_DIMENSIONS:4096}
+      vector:
+        base-url: ${CENDO_AI_VECTOR_BASE_URL:http://localhost:6333}
+        key: ${CENDO_AI_VECTOR_KEY:}
+        collection: ${CENDO_AI_VECTOR_COLLECTION:cendo_claw}
 fdfs:
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}

@@ -13,6 +13,14 @@ services:
       CENDO_AI_CHAT_BASE_URL: ${CENDO_AI_CHAT_BASE_URL:-}
       CENDO_AI_CHAT_MODEL: ${CENDO_AI_CHAT_MODEL:-}
       CENDO_AI_CHAT_KEY: ${CENDO_AI_CHAT_KEY:-}
+      CENDO_AI_CLAW_ENABLED: ${CENDO_AI_CLAW_ENABLED:-false}
+      CENDO_AI_EMBEDDING_BASE_URL: ${CENDO_AI_EMBEDDING_BASE_URL:-}
+      CENDO_AI_EMBEDDING_MODEL: ${CENDO_AI_EMBEDDING_MODEL:-Qwen/Qwen3-VL-Embedding-8B}
+      CENDO_AI_EMBEDDING_KEY: ${CENDO_AI_EMBEDDING_KEY:-}
+      CENDO_AI_EMBEDDING_DIMENSIONS: ${CENDO_AI_EMBEDDING_DIMENSIONS:-4096}
+      CENDO_AI_VECTOR_BASE_URL: http://qdrant:6333
+      CENDO_AI_VECTOR_KEY: ${CENDO_AI_VECTOR_KEY:-}
+      CENDO_AI_VECTOR_COLLECTION: ${CENDO_AI_VECTOR_COLLECTION:-cendo_claw}
 
     volumes:
       - backend-storage:/app/storage
@@ -29,6 +37,15 @@ services:
         condition: service_started
       storage3:
         condition: service_started
+
+  # Private vector service: no published port; persistence is independent of file storage.
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    environment:
+      QDRANT__SERVICE__API_KEY: ${CENDO_AI_VECTOR_KEY:-}
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -122,6 +139,7 @@ services:
 
 volumes:
   backend-storage:
+  qdrant-data:
   mysql-data:
   redis-data:
   tracker-data:
