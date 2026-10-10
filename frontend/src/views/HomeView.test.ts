@@ -1055,6 +1055,17 @@ describe("mobile profile storage usage", () => {
   });
 });
 describe("mobile profile unavailable destinations", () => {
+  it("matches the reference profile sections while preserving hidden-space access", async () => {
+    const wrapper = await open();
+    await wrapper.findAll('.mobile-app nav button').find(button => button.text() === '我的')!.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.membership-copy h1').text()).toBe('解锁SVIP');
+    expect(wrapper.findAll('.membership-perks > div')).toHaveLength(5);
+    expect(wrapper.findAll('.profile-shortcuts button').map(button => button.text())).toEqual(['我的收藏', '我的分享', '回收站', '设备管理', '我的打印', '转存与下载', '隐藏空间']);
+    expect(wrapper.findAll('.mission-orb')).toHaveLength(2);
+    await wrapper.get('[aria-label="扫一扫"]').trigger('click');
+    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain('扫一扫功能暂未开放');
+  });
   it.each([
     [".membership-cta", "membership"],
     [".membership-links button:first-child", "ai-points"],

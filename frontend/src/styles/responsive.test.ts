@@ -36,7 +36,8 @@ describe("responsive style ownership", () => {
     );
     expect(hub).not.toContain("!important");
     expect(share).not.toContain(".mobile-share-hub");
-    expect(hub.match(/var\(--mobile-gutter\)/g)).toHaveLength(1);
+    // Full-bleed share headers may reuse the gutter in negative margins.
+    expect(hub).toContain("margin: calc(-1 * var(--mobile-page-top))");
     expect(profile).not.toContain("max-width: 520px");
   });
 
@@ -64,8 +65,8 @@ describe("responsive style ownership", () => {
       expect(source).toContain("var(--mobile-gutter)");
     }
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
-    expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
-    expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
+    expect(home).toContain("padding-bottom: calc(var(--mobile-content-bottom) + 44px)");
+    expect(profile).toContain("padding: 32px calc(var(--mobile-gutter) / 3) 18px");
     expect(hub).toContain(
       "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
     );
