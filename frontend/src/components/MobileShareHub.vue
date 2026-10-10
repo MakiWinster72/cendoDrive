@@ -23,6 +23,7 @@ const emit = defineEmits<{ openMyShares: []; notice: [message: string]; unreadCo
 const router = useRouter();
 const activeTab = ref<ShareTab>("messages");
 const activeOfficial = ref<OfficialAccount | null>(null);
+const notificationsOpen = ref(false);
 const officialDirectory = ref(false);
 const returnToDirectory = ref(false);
 const membershipUnread = ref(24);
@@ -131,6 +132,22 @@ onMounted(async () => {
     @notice="showNotice"
   />
 
+  <main v-else-if="notificationsOpen" class="system-notifications-page" aria-label="系统通知">
+    <header class="system-notifications-header">
+      <button type="button" aria-label="返回消息" @click="notificationsOpen = false; emit('officialView', false)"><ChevronLeft /></button>
+      <h1>系统通知</h1>
+      <span aria-hidden="true"></span>
+    </header>
+    <section class="system-notifications-empty" aria-label="暂无通知">
+      <svg class="notification-empty-art" viewBox="0 0 96 96" role="img" aria-label="通知铃铛">
+        <path d="M25 65V42c0-13 8-23 20-26v-4a7 7 0 0 1 14 0v4c12 3 20 13 20 26v23l7 7v5H18v-5l7-7Z" fill="#68adf5" />
+        <circle cx="52" cy="64" r="24" fill="#348ff0" opacity=".9" />
+        <path d="M42 83c2 5 5 7 10 7s8-2 10-7" fill="#68adf5" />
+      </svg>
+      <p>还没有收到通知</p>
+    </section>
+  </main>
+
   <main v-else-if="officialDirectory" class="official-directory-page" aria-label="官方账号">
     <header class="official-directory-header">
       <button type="button" aria-label="返回消息" @click="officialDirectory = false; emit('officialView', false)"><ChevronLeft /></button>
@@ -166,7 +183,7 @@ onMounted(async () => {
         </button>
       </section>
       <section class="share-hub-messages message-inbox-list" aria-label="消息列表">
-        <button type="button" class="share-hub-message" @click="showNotice('暂无新的系统通知')">
+        <button type="button" class="share-hub-message" @click="notificationsOpen = true; emit('officialView', true)">
           <span class="share-message-avatar mint"><Bell class="filled-bell" /></span>
           <span class="share-message-copy"><span class="share-message-title"><strong>暂无消息通知</strong></span><span class="share-message-subtitle">系统通知</span></span>
         </button>
@@ -175,7 +192,7 @@ onMounted(async () => {
           <span class="share-message-copy"><span class="share-message-title"><strong>专属优惠！SVIP月卡超底价 ¥12</strong></span><span class="share-message-subtitle">官方消息&nbsp; 丨 &nbsp;会员专属助手</span></span>
           <span class="share-message-meta"><time>10-07 12:16</time><span v-if="membershipUnread" class="share-unread">{{ membershipUnread }}</span></span>
         </button>
-        <button type="button" class="share-hub-message" @click="router.push('/friends')">
+        <button type="button" class="share-hub-message" @click="router.push('/friends?mode=search')">
           <span class="share-message-avatar rose"><UserRoundPlus /></span>
           <span class="share-message-copy"><span class="share-message-title"><strong>添加好友</strong></span><span class="share-message-subtitle">独乐乐不如众乐乐</span></span>
           <span class="share-message-meta"><time>07-14 21:04</time></span>

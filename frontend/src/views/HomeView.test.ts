@@ -111,6 +111,13 @@ describe("folder navigation and screenshot layout", () => {
     expect(wrapper.findAll('.share-hub-shortcuts button').map(button => button.text())).toEqual(['新建群聊', '加好友/群', '转存和订阅', '通讯录']);
     expect(wrapper.get('.m-bottom-nav button em').text()).toBe('24');
     expect(wrapper.findAll('.message-inbox-list .share-hub-message')).toHaveLength(3);
+    await wrapper.get('.message-inbox-list .share-hub-message:first-child').trigger('click');
+    expect(wrapper.get('.system-notifications-header h1').text()).toBe('系统通知');
+    expect(wrapper.get('.system-notifications-empty').text()).toContain('还没有收到通知');
+    expect(wrapper.find('.m-bottom-nav').exists()).toBe(false);
+    await wrapper.get('.system-notifications-header button[aria-label="返回消息"]').trigger('click');
+    await wrapper.get('.message-inbox-list .share-hub-message:last-child').trigger('click');
+    expect(routerPush).toHaveBeenCalledWith('/friends?mode=search');
     await wrapper.get('.message-inbox-list .share-hub-message:nth-child(2)').trigger('click');
     expect(wrapper.get('.official-header h1').text()).toBe('会员专属助手');
     await wrapper.get('.official-header button[aria-label="返回官方账号"]').trigger('click');
