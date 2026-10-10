@@ -303,13 +303,13 @@ function openHomeCategory(next: Mode) {
   void changeMode(next);
 }
 const profileShortcuts = [
-  { label: "我的收藏", icon: Sparkles },
-  { label: "隐藏空间", icon: LockKeyhole },
+  { label: "我的收藏", icon: Star },
   { label: "我的分享", icon: Share2 },
   { label: "回收站", icon: Trash2 },
   { label: "设备管理", icon: MonitorSmartphone },
   { label: "我的打印", icon: Printer },
   { label: "转存与下载", icon: CloudUpload },
+  { label: "隐藏空间", icon: LockKeyhole },
 ];
 const profileServices = [
   { label: "借钱", icon: Wallet, tone: "rose" },
@@ -1594,13 +1594,15 @@ onUnmounted(() => {
             >
               <CalendarDays />
             </button>
+            <button aria-label="扫一扫" type="button" @click="showUnavailable('扫一扫功能暂未开放。')">
+              <ScanLine />
+            </button>
           </div>
         </header>
         <section class="profile-membership">
           <div class="membership-hero">
             <div class="membership-copy">
-              <small>云端生活 · 更多可能</small>
-              <h1>解锁 SVIP</h1>
+              <h1>解锁SVIP</h1>
               <p>新用户专享 · 低至 $3.40/月！</p>
             </div>
             <div class="membership-perks">
@@ -1615,7 +1617,7 @@ onUnmounted(() => {
               class="membership-cta"
               @click="router.push({ name: 'membership' })"
             >
-              立即解锁 <ChevronRight :size="19" />
+              立即解锁
             </button>
           </div>
           <div class="membership-links">
@@ -1652,13 +1654,14 @@ onUnmounted(() => {
             <button type="button" @click="drive.loadUsage">{{ drive.state.usageError ? '重试容量' : '刷新容量' }} <ChevronRight :size="17" /></button>
           </section>
           <section class="profile-missions">
-            <div class="mission-orb"><Crown /></div>
+            <div class="mission-orb" aria-hidden="true"><TicketPercent /><span>下载券</span></div>
+            <div class="mission-orb mission-orb-space" aria-hidden="true"><PackageOpen /><span>空间</span></div>
             <strong>任务系统</strong
             ><button
               type="button"
               @click="showUnavailable('任务奖励功能暂未开放。')"
             >
-              领 奖 励 <ChevronRight :size="17" />
+              领奖励 <ChevronRight :size="17" />
             </button>
           </section>
         </div>
