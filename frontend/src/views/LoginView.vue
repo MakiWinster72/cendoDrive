@@ -24,7 +24,8 @@ const remember = ref(true);
 const visible = ref(false);
 const loading = ref(false);
 const error = ref("");
-const recoveryMode=ref(false), recovered=ref(false);
+const recoveryMode = ref(false),
+  recovered = ref(false);
 
 async function submit() {
   error.value = "";
@@ -36,8 +37,10 @@ async function submit() {
   loading.value = true;
   try {
     if (recoveryMode.value) {
-      await restoreAccount(username.value.trim(),password.value);
-      recoveryMode.value=false; recovered.value=true; password.value="";
+      await restoreAccount(username.value.trim(), password.value);
+      recoveryMode.value = false;
+      recovered.value = true;
+      password.value = "";
       return;
     }
     await auth.login(
@@ -53,8 +56,14 @@ async function submit() {
         : "/",
     );
   } catch (e) {
-    error.value = authErrorMessage(e, recoveryMode.value ? "恢复失败，账号可能不在恢复期内" : "登录失败，请稍后重试");
-    if (recoveryMode.value && error.value === "用户名或密码错误") error.value = "用户名或密码错误，或已超过 7 天恢复期";
+    error.value = authErrorMessage(
+      e,
+      recoveryMode.value
+        ? "恢复失败，账号可能不在恢复期内"
+        : "登录失败，请稍后重试",
+    );
+    if (recoveryMode.value && error.value === "用户名或密码错误")
+      error.value = "用户名或密码错误，或已超过 7 天恢复期";
   } finally {
     loading.value = false;
   }
@@ -94,11 +103,33 @@ async function submit() {
       </div>
 
       <div class="login-card">
-        <div class="card-title"><h2>{{ recoveryMode ? "恢复注销账号" : "账号登录" }}</h2></div>
-        <p class="welcome">{{ recoveryMode ? '仅可在申请注销后的 7 天内恢复，旧分享不会恢复。' : '登录 CendoDrive，畅享美好生活' }}</p>
-        <p v-if="recovered" class="success" role="status">账号已恢复，请重新登录。</p>
-        <p v-if="route.query.passwordChanged==='1'" class="success" role="status">密码已修改，所有设备已退出，请重新登录。</p>
-        <p v-if="!recovered && route.query.accountDeleted==='1'" class="success" role="status">账号已标记注销，7 天后彻底删除。7 天内可验证密码恢复。</p>
+        <div class="card-title">
+          <h2>{{ recoveryMode ? "恢复注销账号" : "账号登录" }}</h2>
+        </div>
+        <p class="welcome">
+          {{
+            recoveryMode
+              ? "仅可在申请注销后的 7 天内恢复，旧分享不会恢复。"
+              : "登录 CendoDrive，畅享美好生活"
+          }}
+        </p>
+        <p v-if="recovered" class="success" role="status">
+          账号已恢复，请重新登录。
+        </p>
+        <p
+          v-if="route.query.passwordChanged === '1'"
+          class="success"
+          role="status"
+        >
+          密码已修改，所有设备已退出，请重新登录。
+        </p>
+        <p
+          v-if="!recovered && route.query.accountDeleted === '1'"
+          class="success"
+          role="status"
+        >
+          账号已标记注销，7 天后彻底删除。7 天内可验证密码恢复。
+        </p>
         <p v-if="route.query.registered === '1'" class="success">
           注册成功，请登录。
         </p>

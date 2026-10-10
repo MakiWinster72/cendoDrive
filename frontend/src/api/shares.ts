@@ -22,20 +22,35 @@ export interface ShareRecord {
 export const PERMANENT_SHARE_EXPIRY = "9999-12-31T23:59:59Z";
 
 export function shareExpiryLabel(expiresAt: string): string {
-  return new Date(expiresAt).getTime() === new Date(PERMANENT_SHARE_EXPIRY).getTime()
+  return new Date(expiresAt).getTime() ===
+    new Date(PERMANENT_SHARE_EXPIRY).getTime()
     ? "永久有效"
     : `有效至 ${new Date(expiresAt).toLocaleString("zh-CN", { hour12: false })}`;
 }
 
-export function shareUrl(share: ShareRecord, origin: string, autoFill = false): string {
+export function shareUrl(
+  share: ShareRecord,
+  origin: string,
+  autoFill = false,
+): string {
   // Explicit opt-in: fragments are not transmitted in HTTP URLs or referrer headers.
-  return `${origin}/share/${encodeURIComponent(share.token)}` +
-    (autoFill && share.extractionCode ? `#code=${encodeURIComponent(share.extractionCode)}` : "");
+  return (
+    `${origin}/share/${encodeURIComponent(share.token)}` +
+    (autoFill && share.extractionCode
+      ? `#code=${encodeURIComponent(share.extractionCode)}`
+      : "")
+  );
 }
 
-export function shareClipboardText(share: ShareRecord, origin: string, autoFill = false): string {
+export function shareClipboardText(
+  share: ShareRecord,
+  origin: string,
+  autoFill = false,
+): string {
   const link = shareUrl(share, origin, autoFill);
-  return share.extractionCode ? `${link}\n提取码：${share.extractionCode}` : link;
+  return share.extractionCode
+    ? `${link}\n提取码：${share.extractionCode}`
+    : link;
 }
 
 export interface ShareAccessResponse {
@@ -107,20 +122,25 @@ export async function downloadPublicShare(
   fallbackName: string,
   extractionCode?: string,
 ): Promise<void> {
-  const response = await publicHttp.get<Blob>(
-    `/shares/${encodeURIComponent(token)}/download`,
-    { responseType: "blob", timeout: 0, ...codeHeaders(extractionCode) },
-  ).catch(async (error: unknown) => {
-    // Axios returns JSON error responses as Blob when responseType is blob.
-    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
-      try {
-        const data: unknown = JSON.parse(await error.response.data.text());
-        if (typeof data === "object" && data !== null && "code" in data)
-          error.response.data = data;
-      } catch { /* Keep the original status and fallback message for non-JSON errors. */ }
-    }
-    throw error;
-  });
+  const response = await publicHttp
+    .get<Blob>(`/shares/${encodeURIComponent(token)}/download`, {
+      responseType: "blob",
+      timeout: 0,
+      ...codeHeaders(extractionCode),
+    })
+    .catch(async (error: unknown) => {
+      // Axios returns JSON error responses as Blob when responseType is blob.
+      if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+        try {
+          const data: unknown = JSON.parse(await error.response.data.text());
+          if (typeof data === "object" && data !== null && "code" in data)
+            error.response.data = data;
+        } catch {
+          /* Keep the original status and fallback message for non-JSON errors. */
+        }
+      }
+      throw error;
+    });
   const disposition = response.headers["content-disposition"] as
     string | undefined;
   const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
@@ -140,8 +160,12 @@ function codeHeaders(code?: string) {
 }
 
 export function requiresShareCode(error: unknown): boolean {
-  return axios.isAxiosError<ShareApiError>(error) &&
-    ["SHARE_CODE_REQUIRED", "SHARE_CODE_INVALID"].includes(error.response?.data?.code || "");
+  return (
+    axios.isAxiosError<ShareApiError>(error) &&
+    ["SHARE_CODE_REQUIRED", "SHARE_CODE_INVALID"].includes(
+      error.response?.data?.code || "",
+    )
+  );
 }
 
 export function isShareUnavailable(error: unknown): boolean {

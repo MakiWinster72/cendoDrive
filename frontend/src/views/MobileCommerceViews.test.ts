@@ -7,10 +7,18 @@ import AiPointsView from "./AiPointsView.vue";
 import MyAssetsView from "./MyAssetsView.vue";
 import NovelHubView from "./NovelHubView.vue";
 import GameCenterView from "./GameCenterView.vue";
-import { getGameCenterContent, getMembershipContent, getNovelHubContent } from "../api/content";
+import {
+  getGameCenterContent,
+  getMembershipContent,
+  getNovelHubContent,
+} from "../api/content";
 import { demoMembershipContent } from "../api/contentDemo";
 
-const nav = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }));
+const nav = vi.hoisted(() => ({
+  back: vi.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
 vi.mock("vue-router", () => ({ useRouter: () => nav }));
 vi.mock("../api/content", () => ({
   getGameCenterContent: vi.fn(),
@@ -29,11 +37,15 @@ function dialogText() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(getGameCenterContent).mockRejectedValue(new Error("内容接口未接入"));
-  vi.mocked(getMembershipContent).mockRejectedValue(new Error("内容接口未接入"));
+  vi.mocked(getGameCenterContent).mockRejectedValue(
+    new Error("内容接口未接入"),
+  );
+  vi.mocked(getMembershipContent).mockRejectedValue(
+    new Error("内容接口未接入"),
+  );
   vi.mocked(getNovelHubContent).mockRejectedValue(new Error("内容接口未接入"));
 });
-afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()));
+afterEach(() => wrappers.splice(0).forEach((wrapper) => wrapper.unmount()));
 
 describe("mobile membership page", () => {
   it("selects a membership plan and never pretends to process real payment", async () => {
@@ -58,7 +70,17 @@ describe("mobile membership page", () => {
   it("replaces membership demo plans with backend response data", async () => {
     vi.mocked(getMembershipContent).mockResolvedValueOnce({
       ...demoMembershipContent,
-      plans: [{ id: "backend-plan", name: "后端新套餐", price: "88", suffix: "/年", originalPrice: null, badge: null, sortOrder: 1 }],
+      plans: [
+        {
+          id: "backend-plan",
+          name: "后端新套餐",
+          price: "88",
+          suffix: "/年",
+          originalPrice: null,
+          badge: null,
+          sortOrder: 1,
+        },
+      ],
     });
     const wrapper = mountTracked(MembershipView);
     await flushPromises();
@@ -72,7 +94,9 @@ describe("mobile membership page", () => {
     await flushPromises();
     await wrapper.find(".primary-pay").trigger("click");
     expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
-    (document.body.querySelector(".unavailable-confirm") as HTMLButtonElement).click();
+    (
+      document.body.querySelector(".unavailable-confirm") as HTMLButtonElement
+    ).click();
     await nextTick();
     expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
   });
@@ -89,7 +113,9 @@ describe("mobile AI points page", () => {
   it("updates the selected pack and shows a non-payment demo state", async () => {
     const wrapper = mountTracked(AiPointsView);
     await wrapper.findAll(".points-pack")[1]!.trigger("click");
-    expect(wrapper.findAll(".points-pack")[1]!.attributes("aria-pressed")).toBe("true");
+    expect(wrapper.findAll(".points-pack")[1]!.attributes("aria-pressed")).toBe(
+      "true",
+    );
     expect(wrapper.find(".primary-pay").text()).toContain("¥ 19");
     await wrapper.find(".primary-pay").trigger("click");
     expect(dialogText()).toContain("充值支付暂未接入");
@@ -132,7 +158,11 @@ describe("mobile game center", () => {
     expect(wrapper.text()).toContain("精品推荐");
     await wrapper.findAll(".game-category-strip button")[1]!.trigger("click");
     expect(wrapper.findAll(".more-game-row").length).toBeGreaterThan(0);
-    expect(wrapper.findAll(".more-game-row").every(row => row.text().includes("休闲益智"))).toBe(true);
+    expect(
+      wrapper
+        .findAll(".more-game-row")
+        .every((row) => row.text().includes("休闲益智")),
+    ).toBe(true);
   });
 
   it("does not claim task rewards are connected", async () => {

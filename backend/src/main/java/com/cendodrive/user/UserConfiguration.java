@@ -5,5 +5,8 @@ import org.springframework.context.annotation.*;
 
 @Configuration
 public class UserConfiguration {
-  @Bean Clock accountClock() { return Clock.systemUTC(); }
+  @Bean
+  Clock accountClock() {
+    return Clock.systemUTC();
+  }
 }

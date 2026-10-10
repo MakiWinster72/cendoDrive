@@ -10,12 +10,15 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLElement | null>(null);
 
-watch(() => props.open, async (open) => {
-  if (open) {
-    await nextTick();
-    dialog.value?.focus();
-  }
-});
+watch(
+  () => props.open,
+  async (open) => {
+    if (open) {
+      await nextTick();
+      dialog.value?.focus();
+    }
+  },
+);
 </script>
 
 <template>
@@ -31,11 +34,19 @@ watch(() => props.open, async (open) => {
         tabindex="-1"
         @keydown.esc="emit('close')"
       >
-        <button class="unavailable-close" aria-label="关闭提示" @click="emit('close')"><X :size="18" /></button>
+        <button
+          class="unavailable-close"
+          aria-label="关闭提示"
+          @click="emit('close')"
+        >
+          <X :size="18" />
+        </button>
         <span class="unavailable-icon"><CircleAlert :size="25" /></span>
         <h2 id="unavailable-title">功能暂未开放</h2>
         <p id="unavailable-message">{{ message }}</p>
-        <button class="unavailable-confirm" @click="emit('close')">我知道了</button>
+        <button class="unavailable-confirm" @click="emit('close')">
+          我知道了
+        </button>
       </section>
     </div>
   </Teleport>

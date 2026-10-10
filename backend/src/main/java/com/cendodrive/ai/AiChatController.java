@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/ai/chat")
 public class AiChatController {
   private final AiChatService service;
-  public AiChatController(AiChatService service) { this.service = service; }
+
+  public AiChatController(AiChatService service) {
+    this.service = service;
+  }
 
   @GetMapping("/status")
   public ResponseEntity<StatusResponse> status() {

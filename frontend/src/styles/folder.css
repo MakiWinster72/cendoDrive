@@ -1,76 +1,319 @@
 /* 文件夹内页及移动文件页头部；不覆盖首页和根目录列表。 */
-.breadcrumb { flex-wrap: wrap; }
-.breadcrumb button { display: inline-flex; align-items: center; gap: 4px; }
-.breadcrumb [aria-current] { overflow-wrap: anywhere; }
+.breadcrumb {
+  flex-wrap: wrap;
+}
+.breadcrumb button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.breadcrumb [aria-current] {
+  overflow-wrap: anywhere;
+}
 @media (width < 768px) {
-  .mobile-app:has(.m-folder-breadcrumb) { background: #fff; color: #080d1b; }
+  .mobile-app:has(.m-folder-breadcrumb) {
+    background: #fff;
+    color: #080d1b;
+  }
   .m-folder-head {
-    position: relative; display: flex; align-items: center; gap: 6px;
-    height: 64px; padding: 14px 10px 8px; background: #fff;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 64px;
+    padding: 14px 10px 8px;
+    background: #fff;
   }
   .m-folder-head > button {
-    flex: 0 0 38px; min-height: 44px; border: 0; background: transparent;
-    display: grid; place-items: center; padding: 0; color: #080d1b;
+    flex: 0 0 38px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: #080d1b;
   }
   .m-folder-search {
-    min-width: 0; flex: 1; height: 38px; padding: 0 13px; border-radius: 13px;
-    display: flex; align-items: center; gap: 6px; background: #f1f3f8; color: #a0a9ba;
+    min-width: 0;
+    flex: 1;
+    height: 38px;
+    padding: 0 13px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f3f8;
+    color: #a0a9ba;
   }
-  .m-folder-search svg { flex-shrink: 0; }
+  .m-folder-search svg {
+    flex-shrink: 0;
+  }
   .m-folder-search input {
-    min-width: 0; width: 100%; padding: 0; border: 0; background: transparent;
-    font: inherit; font-size: 12px; font-weight: 600; color: #080d1b;
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #080d1b;
   }
-  .m-folder-search input::placeholder { color: #828a9c; }
-  .m-file-head { position: relative; }
-  .m-file-head > .m-file-head-actions { gap: 4px; }
-  .m-file-head-actions > button, .m-folder-head > .m-transfer-button {
-    display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0;
-    border: 0; background: transparent; color: #080d1b;
+  .m-folder-search input::placeholder {
+    color: #828a9c;
   }
-  .m-transfer-button svg { border: 1.5px solid currentColor; border-radius: 50%; padding: 2.5px; width: 24px; height: 24px; box-sizing: border-box; }
-  .m-folder-sort-label { position: relative; }
-  .m-folder-sort-label select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-  .m-folder-menu { position: absolute; right: 14px; top: 58px; z-index: 11; padding: 5px; background: #fff; border: 1px solid #eef0f5; border-radius: 12px; box-shadow: 0 6px 24px #18202d14; }
-  .m-folder-menu button { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 0; background: none; padding: 0 12px; color: #080d1b; }
+  .m-file-head {
+    position: relative;
+  }
+  .m-file-head > .m-file-head-actions {
+    gap: 4px;
+  }
+  .m-file-head-actions > button,
+  .m-folder-head > .m-transfer-button {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #080d1b;
+  }
+  .m-transfer-button svg {
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    padding: 2.5px;
+    width: 24px;
+    height: 24px;
+    box-sizing: border-box;
+  }
+  .m-folder-sort-label {
+    position: relative;
+  }
+  .m-folder-sort-label select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .m-folder-menu {
+    position: absolute;
+    right: 14px;
+    top: 58px;
+    z-index: 11;
+    padding: 5px;
+    background: #fff;
+    border: 1px solid #eef0f5;
+    border-radius: 12px;
+    box-shadow: 0 6px 24px #18202d14;
+  }
+  .m-folder-menu button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 44px;
+    border: 0;
+    background: none;
+    padding: 0 12px;
+    color: #080d1b;
+  }
   .m-folder-breadcrumb {
-    display: flex; align-items: center; gap: 7px; padding: 0 18px 8px;
-    min-height: 40px; background: linear-gradient(#fff, #f6f8fa); font-size: 14px; font-weight: 700;
-    overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px 8px;
+    min-height: 40px;
+    background: linear-gradient(#fff, #f6f8fa);
+    font-size: 14px;
+    font-weight: 700;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
   }
-  .m-folder-breadcrumb button { flex-shrink: 0; padding: 0; min-height: 32px; border: 0; background: none; font: inherit; color: #a1aabc; }
-  .m-folder-breadcrumb .path-separator { color: #dce0e8; }
+  .m-folder-breadcrumb button {
+    flex-shrink: 0;
+    padding: 0;
+    min-height: 32px;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: #a1aabc;
+  }
+  .m-folder-breadcrumb .path-separator {
+    color: #dce0e8;
+  }
   .m-folder-toolbar {
-    display: flex; align-items: center; justify-content: space-between; height: 48px;
-    position: relative; isolation: isolate; margin-top: -1px; padding: 0 18px; background: #f6f8fa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 48px;
+    position: relative;
+    isolation: isolate;
+    margin-top: -1px;
+    padding: 0 18px;
+    background: #f6f8fa;
   }
-  .m-folder-toolbar::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 16px 16px 0 0; background: #fff; }
-  .m-folder-sort-label { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: 14px; font-weight: 650; color: #858e9f; }
-  .m-folder-toolbar > button { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px; border: 0; background: none; color: #a1aabc; }
-  .m-folder-files { min-height: calc(100dvh - 244px); padding: 0 18px; }
-  .m-folder-files .m-file-row { height: 69px; grid-template-columns: 38px minmax(0, 1fr) 22px; gap: 14px; }
-  .m-folder-files .m-folder { width: 34px; height: 34px; }
-  .m-folder-files .m-folder svg { width: 34px; height: 34px; }
-  .m-folder-files .m-file-row b { font-size: 16px; font-weight: 700; }
-  .m-folder-files .m-file-row small { font-size: 12px; font-weight: 550; color: #a1aabc; }
-  .m-folder-files .m-file-row input { width: 13px; height: 13px; margin: 0; justify-self: end; border: 1.5px solid #dce0e8; }
-  .m-folder-files .m-file-row input::after { content: ""; display: block; width: 44px; height: 44px; transform: translate(-17px, -17px); }
-  .m-folder-files .m-file-row.selected { margin: 0 -18px; padding: 0 18px; }
-  .m-folder-files .m-file-row input:checked { background: #398ff5; border-color: #398ff5; }
-  .m-folder-security { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 34px 0 0; font-size: 12px; font-weight: 550; color: #258eff; }
-  .mobile-app:has(.m-folder-breadcrumb):not(:has(.m-selection-sheet)) { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
-  .mobile-app:has(.m-folder-breadcrumb) .m-fab { right: 11px; bottom: calc(101px + env(safe-area-inset-bottom)); }
-  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav { height: calc(88px + env(safe-area-inset-bottom)); box-shadow: none; }
-  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav svg { width: 26px; height: 26px; }
-  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav button { font-size: 12px; }
-  .m-folder-files.is-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; align-content: start; padding-top: 12px; }
-  .m-folder-files.is-grid .m-file-row { position: relative; display: flex; flex-direction: column; height: auto; min-height: 112px; gap: 8px; text-align: center; }
-  .m-folder-files.is-grid .m-file-row > div { width: 100%; }
-  .m-folder-files.is-grid .m-folder, .m-folder-files.is-grid .m-folder svg { width: 48px; height: 48px; }
-  .m-folder-files.is-grid .m-file-row input { position: absolute; top: 0; right: 0; }
-  .m-folder-files.is-grid .m-file-row.selected { margin: 0; padding: 0; border-radius: 8px; }
-  .m-folder-files.is-grid .m-file-row small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .m-folder-files.is-grid > p { grid-column: 1 / -1; }
-  .m-folder-head button:focus-visible, .m-folder-search:focus-within, .m-folder-breadcrumb button:focus-visible, .m-folder-toolbar button:focus-visible, .m-folder-sort-label:focus-within, .m-file-head-actions > button:focus-visible { outline: 2px solid #258eff; outline-offset: 2px; }
-  .m-folder-head button:disabled, .m-folder-breadcrumb button:disabled { opacity: .45; }
+  .m-folder-toolbar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 16px 16px 0 0;
+    background: #fff;
+  }
+  .m-folder-sort-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 650;
+    color: #858e9f;
+  }
+  .m-folder-toolbar > button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-right: -12px;
+    border: 0;
+    background: none;
+    color: #a1aabc;
+  }
+  .m-folder-files {
+    min-height: calc(100dvh - 244px);
+    padding: 0 18px;
+  }
+  .m-folder-files .m-file-row {
+    height: 69px;
+    grid-template-columns: 38px minmax(0, 1fr) 22px;
+    gap: 14px;
+  }
+  .m-folder-files .m-folder {
+    width: 34px;
+    height: 34px;
+  }
+  .m-folder-files .m-folder svg {
+    width: 34px;
+    height: 34px;
+  }
+  .m-folder-files .m-file-row b {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .m-folder-files .m-file-row small {
+    font-size: 12px;
+    font-weight: 550;
+    color: #a1aabc;
+  }
+  .m-folder-files .m-file-row input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    justify-self: end;
+    border: 1.5px solid #dce0e8;
+  }
+  .m-folder-files .m-file-row input::after {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 44px;
+    transform: translate(-17px, -17px);
+  }
+  .m-folder-files .m-file-row.selected {
+    margin: 0 -18px;
+    padding: 0 18px;
+  }
+  .m-folder-files .m-file-row input:checked {
+    background: #398ff5;
+    border-color: #398ff5;
+  }
+  .m-folder-security {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: 34px 0 0;
+    font-size: 12px;
+    font-weight: 550;
+    color: #258eff;
+  }
+  .mobile-app:has(.m-folder-breadcrumb):not(:has(.m-selection-sheet)) {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .mobile-app:has(.m-folder-breadcrumb) .m-fab {
+    right: 11px;
+    bottom: calc(101px + env(safe-area-inset-bottom));
+  }
+  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav {
+    height: calc(88px + env(safe-area-inset-bottom));
+    box-shadow: none;
+  }
+  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav svg {
+    width: 26px;
+    height: 26px;
+  }
+  .mobile-app:has(.m-folder-breadcrumb) .m-bottom-nav button {
+    font-size: 12px;
+  }
+  .m-folder-files.is-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 10px;
+    align-content: start;
+    padding-top: 12px;
+  }
+  .m-folder-files.is-grid .m-file-row {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 112px;
+    gap: 8px;
+    text-align: center;
+  }
+  .m-folder-files.is-grid .m-file-row > div {
+    width: 100%;
+  }
+  .m-folder-files.is-grid .m-folder,
+  .m-folder-files.is-grid .m-folder svg {
+    width: 48px;
+    height: 48px;
+  }
+  .m-folder-files.is-grid .m-file-row input {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+  .m-folder-files.is-grid .m-file-row.selected {
+    margin: 0;
+    padding: 0;
+    border-radius: 8px;
+  }
+  .m-folder-files.is-grid .m-file-row small {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .m-folder-files.is-grid > p {
+    grid-column: 1 / -1;
+  }
+  .m-folder-head button:focus-visible,
+  .m-folder-search:focus-within,
+  .m-folder-breadcrumb button:focus-visible,
+  .m-folder-toolbar button:focus-visible,
+  .m-folder-sort-label:focus-within,
+  .m-file-head-actions > button:focus-visible {
+    outline: 2px solid #258eff;
+    outline-offset: 2px;
+  }
+  .m-folder-head button:disabled,
+  .m-folder-breadcrumb button:disabled {
+    opacity: 0.45;
+  }
 }

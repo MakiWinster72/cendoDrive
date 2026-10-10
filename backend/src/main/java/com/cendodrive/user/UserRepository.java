@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
   Optional<User> findByUsername(String username);
+
   java.util.List<User> findTop20ByDeletedAtLessThanEqualOrderByDeletedAtAsc(java.time.LocalDateTime cutoff);
 
   @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

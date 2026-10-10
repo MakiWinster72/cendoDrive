@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
-const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+const read = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), "utf8");
 const main = read("./main.css");
 const home = read("./home.css");
 const profile = read("./profile.css");
@@ -23,12 +24,16 @@ describe("responsive style ownership", () => {
     expect(account).not.toContain("!important");
   });
   it("keeps selected file rows within the shared mobile gutters", () => {
-    expect(selection).toContain("margin: 0 calc(-1 * var(--mobile-gutter, 18px))");
+    expect(selection).toContain(
+      "margin: 0 calc(-1 * var(--mobile-gutter, 18px))",
+    );
     expect(selection).not.toContain("margin: 0 -22px");
   });
 
   it("applies share gutters once at the page boundary", () => {
-    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(hub).toContain(
+      "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
+    );
     expect(hub).not.toContain("!important");
     expect(share).not.toContain(".mobile-share-hub");
     expect(hub.match(/var\(--mobile-gutter\)/g)).toHaveLength(1);
@@ -61,18 +66,30 @@ describe("responsive style ownership", () => {
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
-    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(hub).toContain(
+      "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
+    );
   });
-  it.each([main, home, profile, share, files, selection, upload, layout, hub, account])(
-    "uses the same exclusive mobile boundary",
-    (source) => {
-      expect(source).toContain("@media (width < 768px)");
-      expect(source).not.toMatch(/max-width:\s*(700|768)px/);
-    },
-  );
+  it.each([
+    main,
+    home,
+    profile,
+    share,
+    files,
+    selection,
+    upload,
+    layout,
+    hub,
+    account,
+  ])("uses the same exclusive mobile boundary", (source) => {
+    expect(source).toContain("@media (width < 768px)");
+    expect(source).not.toMatch(/max-width:\s*(700|768)px/);
+  });
 
   it("keeps homepage-only selectors out of global styles", () => {
-    expect(main).not.toMatch(/\.m-(home-head|vip|profile-search|tools|panel|recent|banner|memory)\b/);
+    expect(main).not.toMatch(
+      /\.m-(home-head|vip|profile-search|tools|panel|recent|banner|memory)\b/,
+    );
     expect(home).toContain(".m-panel-actions");
     expect(home).toContain("margin-left: auto");
     expect(home).toContain("flex-shrink: 0");

@@ -40,11 +40,15 @@ public class AiChatService {
       if (base.isEmpty() || this.model.isEmpty() || this.key.isEmpty())
         throw new IllegalArgumentException("AI chat requires base-url, model and key together");
       URI uri;
-      try { uri = URI.create(base); }
-      catch (IllegalArgumentException ex) { throw new IllegalArgumentException("Invalid AI chat base-url"); }
+      try {
+        uri = URI.create(base);
+      } catch (IllegalArgumentException ex) {
+        throw new IllegalArgumentException("Invalid AI chat base-url");
+      }
       if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))
           || uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null)
-        throw new IllegalArgumentException("AI chat base-url must be an HTTP(S) API base without credentials, query or fragment");
+        throw new IllegalArgumentException(
+            "AI chat base-url must be an HTTP(S) API base without credentials, query or fragment");
       if (this.key.contains("\n") || this.key.contains("\r"))
         throw new IllegalArgumentException("Invalid AI chat key format");
     }
@@ -99,10 +103,19 @@ public class AiChatService {
   public static class AiFailure extends RuntimeException {
     private final HttpStatus status;
     private final String code;
+
     public AiFailure(HttpStatus status, String code, String message) {
-      super(message); this.status = status; this.code = code;
+      super(message);
+      this.status = status;
+      this.code = code;
     }
-    public HttpStatus status() { return status; }
-    public String code() { return code; }
+
+    public HttpStatus status() {
+      return status;
+    }
+
+    public String code() {
+      return code;
+    }
   }
 }

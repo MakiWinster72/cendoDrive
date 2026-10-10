@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 public class ShareAccessStore {
   private final StringRedisTemplate redis;
 
-  public ShareAccessStore(StringRedisTemplate redis) { this.redis = redis; }
+  public ShareAccessStore(StringRedisTemplate redis) {
+    this.redis = redis;
+  }
 
   void enable(ShareLink link, Instant now) {
     if (link.isPermanent()) {
@@ -24,7 +26,11 @@ public class ShareAccessStore {
     return link.getId().toString().equals(redis.opsForValue().get(key(link.getToken())));
   }
 
-  void revoke(ShareLink link) { redis.delete(key(link.getToken())); }
+  void revoke(ShareLink link) {
+    redis.delete(key(link.getToken()));
+  }
 
-  static String key(String token) { return "share:access:" + token; }
+  static String key(String token) {
+    return "share:access:" + token;
+  }
 }

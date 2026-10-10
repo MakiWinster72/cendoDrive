@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class FileSearchService {
-  // Walk from owned, visible roots: hidden/deleted ancestors, orphaned nodes and cycles never enter the result.
+  // Walk from owned, visible roots: hidden/deleted ancestors, orphaned nodes and
+  // cycles never enter the result.
   private static final String VISIBLE = """
       WITH RECURSIVE visible (id, parent_id, kind, in_scope) AS (
         SELECT id, parent_id, kind, CASE WHEN id = :scopeId THEN 1 ELSE 0 END
@@ -31,11 +32,14 @@ public class FileSearchService {
       "image", List.of("jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "heic", "avif"),
       "video", List.of("mp4", "mov", "avi", "mkv", "webm", "m4v"),
       "audio", List.of("mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"),
-      "doc", List.of("pdf", "doc", "docx", "odt", "rtf", "ppt", "pptx", "odp", "xls", "xlsx", "csv", "ods", "txt", "log", "md", "markdown", "mdx"));
+      "doc", List.of("pdf", "doc", "docx", "odt", "rtf", "ppt", "pptx", "odp", "xls", "xlsx", "csv", "ods", "txt",
+          "log", "md", "markdown", "mdx"));
   private final NamedParameterJdbcTemplate jdbc;
   private final DriveService drive;
+
   public FileSearchService(NamedParameterJdbcTemplate jdbc, DriveService drive) {
-    this.jdbc = jdbc; this.drive = drive;
+    this.jdbc = jdbc;
+    this.drive = drive;
   }
 
   @Transactional(readOnly = true)
@@ -43,7 +47,8 @@ public class FileSearchService {
       String sort, int page, int size) {
     String query = rawQuery == null ? "" : rawQuery.strip();
     if (query.isEmpty() || query.length() > 100 || page < 0 || page > 10000 || size < 1 || size > 100
-        || !Set.of("all", "folder").contains(scope) || !Set.of("all", "folder", "image", "video", "audio", "doc", "other").contains(type)
+        || !Set.of("all", "folder").contains(scope)
+        || !Set.of("all", "folder", "image", "video", "audio", "doc", "other").contains(type)
         || !Set.of("time", "name", "size").contains(sort) || (scope.equals("all") && parentId != null))
       throw new DriveFailure(HttpStatus.BAD_REQUEST, "INVALID_SEARCH", "Invalid search parameters");
     if (parentId != null) {
@@ -51,7 +56,8 @@ public class FileSearchService {
       if (drive.hiddenTree(user, folder))
         throw new DriveFailure(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
     }
-    // '!' is an explicit LIKE escape: %, _ and ! in filenames remain literal; all values are bound.
+    // '!' is an explicit LIKE escape: %, _ and ! in filenames remain literal; all
+    // values are bound.
     String escaped = query.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_");
     var params = new MapSqlParameterSource().addValue("owner", user.getId()).addValue("scopeId", parentId)
         .addValue("q", "%" + escaped + "%").addValue("limit", size).addValue("offset", (long) page * size);
@@ -63,9 +69,12 @@ public class FileSearchService {
       case "size" -> "f.size_bytes DESC, f.id DESC";
       default -> "f.updated_at DESC, f.id DESC";
     };
-    List<FileResponse> files = jdbc.query(VISIBLE + "SELECT f.*" + filter + " ORDER BY " + order + " LIMIT :limit OFFSET :offset", params,
-        (rs, row) -> new FileResponse(rs.getString("id"), rs.getString("name"), rs.getString("kind"), rs.getLong("size_bytes"),
-            rs.getString("parent_id"), rs.getTimestamp("updated_at").toLocalDateTime().atOffset(ZoneOffset.UTC).toInstant().toString(),
+    List<FileResponse> files = jdbc.query(
+        VISIBLE + "SELECT f.*" + filter + " ORDER BY " + order + " LIMIT :limit OFFSET :offset", params,
+        (rs, row) -> new FileResponse(rs.getString("id"), rs.getString("name"), rs.getString("kind"),
+            rs.getLong("size_bytes"),
+            rs.getString("parent_id"),
+            rs.getTimestamp("updated_at").toLocalDateTime().atOffset(ZoneOffset.UTC).toInstant().toString(),
             null, rs.getBoolean("favorite"), false));
     Map<Long, FileResponse> parents = new HashMap<>();
     List<SearchHit> hits = files.stream().map(file -> {
@@ -77,17 +86,22 @@ public class FileSearchService {
         ancestors.addFirst(parent);
         id = parent.parentId() == null ? null : Long.valueOf(parent.parentId());
       }
-      return new SearchHit(file, List.copyOf(ancestors), "/" + String.join("/", ancestors.stream().map(FileResponse::name).toList()));
+      return new SearchHit(file, List.copyOf(ancestors),
+          "/" + String.join("/", ancestors.stream().map(FileResponse::name).toList()));
     }).toList();
     return new SearchResponse(hits, total, page, size);
   }
 
   private static String suffixFilter(Collection<String> extensions) {
-    return "(" + String.join(" OR ", extensions.stream().map(ext -> "LOWER(f.name) LIKE '%." + ext + "'").toList()) + ")";
+    return "(" + String.join(" OR ", extensions.stream().map(ext -> "LOWER(f.name) LIKE '%." + ext + "'").toList())
+        + ")";
   }
+
   private static String typeFilter(String type) {
-    if (type.equals("all")) return "";
-    if (type.equals("folder")) return " AND f.kind = 'folder'";
+    if (type.equals("all"))
+      return "";
+    if (type.equals("folder"))
+      return " AND f.kind = 'folder'";
     String extensions = type.equals("other")
         ? "NOT " + suffixFilter(EXTENSIONS.values().stream().flatMap(Collection::stream).toList())
         : suffixFilter(EXTENSIONS.get(type));

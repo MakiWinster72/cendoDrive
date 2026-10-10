@@ -6,8 +6,15 @@ interface AiSearchResponse {
   results: AiSearchHit[];
 }
 
-export async function searchAiFiles(query: string, signal: AbortSignal): Promise<AiSearchHit[]> {
-  const { data } = await http.post<AiSearchResponse>("/ai/search", { query }, { signal, timeout: 30000 });
+export async function searchAiFiles(
+  query: string,
+  signal: AbortSignal,
+): Promise<AiSearchHit[]> {
+  const { data } = await http.post<AiSearchResponse>(
+    "/ai/search",
+    { query },
+    { signal, timeout: 30000 },
+  );
   if (!Array.isArray(data.results)) throw new Error("AI 搜索响应格式不正确");
   return data.results;
 }

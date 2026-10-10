@@ -37,7 +37,11 @@ const props = withDefaults(
     initialFolderId: null,
   },
 );
-const emit = defineEmits<{ close: []; createFolder: []; uploaded: [item: DriveItem] }>();
+const emit = defineEmits<{
+  close: [];
+  createFolder: [];
+  uploaded: [item: DriveItem];
+}>();
 type UploadType = "image" | "video" | "document" | "audio" | "other";
 type UploadStatus =
   "waiting" | "preparing" | "uploading" | "success" | "failed" | "cancelled";
@@ -56,15 +60,19 @@ interface UploadTask {
 const panel = ref<HTMLElement>();
 const fileInput = ref<HTMLInputElement>();
 let previousFocus: HTMLElement | null = null;
-watch(() => props.open, async (open) => {
-  if (open) {
-    previousFocus = document.activeElement as HTMLElement | null;
-    await nextTick();
-    panel.value?.focus();
-  } else {
-    previousFocus?.focus();
-  }
-}, { immediate: true });
+watch(
+  () => props.open,
+  async (open) => {
+    if (open) {
+      previousFocus = document.activeElement as HTMLElement | null;
+      await nextTick();
+      panel.value?.focus();
+    } else {
+      previousFocus?.focus();
+    }
+  },
+  { immediate: true },
+);
 
 function handleDialogKey(event: KeyboardEvent) {
   if (event.key === "Escape") {
@@ -72,13 +80,23 @@ function handleDialogKey(event: KeyboardEvent) {
     emit("close");
   }
   if (event.key !== "Tab") return;
-  const buttons = [...(panel.value?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") || [])];
+  const buttons = [
+    ...(panel.value?.querySelectorAll<HTMLButtonElement>(
+      "button:not(:disabled)",
+    ) || []),
+  ];
   const first = buttons[0];
   const last = buttons.at(-1);
-  if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.value)) {
+  if (
+    event.shiftKey &&
+    (document.activeElement === first || document.activeElement === panel.value)
+  ) {
     event.preventDefault();
     last?.focus();
-  } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.value)) {
+  } else if (
+    !event.shiftKey &&
+    (document.activeElement === last || document.activeElement === panel.value)
+  ) {
     event.preventDefault();
     first?.focus();
   }
@@ -86,12 +104,22 @@ function handleDialogKey(event: KeyboardEvent) {
 const accept = ref("*/*");
 const uploadTasks = ref<UploadTask[]>([]);
 const transfers = useTransfers();
-watch(uploadTasks, (tasks) => {
-  for (const task of tasks) transfers.syncUpload({
-    id: task.id, name: task.file.name, size: task.file.size,
-    status: task.status, progress: task.progress, error: task.error, fileId: task.fileId,
-  });
-}, { deep: true, flush: "sync" });
+watch(
+  uploadTasks,
+  (tasks) => {
+    for (const task of tasks)
+      transfers.syncUpload({
+        id: task.id,
+        name: task.file.name,
+        size: task.file.size,
+        status: task.status,
+        progress: task.progress,
+        error: task.error,
+        fileId: task.fileId,
+      });
+  },
+  { deep: true, flush: "sync" },
+);
 const selectedType = ref<UploadType | null>(null);
 const unavailableMessage = ref("");
 const selectedFolderId = ref<string | null>(props.initialFolderId);
@@ -291,223 +319,311 @@ function statusText(task: UploadTask) {
 
 <template>
   <Transition name="upload-sheet" appear>
-  <div
-    v-if="open"
-    class="upload-overlay"
-    role="presentation"
-    @click.self="emit('close')"
-  >
-    <section
-      ref="panel"
-      class="upload-panel"
-      tabindex="-1"
-      @keydown="handleDialogKey"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="upload-title"
+    <div
+      v-if="open"
+      class="upload-overlay"
+      role="presentation"
+      @click.self="emit('close')"
     >
-      <div class="backup-banner">
-        <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
-        <span>开启相册备份，节省手机空间</span>
-        <button type="button" @click="chooseType('image', 'image/*')">立即上传</button>
-      </div>
-      <div class="upload-content">
-        <div class="quick-actions" aria-label="快捷功能">
-          <button type="button" @click="showUnavailable('扫一扫')"><UploadActionIcon kind="scan" /><span>扫一扫</span></button>
-          <button type="button" @click="showUnavailable('链接任务')"><UploadActionIcon kind="link" /><span>链接任务</span></button>
-          <button type="button" @click="showUnavailable('BT任务')"><UploadActionIcon kind="bt" /><span>BT任务</span></button>
-        </div>
-        <p v-if="unavailableMessage" class="unavailable-message" role="status">{{ unavailableMessage }}</p>
-        <h2 id="upload-title">上传文件</h2>
-        <div class="upload-options">
-          <button class="upload-option" type="button" @click="chooseType('image', 'image/*')">
-            <span class="action-art"><span class="action-badge live-badge">Live 原图</span><UploadActionIcon kind="photo" /></span><span>照片</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('video', 'video/*')">
-            <span class="action-art"><span class="action-badge vip-badge">SVIP</span><UploadActionIcon kind="video" /></span><span>视频</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('document', '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx')">
-            <span class="action-art"><UploadActionIcon kind="document" /></span><span>文档</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('audio', 'audio/*')">
-            <span class="action-art"><UploadActionIcon kind="audio" /></span><span>音频</span>
-          </button>
-          <button class="upload-option" type="button" @click="showUnavailable('微信文件')">
-            <span class="action-art"><UploadActionIcon kind="wechat" /></span><span>微信文件</span>
-          </button>
-          <button class="upload-option" type="button" @click="chooseType('other', '*/*')">
-            <span class="action-art"><UploadActionIcon kind="file" /></span><span>其他文件</span>
-          </button>
-          <button class="upload-option" type="button" @click="emit('createFolder')">
-            <span class="action-art"><UploadActionIcon kind="folder" /></span><span>新建文件夹</span>
-          </button>
-          <button class="upload-option" type="button" @click="showUnavailable('新建文档')">
-            <span class="action-art"><UploadActionIcon kind="note" /></span><span>新建文档</span>
+      <section
+        ref="panel"
+        class="upload-panel"
+        tabindex="-1"
+        @keydown="handleDialogKey"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-title"
+      >
+        <div class="backup-banner">
+          <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
+          <span>开启相册备份，节省手机空间</span>
+          <button type="button" @click="chooseType('image', 'image/*')">
+            立即上传
           </button>
         </div>
-        <h2 class="ai-heading">智能生成</h2>
-        <div class="ai-options">
-          <button v-for="action in [
-            { kind: 'camera', label: 'AI相机' },
-            { kind: 'mic', label: 'AI录音速记' },
-            { kind: 'ai-video', label: 'AI视频笔记' },
-            { kind: 'story', label: 'AI照片故事' },
-          ]" :key="action.kind" class="upload-option" type="button" :aria-label="`${action.label}（暂未开放）`" @click="showUnavailable(action.label)">
-            <span class="action-art"><UploadActionIcon :kind="action.kind" /></span><span>{{ action.label }}</span>
-          </button>
-        </div>
-        <div class="security-caption"><ShieldCheck :size="17" fill="currentColor" stroke="white" /><span>千度网盘保障你的数据安全</span><ChevronRight :size="17" /></div>
-      </div>
-
-      <div v-if="uploadTasks.length" class="selected-files">
-        <div class="selected-files-heading">
-          <div>
-            <strong>上传任务</strong
-            ><small>{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small>
+        <div class="upload-content">
+          <div class="quick-actions" aria-label="快捷功能">
+            <button type="button" @click="showUnavailable('扫一扫')">
+              <UploadActionIcon kind="scan" /><span>扫一扫</span>
+            </button>
+            <button type="button" @click="showUnavailable('链接任务')">
+              <UploadActionIcon kind="link" /><span>链接任务</span>
+            </button>
+            <button type="button" @click="showUnavailable('BT任务')">
+              <UploadActionIcon kind="bt" /><span>BT任务</span>
+            </button>
           </div>
-          <span v-if="activeCount">{{ activeCount }} 个处理中</span
-          ><span v-else>逐个显示上传结果</span>
-        </div>
-        <ul>
-          <li
-            v-for="task in uploadTasks"
-            :key="task.id"
-            class="upload-task-row"
+          <p
+            v-if="unavailableMessage"
+            class="unavailable-message"
+            role="status"
           >
-            <span class="file-badge"
-              ><Check
-                v-if="task.status === 'success'"
-                :size="17" /><LoaderCircle
-                v-else-if="
-                  task.status === 'preparing' || task.status === 'uploading'
-                "
-                class="spin"
-                :size="17" /><FileText v-else :size="17"
-            /></span>
-            <div class="file-meta">
-              <b :title="task.file.name">{{ task.file.name }}</b
+            {{ unavailableMessage }}
+          </p>
+          <h2 id="upload-title">上传文件</h2>
+          <div class="upload-options">
+            <button
+              class="upload-option"
+              type="button"
+              @click="chooseType('image', 'image/*')"
+            >
+              <span class="action-art"
+                ><span class="action-badge live-badge">Live 原图</span
+                ><UploadActionIcon kind="photo" /></span
+              ><span>照片</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="chooseType('video', 'video/*')"
+            >
+              <span class="action-art"
+                ><span class="action-badge vip-badge">SVIP</span
+                ><UploadActionIcon kind="video" /></span
+              ><span>视频</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="
+                chooseType(
+                  'document',
+                  '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx',
+                )
+              "
+            >
+              <span class="action-art"
+                ><UploadActionIcon kind="document" /></span
+              ><span>文档</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="chooseType('audio', 'audio/*')"
+            >
+              <span class="action-art"><UploadActionIcon kind="audio" /></span
+              ><span>音频</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="showUnavailable('微信文件')"
+            >
+              <span class="action-art"><UploadActionIcon kind="wechat" /></span
+              ><span>微信文件</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="chooseType('other', '*/*')"
+            >
+              <span class="action-art"><UploadActionIcon kind="file" /></span
+              ><span>其他文件</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="emit('createFolder')"
+            >
+              <span class="action-art"><UploadActionIcon kind="folder" /></span
+              ><span>新建文件夹</span>
+            </button>
+            <button
+              class="upload-option"
+              type="button"
+              @click="showUnavailable('新建文档')"
+            >
+              <span class="action-art"><UploadActionIcon kind="note" /></span
+              ><span>新建文档</span>
+            </button>
+          </div>
+          <h2 class="ai-heading">智能生成</h2>
+          <div class="ai-options">
+            <button
+              v-for="action in [
+                { kind: 'camera', label: 'AI相机' },
+                { kind: 'mic', label: 'AI录音速记' },
+                { kind: 'ai-video', label: 'AI视频笔记' },
+                { kind: 'story', label: 'AI照片故事' },
+              ]"
+              :key="action.kind"
+              class="upload-option"
+              type="button"
+              :aria-label="`${action.label}（暂未开放）`"
+              @click="showUnavailable(action.label)"
+            >
+              <span class="action-art"
+                ><UploadActionIcon :kind="action.kind" /></span
+              ><span>{{ action.label }}</span>
+            </button>
+          </div>
+          <div class="security-caption">
+            <ShieldCheck :size="17" fill="currentColor" stroke="white" /><span
+              >千度网盘保障你的数据安全</span
+            ><ChevronRight :size="17" />
+          </div>
+        </div>
+
+        <div v-if="uploadTasks.length" class="selected-files">
+          <div class="selected-files-heading">
+            <div>
+              <strong>上传任务</strong
               ><small
-                >{{ formatSize(task.file.size) }} · {{ fileType(task.file) }} ·
-                {{ statusText(task) }}</small
+                >{{ selectedTypeName }} · {{ uploadTasks.length }} 个</small
               >
-              <div
-                v-if="
-                  task.status === 'preparing' ||
-                  task.status === 'uploading' ||
-                  task.status === 'success'
-                "
-                class="progress-line"
-              >
-                <div class="progress-track">
-                  <span
-                    :class="task.status"
-                    :style="{ width: `${task.progress}%` }"
-                  ></span>
+            </div>
+            <span v-if="activeCount">{{ activeCount }} 个处理中</span
+            ><span v-else>逐个显示上传结果</span>
+          </div>
+          <ul>
+            <li
+              v-for="task in uploadTasks"
+              :key="task.id"
+              class="upload-task-row"
+            >
+              <span class="file-badge"
+                ><Check
+                  v-if="task.status === 'success'"
+                  :size="17" /><LoaderCircle
+                  v-else-if="
+                    task.status === 'preparing' || task.status === 'uploading'
+                  "
+                  class="spin"
+                  :size="17" /><FileText v-else :size="17"
+              /></span>
+              <div class="file-meta">
+                <b :title="task.file.name">{{ task.file.name }}</b
+                ><small
+                  >{{ formatSize(task.file.size) }} ·
+                  {{ fileType(task.file) }} · {{ statusText(task) }}</small
+                >
+                <div
+                  v-if="
+                    task.status === 'preparing' ||
+                    task.status === 'uploading' ||
+                    task.status === 'success'
+                  "
+                  class="progress-line"
+                >
+                  <div class="progress-track">
+                    <span
+                      :class="task.status"
+                      :style="{ width: `${task.progress}%` }"
+                    ></span>
+                  </div>
+                  <small>{{
+                    task.status === "preparing"
+                      ? `校验 ${task.progress}%`
+                      : `${task.progress}%`
+                  }}</small>
                 </div>
-                <small>{{
-                  task.status === "preparing"
-                    ? `校验 ${task.progress}%`
-                    : `${task.progress}%`
+                <small v-if="task.error" class="task-error">{{
+                  task.error
                 }}</small>
               </div>
-              <small v-if="task.error" class="task-error">{{
-                task.error
-              }}</small>
-            </div>
-            <button
-              v-if="task.status === 'preparing' || task.status === 'uploading'"
+              <button
+                v-if="
+                  task.status === 'preparing' || task.status === 'uploading'
+                "
+                type="button"
+                aria-label="取消上传"
+                @click="cancelUpload(task)"
+              >
+                <X :size="16" />
+              </button>
+              <button
+                v-else-if="
+                  task.status === 'failed' || task.status === 'cancelled'
+                "
+                type="button"
+                aria-label="重试上传"
+                @click="retryUpload(task)"
+              >
+                <RotateCcw :size="16" />
+              </button>
+              <button
+                v-else-if="task.status !== 'success'"
+                type="button"
+                aria-label="移除文件"
+                @click="removeFile(task.id)"
+              >
+                <Trash2 :size="16" />
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-if="selectedFiles.length && folderPickerOpen"
+          class="folder-picker"
+        >
+          <div class="folder-picker-heading">
+            <strong>选择上传位置</strong
+            ><button
               type="button"
-              aria-label="取消上传"
-              @click="cancelUpload(task)"
+              aria-label="关闭文件夹选择"
+              @click="folderPickerOpen = false"
             >
               <X :size="16" />
             </button>
-            <button
-              v-else-if="
-                task.status === 'failed' || task.status === 'cancelled'
-              "
-              type="button"
-              aria-label="重试上传"
-              @click="retryUpload(task)"
-            >
-              <RotateCcw :size="16" />
-            </button>
-            <button
-              v-else-if="task.status !== 'success'"
-              type="button"
-              aria-label="移除文件"
-              @click="removeFile(task.id)"
-            >
-              <Trash2 :size="16" />
-            </button>
-          </li>
-        </ul>
-      </div>
-
-      <div
-        v-if="selectedFiles.length && folderPickerOpen"
-        class="folder-picker"
-      >
-        <div class="folder-picker-heading">
-          <strong>选择上传位置</strong
-          ><button
+          </div>
+          <button
+            v-for="folder in props.folderOptions"
+            :key="folder.id || 'root'"
             type="button"
-            aria-label="关闭文件夹选择"
-            @click="folderPickerOpen = false"
+            :class="{ selected: folder.id === selectedFolderId }"
+            @click="selectFolder(folder.id)"
           >
-            <X :size="16" />
+            {{ folder.name
+            }}<span v-if="folder.id === selectedFolderId">已选择</span>
           </button>
         </div>
-        <button
-          v-for="folder in props.folderOptions"
-          :key="folder.id || 'root'"
-          type="button"
-          :class="{ selected: folder.id === selectedFolderId }"
-          @click="selectFolder(folder.id)"
-        >
-          {{ folder.name
-          }}<span v-if="folder.id === selectedFolderId">已选择</span>
-        </button>
-      </div>
 
-      <input
-        ref="fileInput"
-        class="file-input"
-        type="file"
-        :accept="accept"
-        multiple
-        @change="handleFileSelection"
-      />
-      <footer v-if="uploadTasks.length" class="upload-footer">
-        <template v-if="uploadTasks.length">
-          <button
-            class="destination-button"
-            type="button"
-            @click="folderPickerOpen = !folderPickerOpen"
+        <input
+          ref="fileInput"
+          class="file-input"
+          type="file"
+          :accept="accept"
+          multiple
+          @change="handleFileSelection"
+        />
+        <footer v-if="uploadTasks.length" class="upload-footer">
+          <template v-if="uploadTasks.length">
+            <button
+              class="destination-button"
+              type="button"
+              @click="folderPickerOpen = !folderPickerOpen"
+            >
+              上传到：<b>{{ selectedFolderName }}</b
+              ><span>›</span>
+            </button>
+            <button
+              v-if="hasPending || activeCount"
+              class="start-upload-button"
+              type="button"
+              :disabled="waitingCount + retryCount === 0"
+              @click="startUpload"
+            >
+              {{ uploadButtonText }}
+            </button>
+            <button
+              v-else
+              class="upload-complete-button"
+              type="button"
+              @click="emit('close')"
+            >
+              上传完成
+            </button>
+          </template>
+          <template v-else
+            ><span>选择文件后，可在这里查看上传进度</span
+            ><button type="button" @click="emit('close')">
+              暂时取消
+            </button></template
           >
-            上传到：<b>{{ selectedFolderName }}</b
-            ><span>›</span>
-          </button>
-          <button
-            v-if="hasPending || activeCount"
-            class="start-upload-button"
-            type="button"
-            :disabled="waitingCount + retryCount === 0"
-            @click="startUpload"
-          >
-            {{ uploadButtonText }}
-          </button>
-          <button v-else class="upload-complete-button" type="button" @click="emit('close')">上传完成</button>
-        </template>
-        <template v-else
-          ><span>选择文件后，可在这里查看上传进度</span
-          ><button type="button" @click="emit('close')">
-            暂时取消
-          </button></template
-        >
-      </footer>
-    </section>
-  </div>
+        </footer>
+      </section>
+    </div>
   </Transition>
 </template>
 
@@ -526,12 +642,20 @@ function statusText(task: UploadTask) {
   max-height: calc(100dvh - 48px);
   overflow: auto;
   border-radius: 20px;
-  background: radial-gradient(ellipse at 100% 65%, #f0f9ff, transparent 45%), linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
+  background:
+    radial-gradient(ellipse at 100% 65%, #f0f9ff, transparent 45%),
+    linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
   color: #080f1e;
   outline: none;
 }
-.upload-panel button { font: inherit; cursor: pointer; }
-.upload-panel button:focus-visible { outline: 2px solid #438aff; outline-offset: 4px; }
+.upload-panel button {
+  font: inherit;
+  cursor: pointer;
+}
+.upload-panel button:focus-visible {
+  outline: 2px solid #438aff;
+  outline-offset: 4px;
+}
 .backup-banner {
   display: flex;
   align-items: center;
@@ -542,33 +666,181 @@ function statusText(task: UploadTask) {
   font-weight: 600;
   color: #50596b;
 }
-.backup-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: white; }
-.backup-icon svg { width: 21px; height: 21px; }
-.backup-banner button { margin-left: auto; padding: 10px 12px; flex-shrink: 0; border: 0; border-radius: 9px; background: #e4eeff; color: #4185ff; font-weight: 600; }
-.upload-content { padding: 17px 17px 40px; }
-.quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; height: 54px; padding: 0 8px; border: 0; border-radius: 15px; background: rgb(255 255 255 / 82%); color: #27344a; font-size: 14px; font-weight: 600; }
-.quick-actions svg { flex: 0 0 auto; width: 30px; height: 30px; }
-.quick-actions button:active, .upload-option:active { transform: scale(.97); }
-.unavailable-message { margin: 10px 4px -5px; color: #526987; font-size: 12px; text-align: center; }
-.upload-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.upload-quick-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 58px; padding: 8px; border: 0; border-radius: 14px; background: #fff; color: #33435c; }
-.upload-quick-actions button:disabled { cursor: default; }
-.upload-quick-actions svg { flex: none; width: 24px; height: 24px; color: #4696f1; }
-.upload-quick-actions span { min-width: 0; font-size: 14px; white-space: nowrap; }
-.upload-quick-actions small { display: block; color: #8491a4; font-size: 10px; }
-.upload-content h2 { margin: 26px 9px 21px; font-size: 21px; line-height: 1.3; font-weight: 700; }
-.upload-options, .ai-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0; row-gap: 19px; }
-.upload-option { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px 0 0; border: 0; background: transparent; color: inherit; font-size: 17px !important; white-space: nowrap; }
-.action-art { position: relative; display: block; width: 51px; height: 51px; }
-.action-art > svg { width: 100%; height: 100%; }
-.action-badge { position: absolute; z-index: 1; top: -19px; left: 36px; padding: 2px 8px; border-radius: 20px; font-size: 14px; line-height: 1.25; white-space: nowrap; }
-.live-badge { background: #4287ff; color: white; }
-.vip-badge { background: #35251f; color: #fce1bb; font-style: italic; font-weight: 700; }
-.upload-content .ai-heading { margin-top: 37px; margin-bottom: 22px; }
-.ai-options .action-art { width: 48px; height: 48px; }
-.ai-options .upload-option { gap: 17px; }
-.security-caption { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 23px; color: #4185ff; font-size: 16px; font-weight: 500; }
+.backup-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: white;
+}
+.backup-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.backup-banner button {
+  margin-left: auto;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 9px;
+  background: #e4eeff;
+  color: #4185ff;
+  font-weight: 600;
+}
+.upload-content {
+  padding: 17px 17px 40px;
+}
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.quick-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  height: 54px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 15px;
+  background: rgb(255 255 255 / 82%);
+  color: #27344a;
+  font-size: 14px;
+  font-weight: 600;
+}
+.quick-actions svg {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+}
+.quick-actions button:active,
+.upload-option:active {
+  transform: scale(0.97);
+}
+.unavailable-message {
+  margin: 10px 4px -5px;
+  color: #526987;
+  font-size: 12px;
+  text-align: center;
+}
+.upload-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.upload-quick-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #33435c;
+}
+.upload-quick-actions button:disabled {
+  cursor: default;
+}
+.upload-quick-actions svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: #4696f1;
+}
+.upload-quick-actions span {
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.upload-quick-actions small {
+  display: block;
+  color: #8491a4;
+  font-size: 10px;
+}
+.upload-content h2 {
+  margin: 26px 9px 21px;
+  font-size: 21px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+.upload-options,
+.ai-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 19px;
+}
+.upload-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 17px !important;
+  white-space: nowrap;
+}
+.action-art {
+  position: relative;
+  display: block;
+  width: 51px;
+  height: 51px;
+}
+.action-art > svg {
+  width: 100%;
+  height: 100%;
+}
+.action-badge {
+  position: absolute;
+  z-index: 1;
+  top: -19px;
+  left: 36px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.live-badge {
+  background: #4287ff;
+  color: white;
+}
+.vip-badge {
+  background: #35251f;
+  color: #fce1bb;
+  font-style: italic;
+  font-weight: 700;
+}
+.upload-content .ai-heading {
+  margin-top: 37px;
+  margin-bottom: 22px;
+}
+.ai-options .action-art {
+  width: 48px;
+  height: 48px;
+}
+.ai-options .upload-option {
+  gap: 17px;
+}
+.security-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 23px;
+  color: #4185ff;
+  font-size: 16px;
+  font-weight: 500;
+}
 
 .selected-files {
   margin: 0 30px 24px;
@@ -816,35 +1088,126 @@ function statusText(task: UploadTask) {
 }
 
 @media (width < 768px) {
-  .upload-overlay { align-items: end; padding: 0; }
-  .upload-panel { width: 100%; max-height: 100dvh; border-radius: 0; }
-  .backup-banner { padding: 9px 18px; gap: 7px; font-size: 12px; min-height: 49px; box-sizing: border-box; }
-  .backup-icon { width: 24px; height: 24px; }
-  .backup-icon svg { width: 16px; height: 16px; }
-  .backup-banner button { padding: 7px 8px; border-radius: 7px; }
-  .upload-content { padding: 12px 12px max(32px, env(safe-area-inset-bottom)); }
-  .quick-actions { gap: 8px; }
-  .quick-actions button { height: 48px; gap: 6px; padding: 0 3px; border-radius: 13px; font-size: 12px; }
-  .quick-actions button > svg { width: 28px; height: 28px; }
-  .unavailable-message { margin-top: 8px; font-size: 11px; }
-  .upload-quick-actions { gap: 6px; }
-  .upload-quick-actions button { min-height: 48px; padding: 5px 3px; gap: 4px; border-radius: 12px; }
-  .upload-quick-actions svg { width: 19px; height: 19px; }
-  .upload-quick-actions span { font-size: 11px; }
-  .upload-quick-actions small { font-size: 9px; }
-  .upload-content h2 { margin: 18px 6px 14px; font-size: 14px; }
-  .upload-options { row-gap: 0; }
-  .upload-option { gap: 9px; padding-top: 0; font-size: 12px !important; line-height: 1.25; }
-  .action-art { width: 36px; height: 36px; }
-  .action-badge { top: -13px; left: 25px; padding: 1px 6px; font-size: 10px; }
-  .upload-content .ai-heading { margin-top: 25px; margin-bottom: 13px; }
-  .ai-options .action-art { width: 34px; height: 34px; }
-  .ai-options .upload-option { gap: 12px; }
-  .security-caption { gap: 4px; margin-top: 16px; font-size: 12px; }
-  .security-caption svg { width: 14px; height: 14px; }
-  .selected-files { margin: 0 18px 16px; }
-  .folder-picker { margin: 0 18px 16px; }
-  .upload-footer { padding: 14px 18px max(14px, env(safe-area-inset-bottom)); }
+  .upload-overlay {
+    align-items: end;
+    padding: 0;
+  }
+  .upload-panel {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .backup-banner {
+    padding: 9px 18px;
+    gap: 7px;
+    font-size: 12px;
+    min-height: 49px;
+    box-sizing: border-box;
+  }
+  .backup-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .backup-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .backup-banner button {
+    padding: 7px 8px;
+    border-radius: 7px;
+  }
+  .upload-content {
+    padding: 12px 12px max(32px, env(safe-area-inset-bottom));
+  }
+  .quick-actions {
+    gap: 8px;
+  }
+  .quick-actions button {
+    height: 48px;
+    gap: 6px;
+    padding: 0 3px;
+    border-radius: 13px;
+    font-size: 12px;
+  }
+  .quick-actions button > svg {
+    width: 28px;
+    height: 28px;
+  }
+  .unavailable-message {
+    margin-top: 8px;
+    font-size: 11px;
+  }
+  .upload-quick-actions {
+    gap: 6px;
+  }
+  .upload-quick-actions button {
+    min-height: 48px;
+    padding: 5px 3px;
+    gap: 4px;
+    border-radius: 12px;
+  }
+  .upload-quick-actions svg {
+    width: 19px;
+    height: 19px;
+  }
+  .upload-quick-actions span {
+    font-size: 11px;
+  }
+  .upload-quick-actions small {
+    font-size: 9px;
+  }
+  .upload-content h2 {
+    margin: 18px 6px 14px;
+    font-size: 14px;
+  }
+  .upload-options {
+    row-gap: 0;
+  }
+  .upload-option {
+    gap: 9px;
+    padding-top: 0;
+    font-size: 12px !important;
+    line-height: 1.25;
+  }
+  .action-art {
+    width: 36px;
+    height: 36px;
+  }
+  .action-badge {
+    top: -13px;
+    left: 25px;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+  .upload-content .ai-heading {
+    margin-top: 25px;
+    margin-bottom: 13px;
+  }
+  .ai-options .action-art {
+    width: 34px;
+    height: 34px;
+  }
+  .ai-options .upload-option {
+    gap: 12px;
+  }
+  .security-caption {
+    gap: 4px;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+  .security-caption svg {
+    width: 14px;
+    height: 14px;
+  }
+  .selected-files {
+    margin: 0 18px 16px;
+  }
+  .folder-picker {
+    margin: 0 18px 16px;
+  }
+  .upload-footer {
+    padding: 14px 18px max(14px, env(safe-area-inset-bottom));
+  }
 }
 .upload-sheet-enter-active,
 .upload-sheet-leave-active {
@@ -870,16 +1233,25 @@ function statusText(task: UploadTask) {
 .upload-sheet-leave-to .upload-panel {
   transform: translateY(100%);
 }
-@keyframes upload-spin { to { transform: rotate(360deg); } }
+@keyframes upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
+  .spin {
+    animation: none;
+  }
   .progress-track span,
   .upload-sheet-enter-active,
   .upload-sheet-leave-active,
   .upload-sheet-enter-active .upload-panel,
-  .upload-sheet-leave-active .upload-panel { transition: none; }
+  .upload-sheet-leave-active .upload-panel {
+    transition: none;
+  }
   .upload-sheet-enter-from .upload-panel,
-  .upload-sheet-leave-to .upload-panel { transform: none; }
+  .upload-sheet-leave-to .upload-panel {
+    transform: none;
+  }
 }
-
 </style>

@@ -75,12 +75,36 @@ const router = createRouter({
       name: "share",
       component: () => import("../views/ShareView.vue"),
     },
-    { path: "/friends", component: () => import("../views/ChatDiscoveryView.vue"), meta: { requiresAuth: true } },
-    { path: "/groups/new", component: () => import("../views/NewGroupView.vue"), meta: { requiresAuth: true } },
-    { path: "/chat/:id/files/select", component: () => import("../views/ChatFileSelectView.vue"), meta: { requiresAuth: true } },
-    { path: "/chat/:id/files/:messageId", component: () => import("../views/ChatFileDetailView.vue"), meta: { requiresAuth: true } },
-    { path: "/chat/:id/files/:messageId/save", component: () => import("../views/ChatFileSaveView.vue"), meta: { requiresAuth: true } },
-    { path: "/chat/:id", component: () => import("../views/ChatView.vue"), meta: { requiresAuth: true } },
+    {
+      path: "/friends",
+      component: () => import("../views/ChatDiscoveryView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/groups/new",
+      component: () => import("../views/NewGroupView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/chat/:id/files/select",
+      component: () => import("../views/ChatFileSelectView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/chat/:id/files/:messageId",
+      component: () => import("../views/ChatFileDetailView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/chat/:id/files/:messageId/save",
+      component: () => import("../views/ChatFileSaveView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/chat/:id",
+      component: () => import("../views/ChatView.vue"),
+      meta: { requiresAuth: true },
+    },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 });

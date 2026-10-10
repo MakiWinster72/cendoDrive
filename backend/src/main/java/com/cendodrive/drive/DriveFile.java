@@ -99,7 +99,9 @@ public class DriveFile {
     return storageBackend;
   }
 
-  public LocalDateTime getCreatedAt() { return createdAt; }
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
 
   public LocalDateTime getUpdatedAt() {
     return updatedAt;
@@ -109,13 +111,21 @@ public class DriveFile {
     return deletedAt;
   }
 
-  public boolean isFavorite() { return favorite; }
+  public boolean isFavorite() {
+    return favorite;
+  }
 
-  public boolean isHidden() { return hidden; }
+  public boolean isHidden() {
+    return hidden;
+  }
 
-  void setFavorite(boolean value) { favorite = value; }
+  void setFavorite(boolean value) {
+    favorite = value;
+  }
 
-  void setHidden(boolean value) { hidden = value; }
+  void setHidden(boolean value) {
+    hidden = value;
+  }
 
   public boolean isFolder() {
     return "folder".equals(kind);

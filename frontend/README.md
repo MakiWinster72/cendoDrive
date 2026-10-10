@@ -122,4 +122,3 @@ npm run build
 - 转存、云添加、会员加速、推广领取、下载券使用及右上角批量选择/设置保留为无操作展示按钮。
 
 验证：`npm test` 和 `npm run build`。新增 `src/stores/transfers.test.ts` 覆盖并发调度、进度、失败与清理；`src/components/TransferPage.test.ts` 覆盖模板编译、品牌及假按钮。
-

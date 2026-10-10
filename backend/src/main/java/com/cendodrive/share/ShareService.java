@@ -26,7 +26,8 @@ public class ShareService {
   private final ShareCodeGuard codes;
 
   @Autowired
-  public ShareService(ShareLinkRepository links, ShareAccessStore access, DriveService drive, UserRepository users, ShareCodeGuard codes) {
+  public ShareService(ShareLinkRepository links, ShareAccessStore access, DriveService drive, UserRepository users,
+      ShareCodeGuard codes) {
     this(links, access, drive, users, Clock.systemUTC(), codes);
   }
 
@@ -69,7 +70,9 @@ public class ShareService {
     links.saveAndFlush(link);
   }
 
-  public ShareAccessResponse get(String token) { return get(token, null, "internal"); }
+  public ShareAccessResponse get(String token) {
+    return get(token, null, "internal");
+  }
 
   public ShareAccessResponse get(String token, String code, String client) {
     Resolved resolved = resolve(token, code, client);
@@ -80,7 +83,9 @@ public class ShareService {
     return new ShareAccessResponse(file, resolved.link().getExpiresAt().toString());
   }
 
-  public DriveService.Download download(String token) { return download(token, null, "internal"); }
+  public DriveService.Download download(String token) {
+    return download(token, null, "internal");
+  }
 
   public DriveService.Download download(String token, String code, String client) {
     Resolved resolved = resolve(token, code, client);
@@ -91,27 +96,32 @@ public class ShareService {
     return save(recipient, token, request, null, "internal");
   }
 
-  public FileResponse save(User recipient, String token, SaveShareRequest request, String code, String client) throws IOException {
+  public FileResponse save(User recipient, String token, SaveShareRequest request, String code, String client)
+      throws IOException {
     Resolved resolved = resolve(token, code, client);
     return drive.saveSharedFile(recipient, resolved.owner(), resolved.file().getId(), request.parentId());
   }
 
   private Resolved resolve(String token, String code, String client) {
-    if (token == null || !token.matches("[a-f0-9]{32}")) throw notFound();
+    if (token == null || !token.matches("[a-f0-9]{32}"))
+      throw notFound();
     ShareLink link = links.findByToken(token).orElseThrow(ShareService::notFound);
-    if (!link.isActiveAt(clock.instant()) || !access.allows(link)) throw notFound();
+    if (!link.isActiveAt(clock.instant()) || !access.allows(link))
+      throw notFound();
     User owner = users.findById(link.getOwnerId()).filter(User::isActive).orElseThrow(ShareService::notFound);
     try {
       DriveFile file = drive.shareableFile(owner, link.getFileId());
       codes.verify(link, code, client);
       return new Resolved(link, owner, file);
     } catch (DriveFailure ex) {
-      if (ex.code().startsWith("SHARE_CODE_")) throw ex;
+      if (ex.code().startsWith("SHARE_CODE_"))
+        throw ex;
       throw notFound();
     }
   }
 
-  private record Resolved(ShareLink link, User owner, DriveFile file) {}
+  private record Resolved(ShareLink link, User owner, DriveFile file) {
+  }
 
   private static DriveFailure notFound() {
     return new DriveFailure(HttpStatus.NOT_FOUND, "SHARE_NOT_FOUND", "Share not found, expired or cancelled");

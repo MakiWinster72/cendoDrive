@@ -13,7 +13,8 @@ export interface DriveItemResponse {
   favorite?: boolean;
   hidden?: boolean;
 }
-export type SearchType = "all" | "folder" | "image" | "video" | "audio" | "doc" | "other";
+export type SearchType =
+  "all" | "folder" | "image" | "video" | "audio" | "doc" | "other";
 export interface FileSearchParams {
   q: string;
   scope: "all" | "folder";
@@ -34,8 +35,13 @@ export interface FileSearchResponse {
   page: number;
   size: number;
 }
-export async function searchFiles(params: FileSearchParams, signal?: AbortSignal): Promise<FileSearchResponse> {
-  return (await http.get<FileSearchResponse>("/files/search", { params, signal })).data;
+export async function searchFiles(
+  params: FileSearchParams,
+  signal?: AbortSignal,
+): Promise<FileSearchResponse> {
+  return (
+    await http.get<FileSearchResponse>("/files/search", { params, signal })
+  ).data;
 }
 export interface StorageUsage {
   usedBytes: number;
@@ -67,20 +73,42 @@ export async function listFolders(): Promise<DriveItemResponse[]> {
 export async function getFileDetails(id: string): Promise<FileDetails> {
   return (await http.get<FileDetails>(`/files/${id}/details`)).data;
 }
-export async function setFavorite(ids: string[], value: boolean): Promise<DriveItemResponse[]> {
-  return (await http.post<DriveItemResponse[]>("/files/favorite", { ids, value })).data;
+export async function setFavorite(
+  ids: string[],
+  value: boolean,
+): Promise<DriveItemResponse[]> {
+  return (
+    await http.post<DriveItemResponse[]>("/files/favorite", { ids, value })
+  ).data;
 }
-export async function setHidden(ids: string[], value: boolean): Promise<DriveItemResponse[]> {
-  return (await http.post<DriveItemResponse[]>("/files/hidden", { ids, value })).data;
+export async function setHidden(
+  ids: string[],
+  value: boolean,
+): Promise<DriveItemResponse[]> {
+  return (await http.post<DriveItemResponse[]>("/files/hidden", { ids, value }))
+    .data;
 }
-export async function moveFiles(ids: string[], parentId: string | null): Promise<DriveItemResponse[]> {
-  return (await http.post<DriveItemResponse[]>("/files/move", { ids, parentId })).data;
+export async function moveFiles(
+  ids: string[],
+  parentId: string | null,
+): Promise<DriveItemResponse[]> {
+  return (
+    await http.post<DriveItemResponse[]>("/files/move", { ids, parentId })
+  ).data;
 }
-export async function copyFiles(ids: string[], parentId: string | null): Promise<DriveItemResponse[]> {
-  return (await http.post<DriveItemResponse[]>("/files/copy", { ids, parentId })).data;
+export async function copyFiles(
+  ids: string[],
+  parentId: string | null,
+): Promise<DriveItemResponse[]> {
+  return (
+    await http.post<DriveItemResponse[]>("/files/copy", { ids, parentId })
+  ).data;
 }
-export async function organizeFiles(ids: string[]): Promise<DriveItemResponse[]> {
-  return (await http.post<DriveItemResponse[]>("/files/organize", { ids })).data;
+export async function organizeFiles(
+  ids: string[],
+): Promise<DriveItemResponse[]> {
+  return (await http.post<DriveItemResponse[]>("/files/organize", { ids }))
+    .data;
 }
 interface ApiError {
   code: string;
@@ -169,7 +197,7 @@ export async function downloadFile(
   const response = await http.get<Blob>(`/files/${id}/download`, {
     responseType: "blob",
     onDownloadProgress: (event) => {
-      if (event.total) onProgress?.(event.loaded / event.total * 100);
+      if (event.total) onProgress?.((event.loaded / event.total) * 100);
     },
   });
   const disposition = response.headers["content-disposition"] as

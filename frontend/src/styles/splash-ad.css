@@ -4,7 +4,8 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: max(12px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  padding: max(12px, env(safe-area-inset-top)) 16px
+    max(20px, env(safe-area-inset-bottom));
   background: #101825;
 }
 .splash-ad-content {
@@ -20,9 +21,53 @@
   color: #fff;
   text-align: left;
 }
-.splash-ad-content img { width: 100%; height: 100%; object-fit: cover; }
-.splash-ad-content .splash-ad-title { position: absolute; inset: auto 0 0; padding: 34px 18px 20px; background: linear-gradient(transparent,#0e1724d9); font-size: 17px; font-weight: 700; }
-.splash-ad-content .splash-ad-image-fallback { display: grid; width: 100%; height: 100%; place-items: center; color: #fff; font-size: 27px; font-weight: 750; letter-spacing: .08em; }
-.splash-ad-skip { align-self: flex-end; min-width: 78px; min-height: 34px; margin-top: 12px; padding: 0 13px; border: 1px solid #ffffff80; border-radius: 18px; background: #0005; color: #fff; font-size: 12px; }
-.splash-ad-skip:disabled { border-color: #ffffff50; color: #ffffffc9; }
-.splash-ad-demo-badge { position: absolute; top: max(22px,calc(env(safe-area-inset-top) + 10px)); left: 26px; padding: 5px 9px; border: 1px solid #ffffff55; border-radius: 13px; background: #13284270; color: #fff; font-size: 10px; }
+.splash-ad-content img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.splash-ad-content .splash-ad-title {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 34px 18px 20px;
+  background: linear-gradient(transparent, #0e1724d9);
+  font-size: 17px;
+  font-weight: 700;
+}
+.splash-ad-content .splash-ad-image-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #fff;
+  font-size: 27px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+.splash-ad-skip {
+  align-self: flex-end;
+  min-width: 78px;
+  min-height: 34px;
+  margin-top: 12px;
+  padding: 0 13px;
+  border: 1px solid #ffffff80;
+  border-radius: 18px;
+  background: #0005;
+  color: #fff;
+  font-size: 12px;
+}
+.splash-ad-skip:disabled {
+  border-color: #ffffff50;
+  color: #ffffffc9;
+}
+.splash-ad-demo-badge {
+  position: absolute;
+  top: max(22px, calc(env(safe-area-inset-top) + 10px));
+  left: 26px;
+  padding: 5px 9px;
+  border: 1px solid #ffffff55;
+  border-radius: 13px;
+  background: #13284270;
+  color: #fff;
+  font-size: 10px;
+}

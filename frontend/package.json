@@ -9,7 +9,9 @@
     "prebuild": "node scripts/prepare-pdfjs.mjs",
     "build": "vue-tsc -b && vite build",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@iconify-icons/ri": "^2.0.0",
@@ -31,6 +33,7 @@
     "@vue/test-utils": "^2.5.1",
     "jsdom": "^30.1.2",
     "jsqr": "^1.4.0",
+    "prettier": "^3.9.9",
     "typescript": "~5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.9",

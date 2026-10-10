@@ -14,7 +14,10 @@ import com.cendodrive.drive.FileSearchDtos.SearchResponse;
 @SecurityRequirement(name = "bearerAuth")
 public class FileSearchController {
   private final FileSearchService search;
-  public FileSearchController(FileSearchService search) { this.search = search; }
+
+  public FileSearchController(FileSearchService search) {
+    this.search = search;
+  }
 
   @GetMapping
   @Operation(summary = "按文件名搜索", description = "仅搜索当前用户的可见文件名，不读取正文或 OCR。scope=all 为全网盘，folder 包括当前目录及子目录；排除隐藏、回收站及其后代。页码从 0 开始。")

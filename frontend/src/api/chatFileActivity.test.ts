@@ -21,7 +21,12 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("chat file activity", () => {
   it("keeps the most recent view first and deduplicates a file", () => {
-    const file = { roomId: "room-a", messageId: 14, name: "brief.pdf", size: 1024 };
+    const file = {
+      roomId: "room-a",
+      messageId: 14,
+      name: "brief.pdf",
+      size: 1024,
+    };
     recordChatFileViewed(file);
     recordChatFileViewed({ ...file, name: "brief-final.pdf" });
 
@@ -31,7 +36,12 @@ describe("chat file activity", () => {
   });
 
   it("adds and removes likes by room and message identity", () => {
-    const file = { roomId: "room-a", messageId: 14, name: "brief.pdf", size: 1024 };
+    const file = {
+      roomId: "room-a",
+      messageId: 14,
+      name: "brief.pdf",
+      size: 1024,
+    };
     setChatFileLiked(file, true);
     expect(isChatFileLiked(file)).toBe(true);
     expect(getLikedChatFiles()).toHaveLength(1);

@@ -28,7 +28,7 @@ public class AuthService {
 
   public AuthService(UserRepository users, PasswordEncoder encoder, StringRedisTemplate redis,
       LoginRateLimiter limiter) {
-    this(users,encoder,redis,limiter,java.time.Clock.systemUTC());
+    this(users, encoder, redis, limiter, java.time.Clock.systemUTC());
   }
 
   @org.springframework.beans.factory.annotation.Autowired
@@ -63,15 +63,16 @@ public class AuthService {
 
   @Transactional
   public void restore(LoginRequest request) {
-    String username=request.username().trim().toLowerCase(java.util.Locale.ROOT);
+    String username = request.username().trim().toLowerCase(java.util.Locale.ROOT);
     limiter.check(username);
-    User candidate=users.findByUsername(username).orElse(null);
-    User user=candidate==null ? null : users.lock(candidate.getId()).orElse(null);
-    if (user==null || user.isActive() || user.getDeletedAt()==null
-        || !java.time.LocalDateTime.now(clock).isBefore(user.getDeletedAt().plusDays(com.cendodrive.user.UserService.DELETION_DAYS))
-        || !encoder.matches(request.password(),user.getPasswordHash())) {
+    User candidate = users.findByUsername(username).orElse(null);
+    User user = candidate == null ? null : users.lock(candidate.getId()).orElse(null);
+    if (user == null || user.isActive() || user.getDeletedAt() == null
+        || !java.time.LocalDateTime.now(clock)
+            .isBefore(user.getDeletedAt().plusDays(com.cendodrive.user.UserService.DELETION_DAYS))
+        || !encoder.matches(request.password(), user.getPasswordHash())) {
       limiter.failure(username);
-      throw new AuthFailure(HttpStatus.UNAUTHORIZED,"Invalid credentials or recovery period expired");
+      throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Invalid credentials or recovery period expired");
     }
     limiter.success(username);
     user.restoreAccount();
@@ -81,7 +82,8 @@ public class AuthService {
     byte[] bytes = new byte[32];
     random.nextBytes(bytes);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    redis.opsForValue().set(key(token), user.getId() + ":" + user.getAuthVersion(), Duration.ofSeconds(SESSION_SECONDS));
+    redis.opsForValue().set(key(token), user.getId() + ":" + user.getAuthVersion(),
+        Duration.ofSeconds(SESSION_SECONDS));
     return new LoginResponse(token, SESSION_SECONDS, UserResponse.from(user));
   }
 
@@ -94,11 +96,12 @@ public class AuthService {
     if (session == null)
       throw new AuthFailure(HttpStatus.UNAUTHORIZED, "Unauthorized");
     try {
-      String[] parts=session.split(":",-1);
-      if (parts.length>2) throw new IllegalArgumentException("Invalid session");
-      long version=parts.length==1 ? 0 : Long.parseLong(parts[1]);
+      String[] parts = session.split(":", -1);
+      if (parts.length > 2)
+        throw new IllegalArgumentException("Invalid session");
+      long version = parts.length == 1 ? 0 : Long.parseLong(parts[1]);
       User user = users.findById(Long.parseLong(parts[0])).orElseThrow();
-      if (user.isActive() && user.getAuthVersion()==version)
+      if (user.isActive() && user.getAuthVersion() == version)
         return user;
     } catch (IllegalArgumentException | java.util.NoSuchElementException ignored) {
       /* invalid session */ }
