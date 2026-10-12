@@ -186,6 +186,22 @@ describe("share creation integration", () => {
 });
 
 describe("account page integration", () => {
+  it("omits the identity scan icon while keeping the standalone scan action", async () => {
+    const wrapper = await open();
+    await wrapper
+      .findAll(".mobile-app nav button")
+      .find((button) => button.text() === "我的")!
+      .trigger("click");
+    expect(
+      wrapper.get(".profile-identity").find(".lucide-scan-line").exists(),
+    ).toBe(false);
+    expect(
+      wrapper
+        .get('.profile-header-actions button[aria-label="扫一扫"]')
+        .find(".lucide-scan-line")
+        .exists(),
+    ).toBe(true);
+  });
   it.each([390, 1280])(
     "opens and returns from account management at width %s",
     async (width) => {
@@ -274,7 +290,7 @@ describe("folder navigation and screenshot layout", () => {
       true,
     );
   });
-  it("keeps both home eye controls as visibility toggles and shows storage management", async () => {
+  it("keeps home visibility toggles without displaying the capacity bar", async () => {
     const wrapper = mount(HomeView, {
       attachTo: document.body,
       global: {
@@ -290,9 +306,7 @@ describe("folder navigation and screenshot layout", () => {
     });
     wrappers.push(wrapper);
     await flushPromises();
-    expect(wrapper.find(".m-home-capacity").text()).toContain(
-      "剩余空间：1.0 KiB / 2.0 KiB",
-    );
+    expect(wrapper.find(".m-home-capacity").exists()).toBe(false);
     await wrapper
       .get('.m-banner .m-panel-actions button[aria-label="隐藏转存与订阅"]')
       .trigger("click");
@@ -311,8 +325,6 @@ describe("folder navigation and screenshot layout", () => {
         .get(".m-banner .m-panel-actions button")
         .attributes("aria-pressed"),
     ).toBe("false");
-    await wrapper.get(".m-home-capacity button").trigger("click");
-    expect(wrapper.find(".profile-page").exists()).toBe(true);
   });
   it("switches between shared messages, chat-file history, file sharing, and official account chat", async () => {
     const wrapper = mount(HomeView, {
@@ -1057,14 +1069,31 @@ describe("mobile profile storage usage", () => {
 describe("mobile profile unavailable destinations", () => {
   it("matches the reference profile sections while preserving hidden-space access", async () => {
     const wrapper = await open();
-    await wrapper.findAll('.mobile-app nav button').find(button => button.text() === '我的')!.trigger('click');
+    await wrapper
+      .findAll(".mobile-app nav button")
+      .find((button) => button.text() === "我的")!
+      .trigger("click");
     await flushPromises();
-    expect(wrapper.get('.membership-copy h1').text()).toBe('解锁SVIP');
-    expect(wrapper.findAll('.membership-perks > div')).toHaveLength(5);
-    expect(wrapper.findAll('.profile-shortcuts button').map(button => button.text())).toEqual(['我的收藏', '我的分享', '回收站', '设备管理', '我的打印', '转存与下载', '隐藏空间']);
-    expect(wrapper.findAll('.mission-orb')).toHaveLength(2);
-    await wrapper.get('[aria-label="扫一扫"]').trigger('click');
-    expect(document.body.querySelector('[role="alertdialog"]')?.textContent).toContain('扫一扫功能暂未开放');
+    expect(wrapper.get(".membership-copy h1").text()).toBe("解锁SVIP");
+    expect(wrapper.findAll(".membership-perks > div")).toHaveLength(5);
+    expect(
+      wrapper
+        .findAll(".profile-shortcuts button")
+        .map((button) => button.text()),
+    ).toEqual([
+      "我的收藏",
+      "我的分享",
+      "回收站",
+      "设备管理",
+      "我的打印",
+      "转存与下载",
+      "隐藏空间",
+    ]);
+    expect(wrapper.findAll(".mission-orb")).toHaveLength(2);
+    await wrapper.get('[aria-label="扫一扫"]').trigger("click");
+    expect(
+      document.body.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("扫一扫功能暂未开放");
   });
   it.each([
     [".membership-cta", "membership"],

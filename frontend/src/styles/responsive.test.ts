@@ -65,9 +65,7 @@ describe("responsive style ownership", () => {
       expect(source).toContain("var(--mobile-gutter)");
     }
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
-    expect(home).toContain(
-      "padding-bottom: calc(var(--mobile-content-bottom) + 44px)",
-    );
+    expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(profile).toContain(
       "padding: 32px calc(var(--mobile-gutter) / 3) 18px",
     );

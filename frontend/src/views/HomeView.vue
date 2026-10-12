@@ -1151,19 +1151,6 @@ onUnmounted(() => {
           </button>
         </div>
       </section>
-      <div
-        v-if="drive.state.usage"
-        class="m-home-capacity"
-        aria-label="网盘空间"
-      >
-        <span
-          >剩余空间：{{ formatBytes(drive.state.usage.availableBytes) }} /
-          {{ formatBytes(drive.state.usage.limitBytes) }}</span
-        >
-        <button type="button" @click="mobileTab = 'profile'">
-          点击管理<ChevronRight :size="15" />
-        </button>
-      </div>
     </template>
     <template v-else-if="mobileTab === 'files'">
       <header
@@ -1576,7 +1563,7 @@ onUnmounted(() => {
           <div class="profile-identity">
             <div>
               <strong>{{ displayName }}</strong
-              ><span>SVIP 1</span><ScanLine :size="19" />
+              ><span>SVIP 1</span>
             </div>
             <p>您还不是超级会员 <ChevronRight :size="17" /></p>
           </div>
