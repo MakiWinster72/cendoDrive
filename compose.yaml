@@ -38,10 +38,9 @@ services:
       storage3:
         condition: service_started
 
-  # Optional Claw dependency: enable with --profile claw (also set CENDO_AI_CLAW_ENABLED=true).
+  # Vector service starts by default; Claw is enabled separately via CENDO_AI_CLAW_ENABLED.
   # No published port; persistence is independent of file storage.
   qdrant:
-    profiles: [claw]
     image: qdrant/qdrant:v1.15.4
     # Qdrant treats an empty API-key variable as enabled authentication.
     command: ["/bin/sh", "-c", 'if [ -z "$$QDRANT__SERVICE__API_KEY" ]; then unset QDRANT__SERVICE__API_KEY; fi; exec ./entrypoint.sh']
