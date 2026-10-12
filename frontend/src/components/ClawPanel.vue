@@ -47,7 +47,6 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
   <section class="claw-panel" aria-label="扣扣Claw文件问答">
     <h1>扣扣Claw</h1>
     <p>根据网盘文件内容搜索文件</p>
-    <p class="hint">上传文档后自动索引，提问即可查找正文并获得带来源的回答。支持 TXT、Markdown、CSV、PDF、DOCX，单文件最多 10 MB；扫描件暂不支持。</p>
     <div v-if="status" class="index-status">
       <p v-if="!status.configured" role="status">扣扣Claw尚未配置，请联系管理员。</p>
       <p v-else>已索引 {{ status.ready }} · 处理中 {{ status.pending }} · 失败 {{ status.failed }} · 无法提取 {{ status.unsupported }} · 需要重建 {{ status.needsReindex }}</p>
