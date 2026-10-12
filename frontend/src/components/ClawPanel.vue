@@ -136,7 +136,6 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
           <button v-if="pending" type="button" class="send-button" aria-label="停止回答" @click="stop"><Square :size="16" /></button><button v-else type="submit" class="send-button" aria-label="发送问题" :disabled="!canSend"><ArrowUp :size="22" /></button>
         </div>
       </form>
-      <p class="composer-hint">内容由 AI 生成，请核实重要信息<span>Enter 发送 · Shift + Enter 换行</span></p>
     </footer>
   </section>
 </template>

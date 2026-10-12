@@ -40,6 +40,7 @@ it("shares the welcome and composer, and fills suggestions without sending", asy
   expect(wrapper.text()).toContain("Hello!"); expect(wrapper.text()).toContain("我是扣扣Claw");
   expect(wrapper.find(".robot").exists()).toBe(true); expect(wrapper.find(".composer-tools").exists()).toBe(true);
   expect(wrapper.text()).not.toContain("支持 TXT");
+  expect(wrapper.find(".composer-hint").exists()).toBe(false);
   await wrapper.findAll(".suggestions button")[0]!.trigger("click");
   expect(wrapper.get("textarea").element.value).toContain("项目预算"); expect(askClaw).not.toHaveBeenCalled();
   await wrapper.get("textarea").trigger("compositionstart"); await wrapper.get("textarea").trigger("keydown", { key: "Enter" });
