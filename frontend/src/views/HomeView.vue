@@ -105,22 +105,11 @@ import {
   shareErrorMessage,
   type ShareRecord,
 } from "../api/shares";
-import {
-  getHomeContent,
-  type SplashAdContent,
-} from "../api/content";
+import { getHomeContent, type SplashAdContent } from "../api/content";
 import { demoHomeContent } from "../api/contentDemo";
 import { getLocalSplashAd, localSplashAdId } from "../api/localSplashAd";
 
-const recommendationAds = [
-  { image: "4.jpg", title: "谁还没get到颜值爆棚cp呢" },
-  { image: "3.jpg", title: "九门花絮：全都是被鸟啄的惨叫#曾舜系" },
-  { image: "5.jpg", title: "我草当年凭一己之力掰弯整个港娱，没有人能拒绝..." },
-  { image: "6.jpg", title: "和美女老婆流落荒岛" },
-  { image: "7.jpg", title: "《危险派对》" },
-  { image: "8.jpg", title: "樊拍凯摄" },
-  { image: "9.jpg", title: "禁欲男神又宠又撩" },
-];
+import { localRecommendationAds as recommendationAds } from "../api/localRecommendationAds";
 const recommendationColumns = [
   recommendationAds.filter((_, index) => index % 2 === 0),
   recommendationAds.filter((_, index) => index % 2 === 1),
@@ -150,7 +139,9 @@ function navigationFolder(id: string) {
     drive.get(id) ?? navigationFolders.value.find((item) => item.id === id)
   );
 }
-const mobileSearchPanel = ref<InstanceType<typeof FileSearchPanel> | null>(null);
+const mobileSearchPanel = ref<InstanceType<typeof FileSearchPanel> | null>(
+  null,
+);
 const keyword = ref(""),
   checked = ref<string[]>([]),
   menuOpen = ref(false),
@@ -1245,7 +1236,11 @@ onUnmounted(() => {
           </button>
         </div>
       </header>
-      <header v-else-if="!searchActive" class="m-file-head" @keydown.esc="folderMenuOpen = false">
+      <header
+        v-else-if="!searchActive"
+        class="m-file-head"
+        @keydown.esc="folderMenuOpen = false"
+      >
         <template v-if="checked.length && mode !== 'trash'"
           ><button
             class="m-selection-close"
@@ -1309,10 +1304,24 @@ onUnmounted(() => {
           </div></template
         >
       </header>
-      <form v-if="searchActive && mobileViewport" class="m-search-page-header" role="search" @submit.prevent="mobileSearchPanel?.retry()">
-        <button type="button" aria-label="返回文件列表" @click="keyword = ''"><ChevronLeft :size="24" /></button>
-        <input v-model="keyword" aria-label="搜索文件名" maxlength="100" placeholder="搜索文件名" />
-        <button type="button" aria-label="清空搜索" @click="keyword = ''"><X :size="18" /></button>
+      <form
+        v-if="searchActive && mobileViewport"
+        class="m-search-page-header"
+        role="search"
+        @submit.prevent="mobileSearchPanel?.retry()"
+      >
+        <button type="button" aria-label="返回文件列表" @click="keyword = ''">
+          <ChevronLeft :size="24" />
+        </button>
+        <input
+          v-model="keyword"
+          aria-label="搜索文件名"
+          maxlength="100"
+          placeholder="搜索文件名"
+        />
+        <button type="button" aria-label="清空搜索" @click="keyword = ''">
+          <X :size="18" />
+        </button>
         <button type="submit" class="m-search-submit">搜索</button>
       </form>
       <div v-if="!currentFolder && !searchActive" class="m-search">
@@ -1432,7 +1441,10 @@ onUnmounted(() => {
           隐藏空间
         </button>
       </div>
-      <p v-if="!currentFolder && !searchActive && drive.state.usage" class="m-capacity">
+      <p
+        v-if="!currentFolder && !searchActive && drive.state.usage"
+        class="m-capacity"
+      >
         已用 {{ formatBytes(drive.state.usage.usedBytes) }} /
         {{ formatBytes(drive.state.usage.limitBytes) }} · 可用
         {{ formatBytes(drive.state.usage.availableBytes) }}

@@ -517,7 +517,10 @@ describe("folder navigation and screenshot layout", () => {
     ).toBe("name");
     await wrapper.find(".m-folder-search input").setValue("S01");
     expect(wrapper.find(".m-folder-head").exists()).toBe(false);
-    expect((wrapper.find(".m-search-page-header input").element as HTMLInputElement).value).toBe("S01");
+    expect(
+      (wrapper.find(".m-search-page-header input").element as HTMLInputElement)
+        .value,
+    ).toBe("S01");
     expect(api.listFiles).toHaveBeenCalledTimes(loads);
   });
   it("returns one level at a time, not directly from a nested folder to root", async () => {
@@ -1165,6 +1168,28 @@ describe("mobile profile unavailable destinations", () => {
 });
 
 describe("mobile home media shortcuts", () => {
+  it("renders 30 distinct local recommendation ads in two balanced columns", async () => {
+    const wrapper = await open();
+    await wrapper
+      .findAll(".mobile-app nav button")
+      .find((button) => button.text() === "首页")!
+      .trigger("click");
+    const columns = wrapper.findAll(".m-ad-column");
+    expect(columns).toHaveLength(2);
+    expect(
+      columns.map((column) => column.findAll(".m-ad-card").length),
+    ).toEqual([15, 15]);
+    const cards = wrapper.findAll(".m-ad-card");
+    expect(cards).toHaveLength(30);
+    const images = cards.map((card) => card.find("img").attributes("src"));
+    expect(new Set(images).size).toBe(30);
+    for (const card of cards) {
+      expect(card.find("img").attributes("src")).toMatch(/^\/ad\/.+\.jpg$/);
+      expect(card.find("img").attributes("loading")).toBe("lazy");
+      expect(card.find("img").attributes("alt")).toBe(card.find("p").text());
+      expect(card.find(".m-ad-label").text()).toBe("广告");
+    }
+  });
   it("shows a local splash ad without relying on the ad API", async () => {
     vi.mocked(getSplashAd).mockRejectedValueOnce(
       new Error("splash endpoint not implemented"),
@@ -1172,7 +1197,9 @@ describe("mobile home media shortcuts", () => {
     const wrapper = await open();
     expect(document.body.querySelector(".splash-ad-demo-badge")).toBeNull();
     expect(["/ad/popAD.JPG", "/ad/popAD1.jpg"]).toContain(
-      document.body.querySelector(".splash-ad-content img")?.getAttribute("src"),
+      document.body
+        .querySelector(".splash-ad-content img")
+        ?.getAttribute("src"),
     );
     expect(getSplashAd).not.toHaveBeenCalled();
     expect(
