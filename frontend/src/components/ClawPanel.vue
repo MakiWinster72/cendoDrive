@@ -8,6 +8,7 @@ import { askClaw, getClawStatus, reindexClaw, type ClawAnswer, type ClawStatus }
 const status = ref<ClawStatus>();
 const supportedFiles = computed(() => status.value?.files.filter(file => /\.(txt|md|csv|pdf|docx)$/i.test(file.name)) ?? []);
 const question = ref("");
+const sentQuestion = ref("");
 const pending = ref(false);
 const indexing = ref(false);
 const error = ref("");
@@ -61,6 +62,7 @@ async function send() {
   const text = question.value.trim();
   const conversation = current.value;
   const request = new AbortController(); active = request;
+  sentQuestion.value = text; question.value = "";
   pending.value = true; error.value = "";
   question.value = ""; conversation.draft = "";
   filesOpen.value = false;
@@ -74,13 +76,23 @@ async function send() {
       if (!conversations.value.some(saved => saved.id === conversation.id)) conversations.value.unshift(conversation);
       void scrollBottom();
     }
-  } catch { if (!request.signal.aborted && active === request) {
-    if (current.value === conversation && !question.value) { question.value = text; conversation.draft = text; }
-    error.value = "文档问答失败，请检查索引状态后重试。问题已保留。";
-  } }
-  finally { if (active === request) { pending.value = false; active = undefined; } }
+  } catch {
+    if (!request.signal.aborted && active === request) {
+      if (current.value === conversation && !question.value) { question.value = text; conversation.draft = text; }
+      error.value = "文档问答失败，请检查索引状态后重试。问题已保留。";
+    }
+  }
+  finally { if (active === request) { pending.value = false; active = undefined; sentQuestion.value = ""; } }
 }
-function stop() { active?.abort(); active = undefined; pending.value = false; }
+function stop() {
+  active?.abort(); active = undefined;
+  if (pending.value && !question.value) {
+    question.value = sentQuestion.value;
+    current.value.draft = sentQuestion.value;
+  }
+  pending.value = false; sentQuestion.value = "";
+
+}
 async function reindex(fileId?: string) {
   if (indexing.value) return;
   indexing.value = true; error.value = "";
@@ -121,7 +133,7 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
             </div>
           </article>
         </template>
-        <article v-if="pending" class="message user"><span class="message-author">你</span><div class="user-content">{{ question }}</div></article>
+        <article v-if="pending" class="message user"><span class="message-author">你</span><div class="user-content">{{ sentQuestion }}</div></article>
         <div v-if="pending" class="thinking" role="status"><span /><span /><span />扣扣Claw正在查找文档并思考…</div>
       </section>
     </div>

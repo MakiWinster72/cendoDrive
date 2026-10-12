@@ -68,6 +68,15 @@ describe("扣扣AI", () => {
     await w.get(".chat-error button").trigger("click"); await flushPromises(); expect(w.findAll(".message")).toHaveLength(2);
     expect(vi.mocked(streamChat).mock.calls[1]![0]).toEqual([{ role: "user", content: "再试试" }]);
   });
+  it("shows the sent question while waiting for the first AI token", async () => {
+    const d = deferred<string>(); vi.mocked(streamChat).mockReturnValueOnce(d.promise);
+    const w = await open(); await ask(w, "等待回复时也要显示的问题");
+    expect(w.get(".message.user .user-content").text()).toBe("等待回复时也要显示的问题");
+    expect(w.find(".message.assistant").exists()).toBe(false);
+    expect(w.text()).toContain("正在思考");
+    d.resolve("回答"); await flushPromises();
+    expect(w.get(".message.user .user-content").text()).toBe("等待回复时也要显示的问题");
+  });
   it("cancels requests and ignores late answers in a new conversation", async () => {
     const d = deferred<string>(); vi.mocked(streamChat).mockReturnValueOnce(d.promise);
     const w = await open(); await ask(w); const signal = vi.mocked(streamChat).mock.calls[0]![1];
