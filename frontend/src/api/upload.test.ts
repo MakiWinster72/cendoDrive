@@ -69,11 +69,12 @@ describe("chunked upload orchestration", () => {
     expect(postedUrls().filter((url) => url === "/upload/merge")).toHaveLength(
       1,
     );
-    expect(chunkForms().map((form) => form.get("index"))).toEqual([
-      "0",
-      "1",
-      "2",
-    ]);
+    // Parallel workers may send chunks in any order; each index must occur once.
+    expect(
+      chunkForms()
+        .map((form) => form.get("index"))
+        .sort(),
+    ).toEqual(["0", "1", "2"]);
     expect(chunkForms()[0].get("uploadId")).toBe(UPLOAD_ID);
     expect(progress[progress.length - 1]).toBe(100);
   });
