@@ -31,7 +31,7 @@ class ClawMysqlConcurrencyTest {
     jdbc.execute("DROP TABLE IF EXISTS claw_documents");
     jdbc.execute("DROP TABLE IF EXISTS drive_files");
     jdbc.execute("CREATE TABLE drive_files(id BIGINT PRIMARY KEY) ENGINE=InnoDB");
-    new ResourceDatabasePopulator(new ClassPathResource("db/migration/V14__create_claw_documents_and_tasks.sql")).execute(ds);
+    new ResourceDatabasePopulator(new ClassPathResource("db/migration/V17__create_claw_documents_and_tasks.sql")).execute(ds);
     jdbc.update("INSERT INTO drive_files(id) VALUES(12)");
     tx=new TransactionTemplate(new DataSourceTransactionManager(ds));
     tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
