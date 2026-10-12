@@ -68,8 +68,8 @@ describe("reference upload panel", () => {
       '@click="retryUpload(task)"',
       '@click="cancelUpload(task)"',
     ])
-      expect(template.replace(/\s+/g, "")).toContain(
-        binding.replace(/\s+/g, ""),
+      expect(template.replace(/\s+/g, "").replace(/"/g, "'")).toContain(
+        binding.replace(/\s+/g, "").replace(/"/g, "'"),
       );
     const home = readFileSync(
       new URL("../views/HomeView.vue", import.meta.url),

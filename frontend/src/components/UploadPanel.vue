@@ -334,6 +334,17 @@ function statusText(task: UploadTask) {
         aria-modal="true"
         aria-labelledby="upload-title"
       >
+        <div class="upload-dialog-header">
+          <span>上传到网盘</span>
+          <button
+            type="button"
+            class="upload-close-button"
+            aria-label="关闭上传弹窗"
+            @click="emit('close')"
+          >
+            <X :size="22" />
+          </button>
+        </div>
         <div class="backup-banner">
           <span class="backup-icon"><UploadActionIcon kind="backup" /></span>
           <span>开启相册备份，节省手机空间</span>
@@ -647,6 +658,30 @@ function statusText(task: UploadTask) {
     linear-gradient(115deg, #f5fbff, #fbfbfc 65%);
   color: #080f1e;
   outline: none;
+}
+.upload-dialog-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f5fbff;
+  font-weight: 600;
+}
+.upload-close-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #50596b;
+}
+.upload-close-button:hover {
+  background: #e4eeff;
 }
 .upload-panel button {
   font: inherit;
