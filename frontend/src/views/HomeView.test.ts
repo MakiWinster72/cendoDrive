@@ -824,6 +824,10 @@ describe("mobile file management wiring", () => {
       .find((button) => button.text() === "删除")!
       .trigger("click");
     await flushPromises();
+    expect(api.trashFiles).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+    await wrapper.get(".trash-confirm-submit").trigger("click");
+    await flushPromises();
     expect(api.trashFiles).toHaveBeenCalledWith(["42"]);
     expect(api.getUsage).toHaveBeenCalledTimes(2);
     expect(wrapper.findAll(".m-file-row")).toHaveLength(0);

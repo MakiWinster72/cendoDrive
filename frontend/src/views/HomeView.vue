@@ -73,6 +73,7 @@ import FilePreview from "../components/FilePreview.vue";
 import FileSearchPanel from "../components/FileSearchPanel.vue";
 import type { FileSearchHit, SearchType } from "../api/drive";
 import FileTools from "../components/FileTools.vue";
+import TrashConfirmDialog from "../components/TrashConfirmDialog.vue";
 import InlineNameEditor from "../components/InlineNameEditor.vue";
 import { useNameEdit } from "../components/useNameEdit";
 import type { ToolAction } from "../components/fileTools";
@@ -143,6 +144,7 @@ const keyword = ref(""),
 const createdShare = ref<ShareRecord | null>(null);
 const shareTarget = ref<DriveItem | null>(null);
 const previewTarget = ref<DriveItem | null>(null);
+const trashTarget = ref<{ ids: string[]; name?: string } | null>(null);
 const toolsTarget = ref<{ action: ToolAction; items: DriveItem[] } | null>(
   null,
 );
@@ -205,9 +207,11 @@ const mobileTab = ref<"home" | "files" | "share" | "profile">(
 const profileUsagePercent = computed(() => {
   const usage = drive.state.usage;
   if (!usage || usage.limitBytes <= 0) return 0;
-  return Math.min(100, Math.max(0, usage.usedBytes / usage.limitBytes * 100));
+  return Math.min(100, Math.max(0, (usage.usedBytes / usage.limitBytes) * 100));
 });
-watch(mobileTab, (tab) => { if (tab === 'profile') void drive.loadUsage(); });
+watch(mobileTab, (tab) => {
+  if (tab === "profile") void drive.loadUsage();
+});
 const savedVisible = ref(true);
 watch(keyword, () => {
   checked.value = [];
@@ -636,15 +640,19 @@ function startMobileRename() {
 function itemMenu(item: DriveItem) {
   openTools("menu", [item]);
 }
-async function removeSelected(ids = checked.value) {
-  if (!ids.length || !confirm("确定移入回收站吗？")) return;
-  try {
-    await drive.trash(ids);
-    checked.value = [];
-    flash("已移入回收站");
-  } catch {
-    alert(drive.state.error);
-  }
+function removeSelected(ids = checked.value) {
+  if (!ids.length || trashTarget.value) return;
+  const item =
+    ids.length === 1
+      ? (toolsTarget.value?.items.find((item) => item.id === ids[0]) ??
+        filteredFiles.value.find((item) => item.id === ids[0]))
+      : undefined;
+  trashTarget.value = { ids: [...ids], name: item?.name };
+}
+function trashed() {
+  trashTarget.value = null;
+  checked.value = [];
+  flash("已移入回收站");
 }
 async function restoreSelected(ids = checked.value) {
   if (!ids.length) return;
@@ -885,6 +893,13 @@ onUnmounted(() => {
     @changed="toolsChanged"
     @rename="startMobileRename"
     @trash="removeSelected"
+  />
+  <TrashConfirmDialog
+    v-if="trashTarget"
+    :ids="trashTarget.ids"
+    :name="trashTarget.name"
+    @close="trashTarget = null"
+    @trashed="trashed"
   />
   <FilePreview
     v-if="previewTarget"
@@ -1581,7 +1596,11 @@ onUnmounted(() => {
             >
               <CalendarDays />
             </button>
-            <button aria-label="扫一扫" type="button" @click="showUnavailable('扫一扫功能暂未开放。')">
+            <button
+              aria-label="扫一扫"
+              type="button"
+              @click="showUnavailable('扫一扫功能暂未开放。')"
+            >
               <ScanLine />
             </button>
           </div>
@@ -1632,17 +1651,42 @@ onUnmounted(() => {
         <div class="profile-card-pair">
           <section class="profile-storage">
             <template v-if="drive.state.usage">
-              <div><strong>{{ formatBytes(drive.state.usage.usedBytes) }} / {{ formatBytes(drive.state.usage.limitBytes) }}</strong><span>{{ profileUsagePercent.toFixed(1) }}%</span></div>
-              <div class="storage-track" role="progressbar" aria-label="已用容量" :aria-valuenow="profileUsagePercent" :aria-valuemin="0" :aria-valuemax="100"><i :style="{ width: `${profileUsagePercent}%` }"></i></div>
-              <small>可用 {{ formatBytes(drive.state.usage.availableBytes) }}</small>
+              <div>
+                <strong
+                  >{{ formatBytes(drive.state.usage.usedBytes) }} /
+                  {{ formatBytes(drive.state.usage.limitBytes) }}</strong
+                ><span>{{ profileUsagePercent.toFixed(1) }}%</span>
+              </div>
+              <div
+                class="storage-track"
+                role="progressbar"
+                aria-label="已用容量"
+                :aria-valuenow="profileUsagePercent"
+                :aria-valuemin="0"
+                :aria-valuemax="100"
+              >
+                <i :style="{ width: `${profileUsagePercent}%` }"></i>
+              </div>
+              <small
+                >可用 {{ formatBytes(drive.state.usage.availableBytes) }}</small
+              >
             </template>
             <p v-else-if="!drive.state.usageError">容量加载中…</p>
-            <p v-if="drive.state.usageError" role="alert">{{ drive.state.usageError }}</p>
-            <button type="button" @click="drive.loadUsage">{{ drive.state.usageError ? '重试容量' : '刷新容量' }} <ChevronRight :size="17" /></button>
+            <p v-if="drive.state.usageError" role="alert">
+              {{ drive.state.usageError }}
+            </p>
+            <button type="button" @click="drive.loadUsage">
+              {{ drive.state.usageError ? "重试容量" : "刷新容量" }}
+              <ChevronRight :size="17" />
+            </button>
           </section>
           <section class="profile-missions">
-            <div class="mission-orb" aria-hidden="true"><TicketPercent /><span>下载券</span></div>
-            <div class="mission-orb mission-orb-space" aria-hidden="true"><PackageOpen /><span>空间</span></div>
+            <div class="mission-orb" aria-hidden="true">
+              <TicketPercent /><span>下载券</span>
+            </div>
+            <div class="mission-orb mission-orb-space" aria-hidden="true">
+              <PackageOpen /><span>空间</span>
+            </div>
             <strong>任务系统</strong
             ><button
               type="button"

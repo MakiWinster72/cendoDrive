@@ -1,0 +1,19 @@
+.file-tools.trash-confirm > .trash-confirm-target {
+  margin: 12px 0 4px;
+  color: #202b3d;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trash-confirm #trash-confirm-hint {
+  margin: 4px 0 0;
+}
+.trash-confirm .trash-confirm-submit {
+  border-color: #b42318;
+  background: #b42318;
+  color: #fff;
+}
+.trash-confirm .trash-confirm-submit:not(:disabled):hover {
+  background: #912018;
+}
