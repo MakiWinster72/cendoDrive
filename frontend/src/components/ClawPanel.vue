@@ -57,17 +57,21 @@ async function send() {
   const conversation = current.value;
   const request = new AbortController(); active = request;
   pending.value = true; error.value = "";
+  question.value = ""; conversation.draft = "";
   void scrollBottom();
   try {
     const previous = conversation.turns.at(-1)?.question.slice(0, 300);
     const answer = await askClaw(text, previous, request.signal);
     if (!request.signal.aborted && active === request) {
-      conversation.turns.push({ question: text, answer }); question.value = "";
+      conversation.turns.push({ question: text, answer });
       conversation.title = conversation.turns[0]!.question.slice(0, 28);
       if (!conversations.value.some(saved => saved.id === conversation.id)) conversations.value.unshift(conversation);
       void scrollBottom();
     }
-  } catch { if (!request.signal.aborted) error.value = "文档问答失败，请检查索引状态后重试。问题已保留。"; }
+  } catch { if (!request.signal.aborted && active === request) {
+    if (current.value === conversation && !question.value) { question.value = text; conversation.draft = text; }
+    error.value = "文档问答失败，请检查索引状态后重试。问题已保留。";
+  } }
   finally { if (active === request) { pending.value = false; active = undefined; } }
 }
 function stop() { active?.abort(); active = undefined; pending.value = false; }
