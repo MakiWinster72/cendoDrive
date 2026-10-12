@@ -1210,25 +1210,63 @@ describe("mobile home media shortcuts", () => {
     ).click();
     await flushPromises();
     expect(routerPush).not.toHaveBeenCalled();
+    expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
     expect(
       window.sessionStorage.getItem("cendo:splash-ad-seen:local-pop-ad"),
-    ).toBe("1");
+    ).toBeNull();
     wrapper.unmount();
   });
 
-  it("shows the splash ad only once per tab session", async () => {
-    vi.mocked(getSplashAd).mockRejectedValue(
-      new Error("splash endpoint not implemented"),
-    );
-    const first = await open();
-    (
-      document.body.querySelector(".splash-ad-content") as HTMLButtonElement
-    ).click();
-    await flushPromises();
-    first.unmount();
-    const second = await open();
-    expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
-    second.unmount();
+  it("shows the splash ad on every remount in the same tab session", async () => {
+    for (let reload = 0; reload < 3; reload++) {
+      const wrapper = await open();
+      expect(document.body.querySelector(".splash-ad-overlay")).not.toBeNull();
+      (
+        document.body.querySelector(".splash-ad-content") as HTMLButtonElement
+      ).click();
+      await flushPromises();
+      expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
+      await wrapper
+        .findAll(".mobile-app nav button")
+        .find((button) => button.text() === "首页")!
+        .trigger("click");
+      expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
+      wrapper.unmount();
+    }
+  });
+
+  it("ignores legacy session seen markers when loading the splash ad", async () => {
+    window.sessionStorage.setItem("cendo:splash-ad-seen:local-pop-ad", "1");
+    const wrapper = await open();
+    expect(document.body.querySelector(".splash-ad-overlay")).not.toBeNull();
+    wrapper.unmount();
+  });
+
+  it("can skip and automatically close the splash without suppressing the next load", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = await open();
+      const skip = document.body.querySelector(
+        ".splash-ad-skip",
+      ) as HTMLButtonElement;
+      expect(skip.disabled).toBe(true);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(skip.disabled).toBe(false);
+      skip.click();
+      await flushPromises();
+      expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
+      first.unmount();
+      const second = await open();
+      expect(document.body.querySelector(".splash-ad-overlay")).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
+      second.unmount();
+      const third = await open();
+      expect(document.body.querySelector(".splash-ad-overlay")).not.toBeNull();
+      third.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders home promotion fields returned by the content endpoint", async () => {

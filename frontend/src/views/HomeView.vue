@@ -107,7 +107,7 @@ import {
 } from "../api/shares";
 import { getHomeContent, type SplashAdContent } from "../api/content";
 import { demoHomeContent } from "../api/contentDemo";
-import { getLocalSplashAd, localSplashAdId } from "../api/localSplashAd";
+import { getLocalSplashAd } from "../api/localSplashAd";
 
 import { localRecommendationAds as recommendationAds } from "../api/localRecommendationAds";
 const recommendationColumns = [
@@ -472,24 +472,11 @@ async function loadHomeContent() {
   }
 }
 async function loadSplashAd() {
-  splashAd.value = wasSplashSeen(localSplashAdId) ? null : getLocalSplashAd();
+  // A fresh page load always shows the splash, including after a refresh.
+  splashAd.value = getLocalSplashAd();
   splashAdDemo.value = false;
 }
-function wasSplashSeen(id: string) {
-  try {
-    return sessionStorage.getItem(`cendo:splash-ad-seen:${id}`) === "1";
-  } catch {
-    return false;
-  }
-}
 function closeSplashAd() {
-  if (splashAd.value) {
-    try {
-      sessionStorage.setItem(`cendo:splash-ad-seen:${splashAd.value.id}`, "1");
-    } catch {
-      /* The ad still closes when session storage is unavailable. */
-    }
-  }
   splashAd.value = null;
   splashAdDemo.value = false;
 }
