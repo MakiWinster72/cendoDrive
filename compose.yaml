@@ -41,6 +41,8 @@ services:
   # Private vector service: no published port; persistence is independent of file storage.
   qdrant:
     image: qdrant/qdrant:v1.15.4
+    # Qdrant treats an empty API-key variable as enabled authentication.
+    command: ["/bin/sh", "-c", 'if [ -z "$$QDRANT__SERVICE__API_KEY" ]; then unset QDRANT__SERVICE__API_KEY; fi; exec ./entrypoint.sh']
     environment:
       QDRANT__SERVICE__API_KEY: ${CENDO_AI_VECTOR_KEY:-}
     volumes:

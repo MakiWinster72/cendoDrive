@@ -129,7 +129,7 @@ cendo:
 
 嵌入地址和密钥留空时继承 `cendo.ai.chat`，对话模型继续使用原配置。模型服务必须支持 OpenAI 兼容 `POST /embeddings`（字符串数组输入、`encoding_format:float`、带 `index` 的 `data[].embedding`），指定模型必须在服务商账户中可用；配置名称不会自动下载或启动模型。4096 维默认值来自 [Qwen 官方模型说明](https://huggingface.co/Qwen/Qwen3-VL-Embedding-8B)。返回维度必须与配置一致，变更嵌入地址、模型或维度会使用独立 collection，需要重新索引已有文档。
 
-本地 `application.yml` 已忽略，不提交密钥；仓库的 `application.example.yml` 和 Compose 提供全部可配置项。Compose 设置 `CENDO_AI_CLAW_ENABLED=true`，自动使用内部 `qdrant:6333`；宿主机运行后端需自行启动可访问的 Qdrant 并填写地址。Qdrant 持久卷为 `qdrant-data`。
+本地 `application.yml` 已忽略，不提交密钥；仓库的 `application.example.yml` 和 Compose 提供全部可配置项。Compose 设置 `CENDO_AI_CLAW_ENABLED=true`，自动使用内部 `qdrant:6333`；宿主机运行后端时，执行下方命令启动本地 Qdrant，并使用 `http://localhost:6333`。Qdrant 持久卷为 `qdrant-data`。
 
 文档支持 UTF-8 TXT、MD、CSV、可提取文字的 PDF 和 DOCX。单文件最多 10 MB、正文 80000 字符；PDF 最多100页。扫描件、加密文件、不支持格式和超过限制的文件仍可正常上传，只是不参与内容问答。文档约按1000字符分段、重叠200字符；每批最多4段进行嵌入。文档正文发送给配置的嵌入服务，命中片段发送给对话服务。
 
@@ -160,3 +160,14 @@ cendo:
 本机共享数据库已经执行主仓库的 V14（传输记录）、V15（传输文件引用）、V16（分享提取码）。本分支保留这些历史迁移原文及校验和，Claw 文档与任务建表顺延到 V17。启动前运行 `mvn clean spring-boot:run` 清除旧 `target/classes` 中已改名的 V14 Claw 脚本。无需 Flyway repair、关闭校验或删除数据库数据。
 
 修复验证：新增从冻结 V14–V16 历史迁移升级的回归测试；修复前复现校验失败，修复后三项迁移测试通过。本机真实 MySQL 成功执行 V17，日志确认后端正常启动。验证进程已停止，8080 端口已释放。
+
+### 宿主机开发的向量服务
+
+```sh
+docker compose -f compose.yaml -f compose.local.yaml up -d qdrant
+curl http://localhost:6333/healthz
+```
+
+`compose.local.yaml` 仅在本机回环地址开放6333端口；Qdrant使用持久卷。普通容器部署仍使用内部 `qdrant:6333`。`configured:true` 表示配置完整，不表示依赖服务健康；`CLAW_VECTOR_UNAVAILABLE` 表示向量服务连接、认证或请求失败。服务恢复后队列会按退避时间自动重试，若已达到重试上限，使用页面的单文件“确认重试”。
+
+本机恢复验证：启动 Qdrant 并修正空 API Key 变量导致的401后，待重试文档成功转为 READY，生成20个片段；真实 Qdrant 专项测试通过。Compose的启动包装仅在 Key 为空时移除该变量，非空 Key 保留用于认证。
