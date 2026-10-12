@@ -47,7 +47,6 @@ import {
   Search,
   Settings,
   Share2,
-  SlidersHorizontal,
   Sparkles,
   Star,
   Trash2,
@@ -1387,16 +1386,29 @@ onUnmounted(() => {
           />
         </button>
       </div>
-      <div v-if="!currentFolder" class="m-filter">
-        <button>智能排序 <SlidersHorizontal :size="15" /></button
-        ><button :class="{ active: mode === 'all' }" @click="goRoot">
+      <div
+        v-if="!currentFolder"
+        class="m-filter"
+        role="group"
+        aria-label="文件分类"
+      >
+        <button
+          type="button"
+          :aria-pressed="mode === 'all'"
+          :class="{ active: mode === 'all' }"
+          @click="goRoot"
+        >
           全部</button
         ><button
+          type="button"
+          :aria-pressed="mode === 'favorites'"
           :class="{ active: mode === 'favorites' }"
           @click="openHomeCategory('favorites')"
         >
           我的收藏</button
         ><button
+          type="button"
+          :aria-pressed="mode === 'hidden'"
           :class="{ active: mode === 'hidden' }"
           @click="openHomeCategory('hidden')"
         >

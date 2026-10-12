@@ -13,9 +13,27 @@
     font-size: 14px;
   }
   .m-capacity {
-    margin: 8px 20px;
-    font-size: 12px;
+    margin: 0;
+    padding: 4px var(--mobile-gutter) 14px;
+    background: #fff;
+    font-size: var(--mobile-font-caption);
+    line-height: 1.7;
     color: #667085;
+    overflow-wrap: anywhere;
+  }
+  .m-capacity button {
+    min-height: 44px;
+    margin-left: 6px;
+    padding: 0 12px;
+    border: 1px solid #dce3ed;
+    border-radius: 10px;
+    background: #fff;
+    color: #1768c5;
+    font: inherit;
+  }
+  .m-capacity button:focus-visible {
+    outline: 2px solid #1677ff;
+    outline-offset: 2px;
   }
   .mobile-app:has(.m-home-top) {
     background: #f2f4f9;

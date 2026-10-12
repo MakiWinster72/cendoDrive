@@ -15,6 +15,27 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("aligns file filters and capacity with shared mobile geometry", () => {
+    expect(main).toMatch(
+      /\.m-filter\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/,
+    );
+    expect(main).not.toMatch(/\.m-filter\s*\{[^}]*height: 83px/);
+    expect(home).toMatch(/\.m-capacity\s*\{[^}]*var\(--mobile-gutter\)/);
+    expect(home).toMatch(/\.m-capacity\s*\{[^}]*overflow-wrap: anywhere/);
+  });
+
+  it("keeps search controls and result rows responsive without overriding text styles", () => {
+    const search = read("./search.css");
+    expect(search).toContain("var(--mobile-gutter, 18px)");
+    expect(search).toContain("border-radius: 14px");
+    expect(search).toContain("min-height: 44px");
+    expect(search).toContain(
+      "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)",
+    );
+    expect(search).toContain("@media (width < 360px)");
+    expect(search).toContain("text-overflow: ellipsis");
+    expect(search).not.toContain("!important");
+  });
   it("uses the shared page font, gutters and accessible-sized controls for account settings", () => {
     expect(account).toContain("font-family: var(--app-font-family)");
     expect(account).toContain("var(--mobile-gutter, 18px)");
@@ -31,7 +52,9 @@ describe("responsive style ownership", () => {
   });
 
   it("insets selection actions so long labels stay clear of screen edges", () => {
-    expect(selection).toMatch(/\.m-selection-actions\s*\{[^}]*margin-inline: 12px;/);
+    expect(selection).toMatch(
+      /\.m-selection-actions\s*\{[^}]*margin-inline: 12px;/,
+    );
   });
 
   it("applies share gutters once at the page boundary", () => {
