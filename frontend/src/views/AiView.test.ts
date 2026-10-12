@@ -7,6 +7,7 @@ import { getChatStatus, streamChat } from "../api/aiChat";
 const routing = vi.hoisted(() => ({ route: { query: {} as Record<string, string> }, replace: vi.fn(), push: vi.fn() }));
 vi.mock("vue-router", () => ({ useRoute: () => routing.route, useRouter: () => ({ replace: routing.replace, push: routing.push }) }));
 vi.mock("../api/aiChat", async original => ({ ...await original<typeof import("../api/aiChat")>(), getChatStatus: vi.fn(), streamChat: vi.fn() }));
+vi.mock("../components/ClawPanel.vue", () => ({ default: { template: '<section>根据网盘文件内容搜索文件 上传文档后自动索引<textarea /></section>' } }));
 const wrappers: ReturnType<typeof mount>[] = [];
 async function open() { const w = mount(AiView); wrappers.push(w); await flushPromises(); return w; }
 async function ask(w: ReturnType<typeof mount>, question = "你好") { await w.get("textarea").setValue(question); await w.get("form").trigger("submit"); await flushPromises(); }
@@ -36,13 +37,13 @@ describe("扣扣AI", () => {
   it("keeps search as an honest placeholder and preserves completed chat across switching", async () => {
     const w = await open(); await ask(w);
     await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[1]!.trigger("click"); await flushPromises();
-    expect(w.text()).toContain("千度AI"); expect(w.text()).toContain("当前仅提供模式入口"); expect(w.find("textarea").exists()).toBe(false);
+    expect(w.text()).toContain("扣扣Claw"); expect(w.text()).toContain("根据网盘文件内容搜索文件"); expect(w.find("textarea").exists()).toBe(true);
     expect(streamChat).toHaveBeenCalledTimes(1);
     await w.get(".outline-button").trigger("click"); await flushPromises(); expect(w.findAll(".message")).toHaveLength(2);
   });
   it("supports direct search links without presenting a working search", async () => {
     routing.route.query = { mode: "search" }; const w = await open();
-    expect(w.text()).toContain("向量数据库"); expect(streamChat).not.toHaveBeenCalled();
+    expect(w.text()).toContain("上传文档后自动索引"); expect(streamChat).not.toHaveBeenCalled();
   });
   it("disables unconfigured chat and retries status connection failure", async () => {
     vi.mocked(getChatStatus).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ configured: false, model: null });

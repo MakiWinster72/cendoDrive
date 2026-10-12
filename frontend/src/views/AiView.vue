@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import { ArrowUp, ChevronDown, History, MessageCircle, Plus, Search, Sparkles, Square, X } from "@lucide/vue";
 import AiMessage from "../components/AiMessage.vue";
+import ClawPanel from "../components/ClawPanel.vue";
 import { chatContext, getChatStatus, streamChat, type ChatMessage, type ChatStatus } from "../api/aiChat";
 
 const router = useRouter();
@@ -138,12 +139,12 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
       <button class="icon-button" aria-label="返回网盘" @click="router.push({ name: 'home' })"><X :size="23" /></button>
       <div class="mode-control">
         <button class="mode-trigger" aria-label="切换AI模式" :aria-expanded="modeMenu" aria-controls="ai-mode-menu" @click="modeMenu = !modeMenu">
-          <strong>{{ mode === 'chat' ? '扣扣AI' : '千度AI' }}</strong><ChevronDown :size="18" :class="{ rotated: modeMenu }" />
-          <span>{{ mode === 'chat' ? '智能对话' : '文件智能搜索' }}</span>
+          <strong>{{ mode === 'chat' ? '扣扣AI' : '扣扣Claw' }}</strong><ChevronDown :size="18" :class="{ rotated: modeMenu }" />
+          <span>{{ mode === 'chat' ? '智能对话' : '根据网盘文件内容搜索文件' }}</span>
         </button>
         <div v-if="modeMenu" id="ai-mode-menu" class="mode-menu">
           <button :aria-pressed="mode === 'chat'" @click="selectMode('chat')"><MessageCircle :size="20" /><span><b>智能对话</b><small>扣扣AI · 灵感与解答</small></span><i v-if="mode === 'chat'" /></button>
-          <button :aria-pressed="mode === 'search'" @click="selectMode('search')"><Search :size="20" /><span><b>千度AI</b><small>文件智能搜索 · 即将开放</small></span><i v-if="mode === 'search'" /></button>
+          <button :aria-pressed="mode === 'search'" @click="selectMode('search')"><Search :size="20" /><span><b>扣扣Claw</b><small>根据网盘文件内容搜索文件</small></span><i v-if="mode === 'search'" /></button>
         </div>
       </div>
       <div class="header-actions">
@@ -160,15 +161,10 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
     </aside>
 
     <div ref="scroller" class="ai-scroll">
-      <section v-if="mode === 'search'" class="search-intro">
-        <span class="feature-tag"><Sparkles :size="15" />千度AI · 即将开放</span>
-        <div class="search-emblem"><Search :size="42" /></div>
-        <h1>文件那么多，<br />一句话就能找到。</h1>
-        <p>不止搜索文件名，更能理解文件里的内容。</p>
-        <div class="search-example">“帮我找出提到项目预算的文档”</div>
-        <p class="future-note">文件智能搜索正在规划中，当前仅提供模式入口。<br />未来将在上传时索引文件名与内容，经 AI 向量化后存入向量数据库，让提问与文件内容智能匹配。</p>
-        <button class="outline-button" @click="selectMode('chat')">先和扣扣AI聊聊 <MessageCircle :size="17" /></button>
-      </section>
+      <div v-if="mode === 'search'">
+        <ClawPanel />
+        <button class="outline-button" @click="selectMode('chat')">和扣扣AI聊聊 <MessageCircle :size="17" /></button>
+      </div>
       <template v-else>
         <section v-if="!current.messages.length" class="ai-welcome">
           <div class="greeting-row">
