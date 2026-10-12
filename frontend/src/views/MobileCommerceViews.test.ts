@@ -60,6 +60,18 @@ describe("mobile membership page", () => {
     expect(dialogText()).toContain("不会产生扣款");
   });
 
+  it("keeps payment selection and agreement validation after resizing", async () => {
+    const wrapper = mountTracked(MembershipView);
+    await flushPromises();
+    await wrapper.findAll(".payment-card > button")[1]!.trigger("click");
+    expect(wrapper.findAll(".payment-card > button")[1]!.classes()).toContain(
+      "chosen",
+    );
+    await wrapper.find('input[type="checkbox"]').setValue(false);
+    await wrapper.find(".primary-pay").trigger("click");
+    expect(dialogText()).toContain("请先阅读并同意会员服务协议");
+  });
+
   it("labels the unavailable privilege comparison", async () => {
     const wrapper = mountTracked(MembershipView);
     await flushPromises();

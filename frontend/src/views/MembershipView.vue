@@ -16,6 +16,7 @@ import {
 } from "../api/content";
 import { demoMembershipContent } from "../api/contentDemo";
 import "../styles/mobile-commerce.css";
+import "../styles/membership.css";
 
 const router = useRouter();
 const content = ref<MembershipContentResponse>(demoMembershipContent);

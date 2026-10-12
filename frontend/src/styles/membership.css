@@ -1,0 +1,249 @@
+/* Membership geometry follows the home/profile 14px body, 12px caption,
+   18px gutter and 14px card radius without resizing other commerce pages. */
+.membership-page {
+  --member-gutter: 18px;
+  width: 100%;
+  min-height: 0;
+  background: #f0f2f8;
+  line-height: 1.5;
+}
+.membership-page .commerce-header {
+  height: 56px;
+  padding: 0 var(--member-gutter);
+  grid-template-columns: 60px 1fr 60px;
+}
+.membership-page .commerce-header h1 {
+  font-size: 18px;
+}
+.membership-page .header-link {
+  font-size: 14px;
+  min-height: 44px;
+}
+.membership-page .back-button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.membership-scroll {
+  padding: 18px var(--member-gutter) 6px;
+}
+.membership-page .member-hero {
+  padding: 18px 18px 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.membership-page .member-account {
+  gap: 12px;
+}
+.membership-page .member-avatar {
+  width: 42px;
+  height: 42px;
+  flex: none;
+}
+.membership-page .member-account strong {
+  font-size: 15px;
+}
+.membership-page .member-account span {
+  font-size: 12px;
+}
+.membership-page .member-levels {
+  margin-top: 16px;
+}
+.membership-page .member-levels > div {
+  padding: 12px 4px;
+  flex-basis: 0;
+  min-width: 0;
+}
+.membership-page .member-levels strong,
+.membership-page .member-levels .level-active strong {
+  font-size: 14px;
+}
+.membership-page .member-levels span {
+  font-size: 11px;
+  white-space: normal;
+  text-align: center;
+}
+.membership-page .demo-inline {
+  margin: 12px 0;
+  font-size: 12px;
+  text-align: left;
+}
+.membership-page .plan-section {
+  padding: 0;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.membership-page .plan-card {
+  min-height: 148px;
+  padding: 26px 6px 12px;
+  gap: 5px;
+  border-radius: 14px;
+  border-width: 2px;
+}
+.membership-page .plan-card strong {
+  font-size: 14px;
+  white-space: normal;
+}
+.membership-page .plan-badge {
+  font-size: 11px;
+}
+.membership-page .plan-price {
+  font-size: 30px;
+}
+.membership-page .plan-price small:first-child {
+  font-size: 14px;
+}
+.membership-page .plan-price small:last-child,
+.membership-page .plan-card del,
+.membership-page .plan-renew {
+  font-size: 12px;
+}
+.membership-page .coupon-row {
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-radius: 14px;
+  font-size: 12px;
+}
+.membership-page .upsell-card,
+.membership-page .payment-card,
+.membership-page .privilege-section {
+  margin: 0 0 14px;
+  padding: 16px;
+  border-radius: 14px;
+}
+.membership-page .upsell-card > div {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.membership-page .upsell-card > div strong,
+.membership-page .single-buy > strong,
+.membership-page .payment-card > strong {
+  font-size: 15px;
+}
+.membership-page .upsell-card > div span,
+.membership-page .upsell-card > button small {
+  font-size: 12px;
+}
+.membership-page .upsell-card > button {
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.membership-page .upsell-card > button span,
+.membership-page .single-buy > button span:first-child,
+.membership-page .upsell-card > button b {
+  font-size: 14px;
+}
+.membership-page .payment-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.membership-page .payment-card > strong {
+  grid-column: 1 / -1;
+}
+.membership-page .payment-card > button {
+  min-height: 44px;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #eef0f3;
+  border-radius: 10px;
+}
+.membership-page .payment-card .radio-dot {
+  margin-left: auto;
+  flex: none;
+}
+.membership-page .pay-logo {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  flex: none;
+}
+.membership-page .section-heading {
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.membership-page .section-heading h2 {
+  font-size: 16px;
+}
+.membership-page .section-heading button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.membership-page .privilege-row {
+  min-height: 44px;
+  padding: 10px 8px;
+  font-size: 12px;
+  gap: 4px;
+}
+.membership-page .privilege-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.membership-page .privilege-row.table-head strong {
+  font-size: 12px;
+}
+.membership-page .demo-caption {
+  font-size: 12px;
+  align-items: flex-start;
+}
+.membership-page .demo-caption svg {
+  flex: none;
+  margin-top: 2px;
+}
+.membership-page .commerce-paybar {
+  padding: 12px var(--member-gutter) max(18px, env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 12px #1e304a08;
+}
+.membership-page .commerce-paybar label {
+  font-size: 12px;
+  min-height: 28px;
+  flex-wrap: wrap;
+}
+.membership-page .primary-pay {
+  height: 48px;
+  margin-top: 8px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+.membership-page button:focus-visible {
+  outline: 2px solid #438aff;
+  outline-offset: 2px;
+}
+@media (width < 360px) {
+  .membership-page {
+    --member-gutter: 12px;
+  }
+  .membership-page .plan-section {
+    gap: 6px;
+  }
+  .membership-page .plan-price {
+    font-size: 26px;
+  }
+  .membership-page .plan-card strong {
+    font-size: 12px;
+  }
+}
+@media (width >= 768px) {
+  .membership-page {
+    max-width: 960px;
+  }
+  .membership-scroll {
+    padding: 24px 32px 10px;
+  }
+  .membership-page .commerce-header,
+  .membership-page .commerce-paybar {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  .membership-page .plan-card {
+    min-height: 172px;
+  }
+  .membership-page .primary-pay {
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
