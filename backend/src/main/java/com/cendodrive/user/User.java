@@ -77,6 +77,10 @@ public class User {
     return vipLevel;
   }
 
+  public void activateSimulatedMembership() {
+    vipLevel = "SVIP";
+  }
+
   public void setStorageUsed(long bytes) {
     storageUsed = bytes;
   }

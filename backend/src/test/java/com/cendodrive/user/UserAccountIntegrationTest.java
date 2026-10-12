@@ -98,6 +98,44 @@ class UserAccountIntegrationTest {
     mvc.perform(put("/api/user/me/profile").header("Authorization","Bearer "+token).contentType("application/json")
         .content("{\"nickname\":\"   \"}")).andExpect(status().isBadRequest());
   }
+  @Test void simulatedMembershipIsAuthenticatedPersistentAndIdempotent() throws Exception {
+    String body = "{\"planId\":\"year\",\"paymentMethod\":\"wechat\",\"amount\":\"0\",\"userId\":\"" + other.getId() + "\"}";
+    mvc.perform(post("/api/membership/simulate-payment").contentType("application/json").content(body))
+        .andExpect(status().isUnauthorized());
+    for (int i = 0; i < 2; i++) {
+      mvc.perform(post("/api/membership/simulate-payment").header("Authorization", "Bearer " + token)
+          .contentType("application/json").content(body))
+          .andExpect(status().isOk()).andExpect(jsonPath("$.amount").value("152"))
+          .andExpect(jsonPath("$.simulated").value(true)).andExpect(jsonPath("$.user.vipLevel").value("SVIP"));
+    }
+    assertEquals("SVIP", fresh().getVipLevel());
+    assertEquals("NORMAL", users.findById(other.getId()).orElseThrow().getVipLevel());
+    assertEquals(1073741824L, fresh().getStorageLimit());
+    mvc.perform(get("/api/user/me").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.vipLevel").value("SVIP"));
+    for (String invalid : new String[]{"{\"planId\":\"invalid\",\"paymentMethod\":\"wechat\"}",
+        "{\"planId\":\"trial\",\"paymentMethod\":\"alipay\"}"}) {
+      mvc.perform(post("/api/membership/simulate-payment").header("Authorization", "Bearer " + token)
+          .contentType("application/json").content(invalid)).andExpect(status().isBadRequest());
+    }
+  }
+
+  @Test void singleUploadInterfaceIsPacedForNormalAndMember() throws Exception {
+    when(storage.upload(any(InputStream.class), anyLong(), anyString())).thenAnswer(call -> {
+      InputStream input = call.getArgument(0);
+      input.transferTo(OutputStream.nullOutputStream());
+      return "group1/test";
+    });
+    for (int i = 0; i < 2; i++) {
+      if (i == 1) { User user = fresh(); user.activateSimulatedMembership(); users.saveAndFlush(user); }
+      long start = System.nanoTime();
+      mvc.perform(multipart("/api/files/upload").file(new MockMultipartFile("file", "paced" + i + ".bin",
+          "application/octet-stream", new byte[16384])).header("Authorization", "Bearer " + token))
+          .andExpect(status().isCreated());
+      assertTrue(System.nanoTime() - start >= 125_000_000L);
+    }
+  }
+
   @Test void avatarIsNormalizedAuthenticatedAndRemoved() throws Exception {
     var request=multipart("/api/user/me/avatar").file(image(400,300,"png")); request.with(req->{req.setMethod("PUT");return req;});
     mvc.perform(request.header("Authorization","Bearer "+token)).andExpect(status().isNoContent());
