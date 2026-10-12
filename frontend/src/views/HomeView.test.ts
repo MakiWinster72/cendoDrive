@@ -1204,7 +1204,13 @@ describe("mobile home media shortcuts", () => {
     expect(getSplashAd).not.toHaveBeenCalled();
     expect(
       document.body.querySelector(".splash-ad-content")?.textContent,
-    ).toContain("开屏广告");
+    ).not.toContain("开屏广告");
+    expect(document.body.querySelector(".splash-ad-title")).toBeNull();
+    expect(
+      document.body
+        .querySelector(".splash-ad-content")
+        ?.getAttribute("aria-label"),
+    ).toBe("开屏广告");
     (
       document.body.querySelector(".splash-ad-content") as HTMLButtonElement
     ).click();
