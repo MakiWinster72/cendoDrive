@@ -127,7 +127,7 @@ onBeforeUnmount(() => { stop(); statusRequest?.abort(); });
 </script>
 
 <template>
-  <main :class="['kuku-page', { 'welcome-mode': mode === 'kuku' }]" @click="moreMenuOpen = false; modeMenuOpen = false">
+  <main :class="['kuku-page', `${mode}-mode`, { 'welcome-mode': mode === 'kuku' }]" @click="moreMenuOpen = false; modeMenuOpen = false">
     <header class="kuku-header">
       <button class="plain-icon" aria-label="返回上一页" @click="router.back()"><X /></button>
       <div class="mode-switch">
@@ -140,7 +140,7 @@ onBeforeUnmount(() => { stop(); statusRequest?.abort(); });
       <div class="header-actions">
         <button class="plain-icon" aria-label="对话历史" @click="showUnavailable"><ClockArrowLeft /></button>
         <button class="plain-icon" aria-label="新建对话" @click="resetConversation"><MessageCirclePlus /></button>
-        <div class="more-wrap"><button class="plain-icon" aria-label="更多功能" :aria-expanded="moreMenuOpen" @click.stop="moreMenuOpen = !moreMenuOpen; modeMenuOpen = false"><Ellipsis /></button>
+        <div v-if="mode === 'kuku'" class="more-wrap"><button class="plain-icon" aria-label="更多功能" :aria-expanded="moreMenuOpen" @click.stop="moreMenuOpen = !moreMenuOpen; modeMenuOpen = false"><Ellipsis /></button>
           <div v-if="moreMenuOpen" class="more-menu" @click.stop>
             <button @click="showUnavailable"><Brain /><span>记忆中心</span></button>
             <button @click="showUnavailable"><Sparkles /><span>AI点数充值</span></button>
@@ -245,4 +245,48 @@ onBeforeUnmount(() => { stop(); statusRequest?.abort(); });
 @media (width >= 1024px){.kuku-header{width:min(1180px,100%);margin-inline:auto}.kuku-scroll{padding-top:32px}.kuku-welcome{width:min(1080px,100%);min-height:600px;padding:245px 40px 50px}.hello-copy h1{font-size:104px}.hello-copy h2{font-size:38px}.suggestion-list{display:grid;grid-template-columns:repeat(2,minmax(0,340px));gap:15px}.suggestion-list button{width:100%}.tool-grid{width:min(1120px,100%);grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.tool-card{min-height:178px;padding:28px 24px}.explore-more{grid-column:1/-1}.conversation{width:min(840px,100%)}.quick-tools{width:min(980px,100%)}.composer-dock>*:not(.quick-tools){max-width:840px}}
 @media (width < 430px){.kuku-header{padding-inline:10px}.mode-label{font-size:18px;padding-inline:5px}.header-actions .plain-icon{width:34px}.header-actions .plain-icon>svg{width:23px;height:23px}.kuku-scroll{padding-inline:12px}.kuku-welcome{padding-inline:4px}.hello-copy h1{font-size:64px}.hello-copy h2{font-size:24px;letter-spacing:-1px}.suggestion-list button{font-size:15px}.composer-dock{padding-inline:10px}.composer{padding-inline:14px}.tool-card{padding-inline:13px}.tool-card strong{font-size:14px}.tool-card span{font-size:11px}}
 @media (orientation:landscape) and (height < 620px){.kuku-header{height:68px;padding-top:4px}.kuku-scroll{padding-top:8px}.kuku-welcome{min-height:390px;padding:105px 12px 20px}.hello-copy h1{font-size:54px}.hello-copy h2{margin:10px 0 18px;font-size:21px}.suggestion-list{display:grid;grid-template-columns:repeat(2,minmax(0,290px));gap:8px}.suggestion-list button{min-height:40px;font-size:14px}.composer-dock{padding-top:7px}.quick-tools button{height:38px}.composer{margin-top:6px;padding-top:8px;padding-bottom:7px}.composer textarea{min-height:32px}}
+
+/* Use the supplied 1200 x 2670 comps as the phone baseline, then reflow rather
+   than scaling a fixed canvas. Width controls columns; height controls rhythm. */
+@media (max-width:767px) and (orientation:portrait){
+  .kuku-header{height:clamp(72px,21vw,88px);padding:clamp(6px,2vw,9px) clamp(12px,4vw,18px) 0}
+  .kuku-scroll{padding:clamp(14px,4.5vw,20px) clamp(12px,4.5vw,20px) clamp(18px,6vw,27px)}
+  .tool-grid{gap:clamp(7px,2vw,10px)}
+  .tool-card{min-height:clamp(94px,27.5vw,122px);border-radius:clamp(15px,4.5vw,20px);padding:clamp(15px,4.5vw,20px) clamp(13px,4.25vw,19px)}
+  .tool-icon{width:clamp(22px,6.25vw,28px);height:clamp(22px,6.25vw,28px);margin-bottom:clamp(10px,3.25vw,14px)}
+  .tool-card strong{font-size:clamp(14px,4vw,17px);margin-bottom:clamp(5px,1.75vw,8px)}
+  .tool-card span{font-size:clamp(11px,3.25vw,14px)}
+  .explore-more{padding:clamp(6px,2vw,9px);font-size:clamp(14px,4vw,17px)}
+  .kuku-welcome{min-height:0;padding:clamp(68px,min(23vw,11dvh),102px) 0 clamp(16px,5vw,22px)}
+  .hello-copy h1{font-size:clamp(50px,14.5vw,64px);letter-spacing:clamp(-3px,-.75vw,-2px)}
+  .hello-copy h2{margin:clamp(10px,3.25vw,14px) 0 clamp(19px,6vw,27px);font-size:clamp(21px,6vw,26px);letter-spacing:-1px}
+  .suggestion-list{gap:clamp(9px,3vw,13px)}
+  .suggestion-list button{min-height:clamp(41px,11.5vw,50px);padding:0 clamp(15px,4.5vw,20px);border-radius:clamp(12px,3.5vw,15px);font-size:clamp(14px,3.75vw,16px)}
+  .orb{background:radial-gradient(circle at 78% 18%,rgba(255,255,255,.98) 0 5%,rgba(213,255,252,.9) 9%,rgba(68,238,232,.85) 18%,rgba(44,202,255,.82) 25%,rgba(255,255,255,0) 26%),radial-gradient(circle at 70% 16%,rgba(110,255,216,.72),rgba(33,203,255,.55) 22%,rgba(255,255,255,0) 29%)}
+  .orb:before{top:1%;width:clamp(112px,34vw,150px)}
+  .orb i:nth-child(1){top:11%}.orb i:nth-child(2){top:1%}.orb i:nth-child(3){top:15%}
+  .composer-dock{padding:clamp(8px,2.5vw,11px) clamp(10px,3.5vw,16px) max(clamp(8px,2.5vw,11px),env(safe-area-inset-bottom))}
+  .quick-tools{gap:clamp(6px,2vw,9px);padding-bottom:4px}
+  .quick-tools button{height:clamp(38px,10.5vw,45px);padding:0 clamp(12px,3.75vw,17px);border-radius:clamp(10px,3vw,13px);font-size:clamp(13px,3.5vw,15px)}
+  .network-toggle{height:clamp(38px,10.5vw,45px);padding:7px clamp(12px,3.5vw,16px);border-radius:clamp(10px,3vw,13px);font-size:clamp(13px,3.5vw,15px)}
+  .composer{margin-top:clamp(6px,2vw,9px);border-radius:clamp(19px,5.5vw,24px);padding:clamp(9px,2.75vw,12px) clamp(12px,3.5vw,16px) clamp(7px,2.25vw,10px)}
+  .composer textarea{min-height:clamp(34px,10vw,43px);font-size:clamp(15px,4vw,17px)}
+  .composer-bar button{width:clamp(32px,9vw,39px);height:clamp(32px,9vw,39px)}
+}
+@media (768px <= width < 1200px){
+  .tool-grid{width:min(960px,100%);grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .tool-card{min-height:clamp(132px,16vw,166px)}
+  .kuku-welcome{width:min(900px,100%);padding-top:clamp(150px,22dvh,230px)}
+  .suggestion-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-width:720px}
+  .suggestion-list button{width:100%}
+}
+@media (width >= 1200px){
+  .tool-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .kuku-welcome{padding-top:clamp(180px,24dvh,260px)}
+}
+@media (orientation:landscape) and (height < 620px){
+  .tool-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .tool-card{min-height:104px;padding:14px}.tool-icon{width:24px;height:24px;margin-bottom:9px}
+  .composer-dock{padding-block:6px}.composer textarea{min-height:30px}.composer-bar button{height:32px}
+}
 </style>

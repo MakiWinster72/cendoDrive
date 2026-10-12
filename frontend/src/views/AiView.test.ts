@@ -32,8 +32,12 @@ describe("扣扣AI reference interface", () => {
 
   it("switches to standard mode and keeps unopened entries honest", async () => {
     const wrapper = await open();
+    expect(wrapper.get("main").classes()).toContain("kuku-mode");
+    expect(wrapper.find('[aria-label="更多功能"]').exists()).toBe(true);
     await wrapper.get('[aria-label="切换AI模式"]').trigger("click");
     await wrapper.findAll(".mode-popover>button")[1]!.trigger("click");
+    expect(wrapper.get("main").classes()).toContain("standard-mode");
+    expect(wrapper.find('[aria-label="更多功能"]').exists()).toBe(false);
     for (const title of ["视频课件", "音频会议纪要", "小说生成视频", "拍图写作", "AI写真", "播客解析", "PPT逐字稿", "视频精转文稿"]) expect(wrapper.text()).toContain(title);
     await wrapper.findAll(".tool-card")[0]!.trigger("click");
     expect(document.body.textContent).toContain("该功能尚未开放");
