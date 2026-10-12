@@ -127,3 +127,20 @@ describe("扣扣AI", () => {
     await textarea.trigger("keydown", { key: "Enter", isComposing: true }); expect(streamChat).not.toHaveBeenCalled();
   });
 });
+
+it("dismisses the popover outside while preserving inside clicks and trigger toggling", async () => {
+  const w = mount(AiView, { attachTo: document.body }); wrappers.push(w);
+  await flushPromises();
+  const trigger = w.get('[aria-controls="ai-mode-menu"]');
+  await trigger.trigger("click");
+  await w.get("#ai-mode-menu").trigger("click");
+  expect(trigger.attributes("aria-expanded")).toBe("true");
+  await trigger.trigger("click");
+  expect(w.find("#ai-mode-menu").exists()).toBe(false);
+  await trigger.trigger("click");
+  await w.get("textarea").trigger("click");
+  expect(w.find("#ai-mode-menu").exists()).toBe(false);
+  await trigger.trigger("click");
+  document.body.click(); await flushPromises();
+  expect(trigger.attributes("aria-expanded")).toBe("false");
+});

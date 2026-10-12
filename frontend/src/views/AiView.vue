@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ArrowUp, ChevronDown, History, MessageCircle, Plus, Search, Sparkles, Square, X } from "@lucide/vue";
+import { useOutsideClick } from "../components/useOutsideClick";
 import AiMessage from "../components/AiMessage.vue";
 import ClawPanel from "../components/ClawPanel.vue";
 import AiWelcome from "../components/AiWelcome.vue";
@@ -11,6 +12,8 @@ const router = useRouter();
 const route = useRoute();
 const mode = computed(() => route.query.mode === "search" ? "search" : "chat");
 const modeMenu = ref(false);
+const modeControl = ref<HTMLElement>();
+useOutsideClick([modeControl], () => { modeMenu.value = false; });
 const historyOpen = ref(false);
 const status = ref<ChatStatus | null>(null);
 const statusLoading = ref(false);
@@ -139,15 +142,17 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
   <main class="ai-page" @keydown.esc="modeMenu = false; historyOpen = false">
     <header class="ai-header">
       <button class="icon-button" aria-label="返回网盘" @click="router.push({ name: 'home' })"><X :size="23" /></button>
-      <div class="mode-control">
+      <div ref="modeControl" class="mode-control">
         <button class="mode-trigger" aria-label="切换AI模式" :aria-expanded="modeMenu" aria-controls="ai-mode-menu" @click="modeMenu = !modeMenu">
           <strong>{{ mode === 'chat' ? '扣扣AI' : '扣扣Claw' }}</strong><ChevronDown :size="18" :class="{ rotated: modeMenu }" />
           <span>{{ mode === 'chat' ? '智能对话' : '根据网盘文件内容搜索文件' }}</span>
         </button>
+        <Transition name="mode-popover">
         <div v-if="modeMenu" id="ai-mode-menu" class="mode-menu">
           <button :aria-pressed="mode === 'chat'" @click="selectMode('chat')"><MessageCircle :size="20" /><span><b>智能对话</b><small>扣扣AI · 灵感与解答</small></span><i v-if="mode === 'chat'" /></button>
           <button :aria-pressed="mode === 'search'" @click="selectMode('search')"><Search :size="20" /><span><b>扣扣Claw</b><small>根据网盘文件内容搜索文件</small></span><i v-if="mode === 'search'" /></button>
         </div>
+        </Transition>
       </div>
       <div class="header-actions">
         <button type="button" class="icon-button" aria-label="对话历史"><History :size="22" /></button>

@@ -97,3 +97,20 @@ it("creates a new conversation and restores its sources from history", async () 
   panel.toggleHistory(); await flushPromises(); await wrapper.get(".history-item").trigger("click"); await flushPromises();
   expect(wrapper.text()).toContain("项目预算100万"); expect(wrapper.findAll(".message")).toHaveLength(2);
 });
+
+it("dismisses the popover outside while preserving inside clicks and trigger toggling", async () => {
+  const w = mount(ClawPanel, { attachTo: document.body }); wrapper = w;
+  await flushPromises();
+  const trigger = w.get('.document-status');
+  await trigger.trigger("click");
+  await w.get("#claw-files").trigger("click");
+  expect(trigger.attributes("aria-expanded")).toBe("true");
+  await trigger.trigger("click");
+  expect(w.find("#claw-files").exists()).toBe(false);
+  await trigger.trigger("click");
+  await w.get("textarea").trigger("click");
+  expect(w.find("#claw-files").exists()).toBe(false);
+  await trigger.trigger("click");
+  document.body.click(); await flushPromises();
+  expect(trigger.attributes("aria-expanded")).toBe("false");
+});

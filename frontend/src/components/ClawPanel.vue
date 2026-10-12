@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from "vue";
+import { useOutsideClick } from "./useOutsideClick";
 import AiMessage from "./AiMessage.vue";
 import AiWelcome from "./AiWelcome.vue";
 import { ArrowUp, ChevronDown, FileText, MessageCircle, RefreshCw, Search, Square, X } from "@lucide/vue";
@@ -19,6 +20,9 @@ const turns = computed(() => current.value.turns);
 const saved = computed(() => conversations.value.filter(conversation => conversation.turns.length));
 const historyOpen = ref(false);
 const filesOpen = ref(false);
+const filesPanel = ref<HTMLElement>();
+const filesTrigger = ref<HTMLElement>();
+useOutsideClick([filesPanel, filesTrigger], () => { filesOpen.value = false; });
 const composing = ref(false);
 const statusError = ref("");
 const input = ref<HTMLTextAreaElement>();
@@ -126,7 +130,8 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
       <p v-else-if="!status" class="service-notice" role="status">正在连接文件问答…</p>
       <p v-else-if="!status.configured" class="service-notice" role="status">扣扣Claw尚未配置，请联系管理员。<button @click="refresh">刷新状态</button></p>
       <p v-if="error" class="chat-error" role="alert">{{ error }}<button :disabled="!canSend" @click="send">重试</button></p>
-      <div v-if="filesOpen" id="claw-files" class="files-panel">
+      <Transition name="files-popover">
+      <div ref="filesPanel" v-if="filesOpen" id="claw-files" class="files-panel">
         <div class="files-heading"><h2>文档状态</h2><button class="icon-button" aria-label="关闭文档状态" @click="filesOpen = false"><X :size="18" /></button></div>
         <template v-if="status">
           <p class="file-counts">已索引 {{ status.ready }} · 处理中 {{ status.pending }} · 失败 {{ status.failed }} · 无法提取 {{ status.unsupported }} · 需要重建 {{ status.needsReindex }}</p>
@@ -136,9 +141,10 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
           <p v-else class="hint">还没有可索引的文档，上传后可在这里查看。</p>
         </template>
       </div>
+      </Transition>
       <form class="composer" @submit.prevent="send">
         <textarea ref="input" v-model="question" aria-label="搜索网盘文档内容" placeholder="想找什么文件，尽管问我…" maxlength="2000" rows="2" :readonly="pending" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false" />
-        <div class="composer-tools"><span><Search :size="15" />文件问答<button type="button" class="document-status" :aria-expanded="filesOpen" aria-controls="claw-files" @click="filesOpen = !filesOpen; historyOpen = false"><FileText :size="14" /><span>{{ status ? `${status.ready} 个文档` : '文档状态' }}</span><ChevronDown :size="13" :class="{ rotated: filesOpen }" /></button></span>
+        <div class="composer-tools"><span><Search :size="15" />文件问答<button ref="filesTrigger" type="button" class="document-status" :aria-expanded="filesOpen" aria-controls="claw-files" @click="filesOpen = !filesOpen; historyOpen = false"><FileText :size="14" /><span>{{ status ? `${status.ready} 个文档` : '文档状态' }}</span><ChevronDown :size="13" :class="{ rotated: filesOpen }" /></button></span>
           <button v-if="pending" type="button" class="send-button" aria-label="停止回答" @click="stop"><Square :size="16" /></button><button v-else type="submit" class="send-button" aria-label="发送问题" :disabled="!canSend"><ArrowUp :size="22" /></button>
         </div>
       </form>
