@@ -25,7 +25,7 @@ services:
     volumes:
       - backend-storage:/app/storage
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -38,8 +38,10 @@ services:
       storage3:
         condition: service_started
 
-  # Private vector service: no published port; persistence is independent of file storage.
+  # Optional Claw dependency: enable with --profile claw (also set CENDO_AI_CLAW_ENABLED=true).
+  # No published port; persistence is independent of file storage.
   qdrant:
+    profiles: [claw]
     image: qdrant/qdrant:v1.15.4
     # Qdrant treats an empty API-key variable as enabled authentication.
     command: ["/bin/sh", "-c", 'if [ -z "$$QDRANT__SERVICE__API_KEY" ]; then unset QDRANT__SERVICE__API_KEY; fi; exec ./entrypoint.sh']
@@ -52,7 +54,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:80:80"
     depends_on:
       - backend
 
@@ -97,7 +99,7 @@ services:
     environment:
       FDFS_RESERVED_STORAGE_SPACE: ${FDFS_RESERVED_STORAGE_SPACE:-5%}
     ports:
-      - "22122:22122"
+      - "127.0.0.1:22122:22122"
     volumes:
       - tracker-data:/var/fdfs
       - ./infra/fastdfs/tracker-entrypoint.sh:/cendo/tracker-entrypoint.sh:ro
@@ -110,8 +112,8 @@ services:
     depends_on:
       - tracker
     ports:
-      - "23000:23000"
-      - "10001:8080"
+      - "127.0.0.1:23000:23000"
+      - "127.0.0.1:10001:8080"
     volumes:
       - storage1-data:/var/fdfs
 
@@ -122,8 +124,8 @@ services:
     depends_on:
       - tracker
     ports:
-      - "23001:23000"
-      - "10002:8080"
+      - "127.0.0.1:23001:23000"
+      - "127.0.0.1:10002:8080"
     volumes:
       - storage2-data:/var/fdfs
 
@@ -134,8 +136,8 @@ services:
     depends_on:
       - tracker
     ports:
-      - "23002:23000"
-      - "10003:8080"
+      - "127.0.0.1:23002:23000"
+      - "127.0.0.1:10003:8080"
     volumes:
       - storage3-data:/var/fdfs
 
