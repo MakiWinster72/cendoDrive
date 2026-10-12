@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   ChevronDown,
+  Folder,
 } from "@lucide/vue";
 import {
   getFileDetails,
@@ -267,18 +268,34 @@ onBeforeUnmount(() => {
     </div>
     <template v-if="!loading && !error">
       <div v-if="action === 'move' || action === 'copy'" class="tools-target">
-        <label
-          >目标文件夹<select v-model="target" :disabled="busy || targetSaving">
-            <option
+        <fieldset :disabled="busy || targetSaving || !!targetEdit">
+          <legend>目标文件夹</legend>
+          <div class="tools-folder-list">
+            <label
               v-for="choice in choices"
               :key="choice.id ?? 'root'"
-              :value="choice.id"
-              :disabled="choice.disabled"
+              class="tools-folder-choice"
+              :class="{
+                'is-selected': target === choice.id,
+                'is-disabled': choice.disabled,
+              }"
             >
-              {{ choice.label }}
-            </option>
-          </select></label
-        ><button
+              <Folder :size="18" aria-hidden="true" />
+              <span
+                >{{ choice.label
+                }}<small v-if="choice.disabled">不可选</small></span
+              >
+              <input
+                v-model="target"
+                type="radio"
+                name="tools-target-folder"
+                :value="choice.id"
+                :disabled="choice.disabled"
+              />
+            </label>
+          </div>
+        </fieldset>
+        <button
           :disabled="
             busy ||
             targetSaving ||
@@ -336,11 +353,11 @@ onBeforeUnmount(() => {
         </dd>
       </dl>
     </template>
-    <footer v-if="action !== 'menu'">
-      <button :disabled="busy || targetSaving" @click="choose('menu')">
-        返回操作</button
-      ><button
-        v-if="action !== 'details'"
+    <footer
+      v-if="action !== 'menu' && action !== 'details'"
+      class="tools-action-footer"
+    >
+      <button
         class="tools-primary"
         :disabled="busy || targetSaving || !!targetEdit || loading || !!error"
         @click="submit"

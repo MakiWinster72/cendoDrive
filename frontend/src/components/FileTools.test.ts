@@ -79,6 +79,36 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("file tools workflows", () => {
+  it("shows clear folder paths, starts at root and disables invalid destinations", async () => {
+    const wrapper = await open("move", [folder("1", "资料")]);
+    expect(wrapper.text()).not.toContain("返回操作");
+    expect(wrapper.find("select").exists()).toBe(false);
+    expect(wrapper.get("legend").text()).toBe("目标文件夹");
+    const root = wrapper.get(".tools-folder-choice input");
+    expect(root.element).toHaveProperty("checked", true);
+    expect(
+      wrapper.get('input[value="1"]').attributes("disabled"),
+    ).toBeDefined();
+    expect(
+      wrapper.get('input[value="2"]').attributes("disabled"),
+    ).toBeDefined();
+    expect(wrapper.text()).toContain("/资料/资料");
+    expect(wrapper.text()).toContain("不可选");
+    expect(wrapper.findAll("footer button")).toHaveLength(1);
+    await button(wrapper, "确认移动").trigger("click");
+    await flushPromises();
+    expect(api.moveFiles).toHaveBeenCalledWith(["1"], null);
+  });
+  it("locks directory choices while naming a new target", async () => {
+    const wrapper = await open("copy");
+    await button(wrapper, "新建文件夹").trigger("click");
+    expect(wrapper.get("fieldset").attributes("disabled")).toBeDefined();
+    expect(button(wrapper, "确认复制").attributes("disabled")).toBeDefined();
+    await wrapper
+      .get(".target-draft-row input")
+      .trigger("keydown", { key: "Escape" });
+    expect(wrapper.get("fieldset").attributes("disabled")).toBeUndefined();
+  });
   it("keeps four primary actions and reveals secondary actions on demand", async () => {
     const wrapper = await open("menu");
     expect(wrapper.get("h2").text()).toBe(file.name);
@@ -125,7 +155,7 @@ describe("file tools workflows", () => {
     "creates a new target before %s without losing selection",
     async (action) => {
       const wrapper = await open(action);
-      await wrapper.find("select").setValue("1");
+      await wrapper.get('input[type="radio"][value="1"]').setValue();
       const created = folder("9", "新目标", "1");
       vi.mocked(api.createFolder).mockResolvedValue(created);
       vi.mocked(api.listFolders).mockResolvedValue([
@@ -147,8 +177,9 @@ describe("file tools workflows", () => {
         .trigger("submit");
       await flushPromises();
       expect(api.createFolder).toHaveBeenCalledWith("新目标", "1");
-      expect((wrapper.find("select").element as HTMLSelectElement).value).toBe(
-        "9",
+      expect(wrapper.get('input[value="9"]').element).toHaveProperty(
+        "checked",
+        true,
       );
       expect(wrapper.find(".target-draft-row").exists()).toBe(false);
       expect(document.body.style.overflow).toBe("hidden");
@@ -166,15 +197,16 @@ describe("file tools workflows", () => {
   );
   it("cancels inline creation without closing the move dialog or losing its target", async () => {
     const wrapper = await open("move");
-    await wrapper.find("select").setValue("2");
+    await wrapper.get('input[type="radio"][value="2"]').setValue();
     await button(wrapper, "新建文件夹").trigger("click");
     await wrapper
       .find(".target-draft-row input")
       .trigger("keydown", { key: "Escape" });
     expect(api.createFolder).not.toHaveBeenCalled();
     expect(wrapper.emitted("close")).toBeUndefined();
-    expect((wrapper.find("select").element as HTMLSelectElement).value).toBe(
-      "2",
+    expect(wrapper.get('input[value="2"]').element).toHaveProperty(
+      "checked",
+      true,
     );
     expect(wrapper.find(".target-draft-row").exists()).toBe(false);
     wrapper.unmount();
@@ -196,7 +228,7 @@ describe("file tools workflows", () => {
     "uses directory IDs for %s and closes after success",
     async (action) => {
       const wrapper = await open(action);
-      await wrapper.find("select").setValue("2");
+      await wrapper.get('input[type="radio"][value="2"]').setValue();
       await button(
         wrapper,
         action === "move" ? "确认移动" : "确认复制",
