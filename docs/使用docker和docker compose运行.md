@@ -58,7 +58,7 @@ docker compose up -d --build
 | storage1、storage2、storage3 | 同一 group 的文件存储副本 |
 | qdrant | 扣扣 Claw 文档向量存储，默认启动 |
 
-默认启动包含 Qdrant；启用扣扣 Claw 的模型和功能配置见 2.5。普通 AI 聊天仅调用外部模型 API，不依赖向量库。当前主应用不依赖 Milvus、MinIO、etcd；`index-service` 是另一个待对接索引方案，不能据其旧说明要求主应用启动 Milvus。
+默认启动包含 Qdrant；启用扣扣 Claw 的模型和功能配置见 2.5。普通 AI 聊天仅调用外部模型 API，不依赖向量库。当前主应用不依赖 Milvus、MinIO、etcd，不应要求主应用启动 Milvus。
 
 MySQL 首次初始化会创建 `cendo` 数据库和 `cendo` 用户，不需要手动创建账号。容器后端使用 `application.example.yml` 作为基线，并由环境变量覆盖，不需要复制本机的 `application.yml`。
 
