@@ -5,6 +5,7 @@ import AiWelcome from "./AiWelcome.vue";
 import { ArrowUp, ChevronDown, FileText, MessageCircle, RefreshCw, Search, Square, X } from "@lucide/vue";
 import { askClaw, getClawStatus, reindexClaw, type ClawAnswer, type ClawStatus } from "../api/claw";
 const status = ref<ClawStatus>();
+const supportedFiles = computed(() => status.value?.files.filter(file => /\.(txt|md|csv|pdf|docx)$/i.test(file.name)) ?? []);
 const question = ref("");
 const pending = ref(false);
 const indexing = ref(false);
@@ -131,7 +132,7 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
           <p class="file-counts">已索引 {{ status.ready }} · 处理中 {{ status.pending }} · 失败 {{ status.failed }} · 无法提取 {{ status.unsupported }} · 需要重建 {{ status.needsReindex }}</p>
           <div class="index-actions"><button :disabled="refreshing" @click="refresh"><RefreshCw :size="14" />刷新状态</button><button :disabled="!status.configured || indexing" @click="reindex()">确认重建已有文档索引</button></div>
           <p class="hint">重建会将文档内容发送到已配置的向量模型。</p>
-          <ul v-if="status.files.length" class="file-list"><li v-for="file in status.files" :key="file.fileId"><FileText :size="17" /><div><b>{{ file.name }}</b><span>{{ file.path }}</span></div><span class="file-state">{{ labels[file.status] ?? file.status }}</span><button v-if="['FAILED', 'NEEDS_REINDEX'].includes(file.status)" :disabled="indexing || !status.configured" @click="reindex(file.fileId)">确认重试</button></li></ul>
+          <ul v-if="supportedFiles.length" class="file-list"><li v-for="file in supportedFiles" :key="file.fileId"><FileText :size="17" /><div><b>{{ file.name }}</b><span>{{ file.path }}</span></div><span class="file-state">{{ labels[file.status] ?? file.status }}</span><button v-if="['FAILED', 'NEEDS_REINDEX'].includes(file.status)" :disabled="indexing || !status.configured" @click="reindex(file.fileId)">确认重试</button></li></ul>
           <p v-else class="hint">还没有可索引的文档，上传后可在这里查看。</p>
         </template>
       </div>
