@@ -353,9 +353,9 @@
     stroke-width: 1.8;
   }
   .message-inbox-list {
-    flex: 1;
-    min-height: 220px;
-    overflow-y: auto;
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
     margin: 0 -4px;
     padding: 0 8px;
     border-radius: 0;

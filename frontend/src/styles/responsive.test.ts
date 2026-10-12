@@ -15,6 +15,13 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("keeps recent chats immediately after the inbox entries", () => {
+    const hub = read("./share-hub.css");
+    const inbox = hub.split(".message-inbox-list {")[1]!.split("}")[0]!;
+    expect(inbox).toContain("flex: 0 0 auto");
+    expect(inbox).toContain("min-height: 0");
+    expect(hub).toContain("margin: 15px 3px 7px");
+  });
   it("shares one border-box height between chat input and send button", () => {
     const chat = read("./chat.css");
     expect(chat).toContain("--chat-compose-height: 48px");
