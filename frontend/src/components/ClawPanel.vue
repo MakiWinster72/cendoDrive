@@ -111,7 +111,7 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
               <span class="sources-label"><FileText :size="14" />参考文件 · {{ turn.answer.sources.length }}</span>
               <details v-for="source in turn.answer.sources" :key="source.citation" class="source">
                 <summary><span class="citation">{{ source.citation }}</span><FileText :size="16" /><span class="source-name">{{ source.name }}</span><ChevronDown :size="14" /></summary>
-                <div class="source-body"><span>{{ source.path }}</span><AiMessage class="source-excerpt" :content="source.excerpt" /></div>
+                <div class="source-body"><span>{{ source.path }}</span><AiMessage class="source-excerpt" :content="source.excerpt" excerpt /></div>
               </details>
             </div>
           </article>
