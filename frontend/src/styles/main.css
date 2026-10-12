@@ -1485,32 +1485,34 @@ a {
     opacity: 0.45;
   }
   .m-filter {
-    padding: 10px var(--mobile-gutter);
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    height: 83px;
+    padding: 8px var(--mobile-gutter);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
     background: #fff;
   }
   .m-filter button {
-    min-width: 0;
-    min-height: 44px;
-    border: 1px solid transparent;
-    background: #f5f6f8;
-    border-radius: 10px;
-    padding: 8px 4px;
-    color: #667085;
-    font-size: var(--mobile-font-body);
-    font-weight: 500;
-  }
-  .m-filter button.active {
-    background: #edf5ff;
-    border-color: #cfe3ff;
-    color: #1768c5;
+    border: 0;
+    background: #f3f4f8;
+    border-radius: 16px;
+    white-space: nowrap;
+    padding: 7px 13px;
+    color: #adb4bf;
+    font-size: 12px;
     font-weight: 600;
   }
-  .m-filter button:focus-visible {
-    outline: 2px solid #1677ff;
-    outline-offset: 2px;
+  .m-filter button.sort-trigger {
+    background: transparent;
+    padding-left: 0;
+    display: flex;
+    align-items: center;
+  }
+  .m-filter button.active {
+    background: #111925;
+    color: #fff;
   }
   .m-file-list {
     background: #fff;

@@ -135,6 +135,7 @@ function navigationFolder(id: string) {
     drive.get(id) ?? navigationFolders.value.find((item) => item.id === id)
   );
 }
+const mobileSearchPanel = ref<InstanceType<typeof FileSearchPanel> | null>(null);
 const keyword = ref(""),
   checked = ref<string[]>([]),
   menuOpen = ref(false),
@@ -1168,7 +1169,7 @@ onUnmounted(() => {
     </template>
     <template v-else-if="mobileTab === 'files'">
       <header
-        v-if="currentFolder && !checked.length"
+        v-if="currentFolder && !checked.length && !searchActive"
         class="m-folder-head"
         @keydown.esc="folderMenuOpen = false"
       >
@@ -1234,7 +1235,7 @@ onUnmounted(() => {
           </button>
         </div>
       </header>
-      <header v-else class="m-file-head" @keydown.esc="folderMenuOpen = false">
+      <header v-else-if="!searchActive" class="m-file-head" @keydown.esc="folderMenuOpen = false">
         <template v-if="checked.length && mode !== 'trash'"
           ><button
             class="m-selection-close"
@@ -1298,7 +1299,13 @@ onUnmounted(() => {
           </div></template
         >
       </header>
-      <div v-if="!currentFolder" class="m-search">
+      <form v-if="searchActive && mobileViewport" class="m-search-page-header" role="search" @submit.prevent="mobileSearchPanel?.retry()">
+        <button type="button" aria-label="返回文件列表" @click="keyword = ''"><ChevronLeft :size="24" /></button>
+        <input v-model="keyword" aria-label="搜索文件名" maxlength="100" placeholder="搜索文件名" />
+        <button type="button" aria-label="清空搜索" @click="keyword = ''"><X :size="18" /></button>
+        <button type="submit" class="m-search-submit">搜索</button>
+      </form>
+      <div v-if="!currentFolder && !searchActive" class="m-search">
         <Search :size="19" /><input
           v-model="keyword"
           :placeholder="
@@ -1332,7 +1339,7 @@ onUnmounted(() => {
         </button>
       </div>
       <nav
-        v-if="currentFolder"
+        v-if="currentFolder && !searchActive"
         class="m-folder-breadcrumb"
         aria-label="文件夹路径"
       >
@@ -1358,7 +1365,7 @@ onUnmounted(() => {
           </button></template
         >
       </nav>
-      <div v-if="currentFolder" class="m-folder-toolbar">
+      <div v-if="currentFolder && !searchActive" class="m-folder-toolbar">
         <label class="m-folder-sort-label"
           >{{
             sortBy === "time"
@@ -1387,7 +1394,7 @@ onUnmounted(() => {
         </button>
       </div>
       <div
-        v-if="!currentFolder"
+        v-if="!currentFolder && !searchActive"
         class="m-filter"
         role="group"
         aria-label="文件分类"
@@ -1415,13 +1422,13 @@ onUnmounted(() => {
           隐藏空间
         </button>
       </div>
-      <p v-if="!currentFolder && drive.state.usage" class="m-capacity">
+      <p v-if="!currentFolder && !searchActive && drive.state.usage" class="m-capacity">
         已用 {{ formatBytes(drive.state.usage.usedBytes) }} /
         {{ formatBytes(drive.state.usage.limitBytes) }} · 可用
         {{ formatBytes(drive.state.usage.availableBytes) }}
       </p>
       <p
-        v-if="!currentFolder && drive.state.usageError"
+        v-if="!currentFolder && !searchActive && drive.state.usageError"
         class="m-capacity"
         role="alert"
       >
@@ -1430,6 +1437,7 @@ onUnmounted(() => {
       </p>
       <FileSearchPanel
         v-if="searchActive && mobileViewport"
+        ref="mobileSearchPanel"
         :query="keyword"
         :parent-id="currentFolder"
         :initial-type="searchType"

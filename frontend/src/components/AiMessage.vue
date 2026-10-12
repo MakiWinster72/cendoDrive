@@ -2,8 +2,9 @@
 import { computed } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-const props = defineProps<{ content: string }>();
-const html = computed(() => DOMPurify.sanitize(marked.parse(props.content, { async: false, breaks: true }), {
+import { normalizeExcerptMarkdown } from "./excerptMarkdown";
+const props = defineProps<{ content: string; excerpt?: boolean }>();
+const html = computed(() => DOMPurify.sanitize(marked.parse(props.excerpt ? normalizeExcerptMarkdown(props.content) : props.content, { async: false, breaks: true }), {
   USE_PROFILES: { html: true }, FORBID_TAGS: ["img", "iframe", "form", "input", "button", "style"],
 }));
 </script>

@@ -57,17 +57,22 @@ async function send() {
   const conversation = current.value;
   const request = new AbortController(); active = request;
   pending.value = true; error.value = "";
+  question.value = ""; conversation.draft = "";
+  filesOpen.value = false;
   void scrollBottom();
   try {
     const previous = conversation.turns.at(-1)?.question.slice(0, 300);
     const answer = await askClaw(text, previous, request.signal);
     if (!request.signal.aborted && active === request) {
-      conversation.turns.push({ question: text, answer }); question.value = "";
+      conversation.turns.push({ question: text, answer });
       conversation.title = conversation.turns[0]!.question.slice(0, 28);
       if (!conversations.value.some(saved => saved.id === conversation.id)) conversations.value.unshift(conversation);
       void scrollBottom();
     }
-  } catch { if (!request.signal.aborted) error.value = "文档问答失败，请检查索引状态后重试。问题已保留。"; }
+  } catch { if (!request.signal.aborted && active === request) {
+    if (current.value === conversation && !question.value) { question.value = text; conversation.draft = text; }
+    error.value = "文档问答失败，请检查索引状态后重试。问题已保留。";
+  } }
   finally { if (active === request) { pending.value = false; active = undefined; } }
 }
 function stop() { active?.abort(); active = undefined; pending.value = false; }
@@ -106,7 +111,7 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
               <span class="sources-label"><FileText :size="14" />参考文件 · {{ turn.answer.sources.length }}</span>
               <details v-for="source in turn.answer.sources" :key="source.citation" class="source">
                 <summary><span class="citation">{{ source.citation }}</span><FileText :size="16" /><span class="source-name">{{ source.name }}</span><ChevronDown :size="14" /></summary>
-                <div class="source-body"><span>{{ source.path }}</span><p>{{ source.excerpt }}</p></div>
+                <div class="source-body"><span>{{ source.path }}</span><AiMessage class="source-excerpt" :content="source.excerpt" excerpt /></div>
               </details>
             </div>
           </article>
@@ -153,6 +158,6 @@ onBeforeUnmount(() => { controller.abort(); stop(); clearTimeout(timer); });
 .file-list { list-style: none; padding: 0; margin: 12px 0 0; } .file-list li { display: flex; align-items: center; gap: 9px; padding: 12px 0; border-top: 1px solid #edf1f3; font-size: 11px; color: var(--muted); } .file-list li > svg { flex-shrink: 0; } .file-list li > div { flex: 1; min-width: 0; } .file-list b { display: block; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; } .file-list li > div > span { display: block; margin-top: 4px; overflow-wrap: anywhere; } .file-state { white-space: nowrap; }
 .sources { margin-top: 18px; } .sources-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; margin-bottom: 10px; }
 .source { border: 1px solid #e4ecef; border-radius: 12px; margin-top: 8px; background: #f7f9fa; overflow: hidden; } .source summary { display: flex; align-items: center; gap: 8px; padding: 11px 13px; cursor: pointer; color: #586873; font-size: 12px; list-style: none; } .source summary::-webkit-details-marker { display: none; } .source summary > svg { flex-shrink: 0; } .source-name { flex: 1; overflow-wrap: anywhere; } .citation { display: grid; place-items: center; flex-shrink: 0; min-width: 20px; height: 20px; border-radius: 6px; background: #e4f3f6; color: #087e92; font-size: 10px; } .source[open] summary > svg:last-child { transform: rotate(180deg); }
-.source-body { padding: 0 13px 12px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; } .source-body p { white-space: pre-wrap; font-size: 12px; line-height: 1.8; color: #45515c; margin: 10px 0 0; }
+.source-body { padding: 0 13px 12px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; } .source-excerpt { min-width: 0; font-size: 12px; color: #45515c; margin: 10px 0 0; }
 @media (max-width: 600px) { .files-panel { left: 18px; right: 18px; padding: 12px 14px; } .file-list li { flex-wrap: wrap; } .file-list li > div { min-width: 50%; } }
 </style>
