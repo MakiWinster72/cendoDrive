@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlywayMigrationTest {
+  private static final int LATEST_VERSION = 16;
   private static final List<String> MIGRATIONS = List.of(
       "V1__create_users.sql", "V2__create_drive_files.sql", "V3__add_storage_backend.sql",
       "V4__add_drive_trash.sql", "V5__create_share_links.sql", "V6__add_file_features.sql",
@@ -21,7 +22,7 @@ class FlywayMigrationTest {
 
   @Test void freshDatabaseAppliesAllMigrations() {
     Flyway flyway = current(databaseUrl());
-    assertEquals(14, flyway.migrate().migrationsExecuted);
+    assertEquals(LATEST_VERSION, flyway.migrate().migrationsExecuted);
     assertTrue(flyway.validateWithResult().validationSuccessful);
     assertEquals(Integer.valueOf(-1727441758), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("5").equals(migration.getVersion()))
@@ -48,18 +49,19 @@ class FlywayMigrationTest {
           + "VALUES (1, 42, 'historical-share', '保留文件.txt', 123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
     Flyway flyway = current(url);
-    assertEquals(6, flyway.migrate().migrationsExecuted);
+    assertEquals(LATEST_VERSION - MIGRATIONS.size(), flyway.migrate().migrationsExecuted);
     assertDoesNotThrow(flyway::validate);
-    assertEquals(MigrationVersion.fromVersion("14"), flyway.info().current().getVersion());
+    assertEquals(MigrationVersion.fromVersion(Integer.toString(LATEST_VERSION)), flyway.info().current().getVersion());
     assertEquals(Integer.valueOf(-267370802), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("8").equals(migration.getVersion()))
         .findFirst().orElseThrow().getChecksum());
     try (var connection = DriverManager.getConnection(url, "sa", "");
          var statement = connection.createStatement();
-         var rows = statement.executeQuery("SELECT file_name, size_bytes FROM share_links WHERE token = 'historical-share'")) {
+         var rows = statement.executeQuery("SELECT file_name, size_bytes, extraction_code FROM share_links WHERE token = 'historical-share'")) {
       assertTrue(rows.next());
       assertEquals("保留文件.txt", rows.getString(1));
       assertEquals(123, rows.getLong(2));
+      assertNull(rows.getString(3));
     }
   }
 
