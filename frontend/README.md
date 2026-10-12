@@ -122,3 +122,9 @@ npm run build
 - 转存、云添加、会员加速、推广领取、下载券使用及右上角批量选择/设置保留为无操作展示按钮。
 
 验证：`npm test` 和 `npm run build`。新增 `src/stores/transfers.test.ts` 覆盖并发调度、进度、失败与清理；`src/components/TransferPage.test.ts` 覆盖模板编译、品牌及假按钮。
+
+### 文件缩略图
+
+网盘桌面列表/网格、移动端文件列表及文件搜索结果支持图片、PDF、DOCX 和 Markdown（`.md` / `.markdown`）缩略图。PDF 显示第一页，DOCX 和 Markdown 显示经过清理的文档开头；DOCX 是内容摘要，不保证与 Word 分页排版一致。
+
+缩略图进入可视区域附近后才加载，同时最多处理三个文件。通过现有鉴权下载接口获取原文件，在浏览器内生成，不需要后端迁移或额外服务。沿用预览大小上限（图片/PDF 100 MiB、DOCX 20 MiB、Markdown 5 MiB）；回收站、超限、损坏、加密或无权访问的文件保留文件图标。由于需要下载原文件，首次查看大文件的缩略图会消耗相应流量。
