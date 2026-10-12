@@ -20,6 +20,12 @@ beforeEach(() => {
 });
 afterEach(() => wrappers.splice(0).forEach(w => w.unmount()));
 describe("扣扣AI", () => {
+  it("keeps the chat label without displaying the configured model", async () => {
+    const w = await open();
+    expect(w.get(".composer-tools").text()).toContain("智能对话");
+    expect(w.find(".model-name").exists()).toBe(false);
+    expect(w.text()).not.toContain("test-model");
+  });
   it("shows the reference welcome, forwards multi-turn conversation and sends with Enter", async () => {
     const w = await open(); expect(w.text()).toContain("Hello!"); expect(w.text()).toContain("我是扣扣AI");
     await ask(w); expect(streamChat).toHaveBeenCalledWith([{ role: "user", content: "你好" }], expect.any(AbortSignal), expect.any(Function));

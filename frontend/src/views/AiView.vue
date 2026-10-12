@@ -182,7 +182,7 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
       <p v-if="error" class="chat-error" role="alert">{{ error }}<button :disabled="!canSend" @click="send">重试</button></p>
       <form class="composer" @submit.prevent="send">
         <textarea ref="input" v-model="draft" aria-label="输入你的问题" placeholder="有问题，尽管问我…" rows="2" maxlength="8000" :readonly="pending" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false" />
-        <div class="composer-tools"><span><Sparkles :size="15" />智能对话<span class="model-name" v-if="status?.configured"> · {{ status.model }}</span></span>
+        <div class="composer-tools"><span><Sparkles :size="15" />智能对话</span>
           <button v-if="pending" type="button" class="send-button" aria-label="停止回答" @click="cancel(true)"><Square :size="16" /></button>
           <button v-else type="submit" class="send-button" aria-label="发送问题" :disabled="!canSend"><ArrowUp :size="22" /></button>
         </div>
