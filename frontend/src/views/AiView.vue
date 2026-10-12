@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ArrowUp, ChevronDown, History, MessageCircle, Plus, Search, Sparkles, Square, X } from "@lucide/vue";
 import AiMessage from "../components/AiMessage.vue";
 import ClawPanel from "../components/ClawPanel.vue";
+import AiWelcome from "../components/AiWelcome.vue";
 import { chatContext, getChatStatus, streamChat, type ChatMessage, type ChatStatus } from "../api/aiChat";
 
 const router = useRouter();
@@ -20,6 +21,7 @@ const composing = ref(false);
 const pending = ref(false);
 const scroller = ref<HTMLElement>();
 const input = ref<HTMLTextAreaElement>();
+const claw = ref<InstanceType<typeof ClawPanel>>();
 interface ConversationMessage extends ChatMessage { interrupted?: boolean }
 interface Conversation { id: number; title: string; messages: ConversationMessage[]; draft: string }
 const conversations = ref<Conversation[]>([]);
@@ -148,32 +150,21 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
         </div>
       </div>
       <div class="header-actions">
-        <button class="icon-button" aria-label="对话历史" :disabled="mode !== 'chat'" :aria-expanded="historyOpen" aria-controls="ai-history" @click="historyOpen = !historyOpen"><History :size="22" /></button>
-        <button class="icon-button" aria-label="新建对话" :disabled="mode !== 'chat'" @click="newConversation"><Plus :size="24" /></button>
+        <button class="icon-button" aria-label="对话历史" :aria-expanded="mode === 'chat' ? historyOpen : claw?.historyOpen" :aria-controls="mode === 'chat' ? 'ai-history' : 'claw-history'" @click="mode === 'chat' ? historyOpen = !historyOpen : claw?.toggleHistory()"><History :size="22" /></button>
+        <button class="icon-button" aria-label="新建对话" @click="mode === 'chat' ? newConversation() : claw?.newConversation()"><Plus :size="24" /></button>
       </div>
     </header>
 
-    <aside v-if="historyOpen" id="ai-history" class="history-panel" aria-label="对话历史列表">
+    <aside v-if="mode === 'chat' && historyOpen" id="ai-history" class="history-panel" aria-label="对话历史列表">
       <div><h2>对话历史</h2><button class="icon-button" aria-label="关闭对话历史" @click="historyOpen = false"><X :size="18" /></button></div>
       <p>仅保留在当前页面，离开或刷新后清空。</p>
       <p v-if="!saved.length" class="empty-history">还没有对话，开始聊聊吧。</p>
       <button v-for="conversation in saved" :key="conversation.id" class="history-item" :aria-pressed="current.id === conversation.id" @click="selectConversation(conversation)"><MessageCircle :size="18" /><span>{{ conversation.title }}</span></button>
     </aside>
 
-    <div ref="scroller" class="ai-scroll">
-      <div v-if="mode === 'search'">
-        <ClawPanel />
-        <button class="outline-button" @click="selectMode('chat')">和扣扣AI聊聊 <MessageCircle :size="17" /></button>
-      </div>
-      <template v-else>
-        <section v-if="!current.messages.length" class="ai-welcome">
-          <div class="greeting-row">
-            <div class="greeting"><h1>Hello<span>!</span></h1><h2>我是扣扣AI</h2><p>很高兴遇见你，有什么我可以帮你？</p></div>
-            <div class="robot" aria-hidden="true"><div class="antenna" /><div class="robot-head"><div class="robot-face"><i /><i /></div><div class="robot-smile" /></div><div class="robot-body"><Sparkles :size="21" /></div><div class="robot-shadow" /></div>
-          </div>
-          <div class="suggestion-heading"><Sparkles :size="16" />从一个小问题开始</div>
-          <div class="suggestions"><button v-for="suggestion in suggestions" :key="suggestion" @click="draft = suggestion; input?.focus()">{{ suggestion }}<span>↗</span></button></div>
-        </section>
+    <KeepAlive><ClawPanel v-if="mode === 'search'" ref="claw" /></KeepAlive>
+    <div v-if="mode === 'chat'" ref="scroller" class="ai-scroll">
+        <AiWelcome v-if="!current.messages.length" name="扣扣AI" description="很高兴遇见你，有什么我可以帮你？" :suggestions="suggestions" @select="value => { draft = value; input?.focus(); }" />
         <section v-else class="conversation" aria-label="智能对话消息" :aria-busy="pending" aria-live="polite">
           <article v-for="(message, index) in current.messages" :key="index" :class="['message', message.role]">
             <span class="message-author">{{ message.role === 'user' ? '你' : '扣扣AI' }}</span>
@@ -182,7 +173,6 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
           </article>
           <div v-if="pending" class="thinking" role="status"><span /><span /><span />{{ current.messages.at(-1)?.role === 'assistant' ? '扣扣AI正在回答…' : '扣扣AI正在思考…' }}</div>
         </section>
-      </template>
     </div>
 
     <footer v-if="mode === 'chat'" class="composer-wrap">
@@ -202,66 +192,4 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
   </main>
 </template>
 
-<style scoped>
-.ai-page { --ink: #20282f; --muted: #64717c; color: var(--ink); background: #fff; height: 100dvh; min-height: 420px; display: flex; flex-direction: column; position: relative; }
-.ai-header { width: min(100%, 1060px); margin: 0 auto; padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-button { font: inherit; cursor: pointer; }
-button:disabled { opacity: .4; cursor: not-allowed; }
-button:focus-visible, textarea:focus-visible { outline: 2px solid #009eb4; outline-offset: 4px; }
-.icon-button { border: 0; background: transparent; color: var(--ink); width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
-.icon-button:hover:not(:disabled) { background: #f1f6f7; }
-.header-actions { display: flex; gap: 8px; }
-.mode-control { position: relative; margin-left: 48px; }
-.mode-trigger { border: 0; background: none; display: grid; grid-template-columns: auto auto; align-items: center; gap: 4px 8px; padding: 6px 12px; }
-.mode-trigger strong { font-size: 21px; letter-spacing: -.7px; }
-.mode-trigger > span { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
-.rotated { transform: rotate(180deg); }
-.mode-menu { position: absolute; z-index: 5; width: 260px; left: 50%; transform: translateX(-50%); top: calc(100% + 10px); padding: 7px; border: 1px solid #e8edef; background: #fff; box-shadow: 0 12px 40px #24333c18; border-radius: 16px; }
-.mode-menu button { display: flex; gap: 12px; align-items: center; width: 100%; border: 0; background: none; padding: 12px; border-radius: 10px; text-align: left; }
-.mode-menu button:hover, .mode-menu button[aria-pressed=true] { background: #effbfc; }
-.mode-menu b, .mode-menu small { display: block; } .mode-menu b { font-size: 14px; } .mode-menu small { color: var(--muted); margin-top: 5px; font-size: 11px; }
-.mode-menu i { width: 6px; height: 6px; border-radius: 50%; background: #0397ae; margin-left: auto; }
-.ai-scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 0 28px; }
-.ai-welcome { max-width: 740px; margin: 70px auto 40px; }
-.greeting-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.greeting h1 { font-size: clamp(48px, 7vw, 76px); font-weight: 800; line-height: 1.1; letter-spacing: -4px; margin: 0 0 18px; }
-.greeting h1 span { color: #009fb7; } .greeting h2 { font-size: 28px; margin: 0 0 12px; letter-spacing: -1px; } .greeting p { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
-.robot { width: 158px; height: 174px; position: relative; flex-shrink: 0; transform: rotate(8deg); }
-.antenna { width: 7px; height: 19px; background: #26bcd4; margin: auto; position: relative; border-radius: 5px; }
-.antenna::before { content: ''; width: 15px; height: 15px; background: #61e0ef; border: 3px solid #22bad0; border-radius: 50%; position: absolute; top: -9px; left: -4px; }
-.robot-head { position: relative; background: linear-gradient(145deg, #92f4ff, #13b9d5 70%, #0093bb); border-radius: 35px; height: 100px; box-shadow: inset 2px 3px 4px #d7fbff, 0 8px 20px #32b9d329; padding: 23px 19px; }
-.robot-head::before, .robot-head::after { content: ''; width: 13px; height: 28px; background: #26bed9; position: absolute; top: 40px; border-radius: 8px; } .robot-head::before { left: -8px; } .robot-head::after { right: -8px; }
-.robot-face { background: #ddfaff; border: 3px solid #11a9c7; height: 45px; border-radius: 20px; display: flex; align-items: center; justify-content: center; gap: 28px; box-shadow: inset 0 2px 4px #4db3cc40; }
-.robot-face i { width: 9px; height: 15px; background: #174864; border-radius: 7px; }
-.robot-smile { width: 16px; height: 8px; border-bottom: 3px solid #167996; border-radius: 50%; margin: 5px auto; }
-.robot-body { width: 65px; height: 40px; border-radius: 15px 15px 24px 24px; background: linear-gradient(145deg, #7fedf7, #16b7d5); margin: 8px auto; display: flex; align-items: center; justify-content: center; color: white; }
-.robot-shadow { width: 90px; height: 12px; margin: auto; border-radius: 50%; background: #4ab4c323; filter: blur(4px); }
-.suggestion-heading { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); margin: 48px 0 16px; }
-.suggestions { display: grid; gap: 11px; max-width: 430px; }
-.suggestions button { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-radius: 13px; padding: 16px 18px; background: #f4f6f7; color: #45515c; text-align: left; font-size: 14px; }
-.suggestions button:hover { background: #eaf8fa; } .suggestions span { color: #83949d; }
-.composer-wrap { width: min(100%, 796px); margin: 0 auto; padding: 12px 28px 22px; }
-.composer { border: 1px solid #e3e9eb; border-radius: 22px; background: #f7f9fa; padding: 18px 18px 12px; }
-.composer:focus-within { border-color: #41b7c8; }
-.composer textarea { width: 100%; resize: none; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; line-height: 1.7; min-height: 52px; max-height: 180px; outline: none; }
-.composer textarea::placeholder { color: #75828c; }
-.composer-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.composer-tools > span { display: flex; align-items: center; color: #586873; gap: 6px; font-size: 12px; overflow: hidden; } .model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; }
-.send-button { width: 38px; height: 38px; border: none; border-radius: 50%; color: white; background: #087e92; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.composer-hint { color: var(--muted); font-size: 10px; text-align: center; margin: 12px 0 0; } .composer-hint span { margin-left: 20px; }
-.service-notice, .chat-error { margin: 0 0 10px; font-size: 12px; color: #67757e; line-height: 1.6; } .chat-error { color: #b13d3d; }
-.service-notice button, .chat-error button { border: 0; padding: 3px 8px; color: #007d92; background: transparent; text-decoration: underline; }
-.conversation { width: min(100%, 740px); margin: 28px auto; }
-.message { margin-bottom: 28px; font-size: 14px; } .message-author { display: block; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-.message.user { margin-left: auto; width: fit-content; max-width: 85%; } .message.user .message-author { text-align: right; } .user-content { border-radius: 18px 18px 4px 18px; background: #eaf7f9; padding: 12px 18px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
-.interrupted-note { color: #735127; font-size: 12px; margin: 12px 0 0; }
-.thinking { color: #64727c; display: flex; align-items: center; gap: 5px; font-size: 12px; margin: 10px 0 24px; } .thinking span { width: 5px; height: 5px; border-radius: 50%; background: #28a7bc; } .thinking span:last-of-type { margin-right: 8px; }
-.history-panel { position: absolute; z-index: 4; right: max(28px, calc((100vw - 1004px) / 2)); top: 90px; width: min(350px, calc(100% - 40px)); max-height: 65vh; overflow: auto; background: #fff; padding: 18px; border: 1px solid #e4ecef; box-shadow: 0 12px 40px #24333c18; border-radius: 18px; }
-.history-panel > div { display: flex; justify-content: space-between; align-items: center; } .history-panel h2 { font-size: 16px; margin: 0; } .history-panel p { font-size: 11px; line-height: 1.7; color: var(--muted); } .history-panel .empty-history { padding: 18px 0; }
-.history-item { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 12px 8px; background: none; border: 0; border-radius: 10px; font-size: 13px; } .history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .history-item:hover, .history-item[aria-pressed=true] { background: #effafb; }
-.search-intro { max-width: 650px; margin: 64px auto 50px; text-align: center; } .feature-tag { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dbeff2; padding: 7px 13px; border-radius: 20px; font-size: 12px; color: #087b8b; }
-.search-emblem { width: 94px; height: 94px; border-radius: 30px; margin: 32px auto; background: #e6f8fa; color: #1493a7; display: grid; place-items: center; } .search-intro h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.5; letter-spacing: -1.5px; margin: 0 0 18px; } .search-intro > p { color: var(--muted); font-size: 14px; line-height: 1.9; }
-.search-example { background: #f5f7f8; border-radius: 14px; padding: 20px 14px; margin: 26px auto; font-size: 14px; color: #596771; max-width: 420px; } .search-intro .future-note { font-size: 12px; max-width: 470px; margin: 0 auto 26px; } .outline-button { display: inline-flex; gap: 10px; align-items: center; border: 1px solid #d4e4e8; background: white; color: #087e92; border-radius: 12px; padding: 12px 18px; font-size: 13px; }
-@media (max-width: 600px) { .ai-header { padding: 16px 14px; } .header-actions { gap: 0; } .mode-control { margin-left: 40px; } .mode-trigger strong { font-size: 19px; } .ai-scroll { padding: 0 24px; } .ai-welcome { margin-top: 54px; } .greeting-row { gap: 8px; } .greeting h1 { font-size: 52px; letter-spacing: -3px; } .greeting h2 { font-size: 22px; } .greeting p { font-size: 12px; max-width: 200px; } .robot { width: 118px; height: 143px; } .robot-head { height: 82px; border-radius: 28px; padding: 19px 12px; } .robot-face { height: 36px; gap: 22px; } .robot-body { height: 30px; width: 54px; margin-top: 6px; } .robot-shadow { width: 70px; height: 9px; } .suggestion-heading { margin-top: 40px; } .suggestions button { font-size: 12px; padding: 15px 14px; } .composer-wrap { padding: 12px 18px max(16px, env(safe-area-inset-bottom)); } .composer { padding: 14px 14px 10px; border-radius: 19px; } .composer-hint span { display: none; } .model-name { max-width: 150px; } .search-intro { margin-top: 42px; } }
-@media (max-width: 360px) { .ai-scroll { padding: 0 18px; } .robot { transform: scale(.85) rotate(8deg); margin: 0 -9px; } .greeting h1 { font-size: 44px; } .greeting h2 { font-size: 20px; } }
-</style>
+<style scoped src="../styles/ai.css"></style>

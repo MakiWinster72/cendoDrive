@@ -34,14 +34,14 @@ describe("扣扣AI", () => {
     expect(w.findAll(".message")).toHaveLength(2); expect(w.find("#ai-history").exists()).toBe(false);
     await w.get('[aria-label="返回网盘"]').trigger("click"); expect(routing.push).toHaveBeenCalledWith({ name: "home" });
   });
-  it("keeps search as an honest placeholder and preserves completed chat across switching", async () => {
+  it("preserves completed chat across switching to Claw", async () => {
     const w = await open(); await ask(w);
     await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[1]!.trigger("click"); await flushPromises();
     expect(w.text()).toContain("扣扣Claw"); expect(w.text()).toContain("根据网盘文件内容搜索文件"); expect(w.find("textarea").exists()).toBe(true);
     expect(streamChat).toHaveBeenCalledTimes(1);
-    await w.get(".outline-button").trigger("click"); await flushPromises(); expect(w.findAll(".message")).toHaveLength(2);
+    await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[0]!.trigger("click"); await flushPromises(); expect(w.findAll(".message")).toHaveLength(2);
   });
-  it("supports direct search links without presenting a working search", async () => {
+  it("supports direct links to Claw", async () => {
     routing.route.query = { mode: "search" }; const w = await open();
     expect(w.text()).toContain("上传文档后自动索引"); expect(streamChat).not.toHaveBeenCalled();
   });
@@ -107,7 +107,7 @@ describe("扣扣AI", () => {
     progress("部分回答"); await flushPromises();
     await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[1]!.trigger("click"); await flushPromises();
     expect(signal.aborted).toBe(true); progress("错误的迟到内容"); d.resolve("迟到结果"); await flushPromises();
-    await w.get(".outline-button").trigger("click"); await flushPromises();
+    await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[0]!.trigger("click"); await flushPromises();
     expect(w.text()).toContain("Hello!"); expect(w.text()).not.toContain("迟到"); expect(w.get("textarea").element.value).toBe("你好");
   });
   it("guards IME and Shift+Enter, fills suggestions without sending", async () => {

@@ -24,6 +24,7 @@ it("retains failed questions, hides diagnostics and submits confirmed reindex", 
   wrapper = mount(ClawPanel); await flushPromises();
   await wrapper.get("textarea").setValue("预算"); await wrapper.get("form").trigger("submit"); await flushPromises();
   expect(wrapper.get("textarea").element.value).toBe("预算"); expect(wrapper.text()).not.toContain("private-key");
+  await wrapper.get(".document-status").trigger("click");
   await wrapper.findAll("button").find(b => b.text() === "确认重建已有文档索引")!.trigger("click"); await flushPromises();
   expect(reindexClaw).toHaveBeenCalledWith(undefined, expect.any(AbortSignal));
 });
@@ -32,4 +33,24 @@ it("aborts pending inference when the panel unmounts", async () => {
   wrapper = mount(ClawPanel); await flushPromises();
   await wrapper.get("textarea").setValue("预算"); await wrapper.get("form").trigger("submit"); await flushPromises();
   const signal = vi.mocked(askClaw).mock.calls[0]![2]; wrapper.unmount(); expect(signal.aborted).toBe(true);
+});
+
+it("shares the welcome and composer, and fills suggestions without sending", async () => {
+  wrapper = mount(ClawPanel); await flushPromises();
+  expect(wrapper.text()).toContain("Hello!"); expect(wrapper.text()).toContain("我是扣扣Claw");
+  expect(wrapper.find(".robot").exists()).toBe(true); expect(wrapper.find(".composer-tools").exists()).toBe(true);
+  expect(wrapper.text()).not.toContain("支持 TXT");
+  await wrapper.findAll(".suggestions button")[0]!.trigger("click");
+  expect(wrapper.get("textarea").element.value).toContain("项目预算"); expect(askClaw).not.toHaveBeenCalled();
+  await wrapper.get("textarea").trigger("compositionstart"); await wrapper.get("textarea").trigger("keydown", { key: "Enter" });
+  await wrapper.get("textarea").trigger("compositionend"); await wrapper.get("textarea").trigger("keydown", { key: "Enter", shiftKey: true });
+  expect(askClaw).not.toHaveBeenCalled();
+});
+it("creates a new conversation and restores its sources from history", async () => {
+  wrapper = mount(ClawPanel); await flushPromises();
+  await wrapper.get("textarea").setValue("预算多少？"); await wrapper.get("form").trigger("submit"); await flushPromises();
+  const panel = wrapper.vm as unknown as { newConversation(): void; toggleHistory(): void };
+  panel.newConversation(); await flushPromises(); expect(wrapper.text()).toContain("Hello!");
+  panel.toggleHistory(); await flushPromises(); await wrapper.get(".history-item").trigger("click"); await flushPromises();
+  expect(wrapper.text()).toContain("项目预算100万"); expect(wrapper.findAll(".message")).toHaveLength(2);
 });
