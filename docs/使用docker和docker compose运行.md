@@ -56,8 +56,9 @@ docker compose up -d --build
 | redis | 登录会话等 Redis 数据 |
 | tracker | FastDFS 节点调度 |
 | storage1、storage2、storage3 | 同一 group 的文件存储副本 |
+| qdrant | 扣扣 Claw 文档向量存储，默认启动 |
 
-基础启动不包含 Qdrant；启用扣扣 Claw 时按 2.5 启动 `claw` profile。普通 AI 聊天仅调用外部模型 API，不依赖向量库。当前主应用不依赖 Milvus、MinIO、etcd；`index-service` 是另一个待对接索引方案，不能据其旧说明要求主应用启动 Milvus。
+默认启动包含 Qdrant；启用扣扣 Claw 的模型和功能配置见 2.5。普通 AI 聊天仅调用外部模型 API，不依赖向量库。当前主应用不依赖 Milvus、MinIO、etcd；`index-service` 是另一个待对接索引方案，不能据其旧说明要求主应用启动 Milvus。
 
 MySQL 首次初始化会创建 `cendo` 数据库和 `cendo` 用户，不需要手动创建账号。容器后端使用 `application.example.yml` 作为基线，并由环境变量覆盖，不需要复制本机的 `application.yml`。
 
@@ -141,19 +142,19 @@ export CENDO_AI_CHAT_MODEL='聊天模型名称'
 export CENDO_AI_EMBEDDING_MODEL='Qwen/Qwen3-VL-Embedding-8B'
 export CENDO_AI_EMBEDDING_DIMENSIONS=4096
 # 嵌入 base-url/key 留空时继承聊天配置；不同供应商需单独设置。
-docker compose --profile claw config --quiet
-docker compose --profile claw up -d --build
+docker compose config --quiet
+docker compose up -d --build
 ```
 
-`claw` profile 只控制 Qdrant 是否启动，**不会自动开启后端 Claw 功能**，必须同时设置 `CENDO_AI_CLAW_ENABLED=true`。后端在容器内连接 `http://qdrant:6333`；Qdrant 不发布宿主机端口，数据保存于 `qdrant-data`。可选 `CENDO_AI_VECTOR_KEY` 会同时传给后端和 Qdrant。维度须与嵌入模型实际输出一致，详细配置见 [AI 智能对话接口与配置](AI智能对话接口与配置.md)。
+Qdrant 随 Compose 默认启动，但**不会自动开启后端 Claw 功能**；启用功能仍需设置 `CENDO_AI_CLAW_ENABLED=true`。后端在容器内连接 `http://qdrant:6333`；Qdrant 不发布宿主机端口，数据保存于 `qdrant-data`。可选 `CENDO_AI_VECTOR_KEY` 会同时传给后端和 Qdrant。维度须与嵌入模型实际输出一致，详细配置见 [AI 智能对话接口与配置](AI智能对话接口与配置.md)。
 
-更新或恢复启用 Claw 的环境时也使用同样的环境变量及 `--profile claw`。Qdrant 没有启动就绪健康检查，启动后应检查日志并实际执行索引与检索，不把 `Up` 当作可用证明。
+更新或恢复启用 Claw 的环境时也保留同样的环境变量，无需指定 profile。Qdrant 没有启动就绪健康检查，启动后应检查日志并实际执行索引与检索，不把 `Up` 当作可用证明。
 
 ### 2.6 宿主机开发与现有容器
 
 如果 MySQL、Redis 和 FastDFS 已由独立容器提供，继续使用它们即可，**不要再启动一套 Compose 基础依赖**。例如现有 `cendo-mysql-local`、`cendo-redis-local`、`fdfs-tracker`、`fdfs-storage` 对应基础网盘四个容器；Claw 另用 `cendodrive-ai-qdrant-1`（实际名称由 Compose 项目名决定）。全新 Compose 则保留三个 storage 副本，不等同于现有单 storage 部署。
 
-宿主机后端需要 Qdrant 时，仅启动该服务（显式指定服务会自动启用其 profile）：
+宿主机后端需要 Qdrant 时，仅启动该服务，避免重复创建其他依赖：
 
 ```sh
 docker compose -f compose.yaml -f compose.local.yaml config --quiet
