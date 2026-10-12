@@ -82,7 +82,7 @@ describe("file preview lifecycle", () => {
       expect(document.querySelector("article h1")?.textContent).toBe("标题"),
     );
     const source = [...document.querySelectorAll("button")].find(
-      (button) => button.textContent === "源码",
+      (button) => button.textContent?.trim() === "源码",
     )!;
     source.click();
     await flushPromises();

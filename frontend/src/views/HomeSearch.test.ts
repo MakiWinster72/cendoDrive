@@ -148,9 +148,9 @@ describe("homepage server filename search", () => {
     await flushPromises();
     expect(api.listFiles).toHaveBeenLastCalledWith("8");
     expect(wrapper.find(".file-search-panel").exists()).toBe(false);
-    expect(wrapper.find(".m-folder-breadcrumb").text()).toBe(
-      "我的网盘/工作/资料",
-    );
+    expect(
+      wrapper.find(".m-folder-breadcrumb").text().replace(/\s+/g, ""),
+    ).toBe("我的网盘/工作/资料");
     await wrapper
       .find('.m-folder-head button[aria-label="返回上一级"]')
       .trigger("click");
@@ -182,9 +182,9 @@ describe("homepage server filename search", () => {
     await wrapper.find(".file-search-open").trigger("click");
     await flushPromises();
     expect(api.listFiles).toHaveBeenLastCalledWith("8");
-    expect(wrapper.find(".m-folder-breadcrumb").text()).toBe(
-      "我的网盘/工作/资料",
-    );
+    expect(
+      wrapper.find(".m-folder-breadcrumb").text().replace(/\s+/g, ""),
+    ).toBe("我的网盘/工作/资料");
   });
   it("passes current folder recursively and lets the user expand to the whole drive", async () => {
     vi.mocked(api.listFiles).mockImplementation(async (id) =>

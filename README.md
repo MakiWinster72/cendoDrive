@@ -22,7 +22,7 @@ CendoDrive 面向个人文件的上传、归类和管理。前端提供文件列
 | 回收站     | 移入、恢复、永久删除和清空                         |
 | 分享       | Redis TTL 限时链接、匿名下载、撤销和登录后独立转存 |
 | 扣扣AI     | 配置模型后的多轮智能对话、Markdown 回答与临时历史 |
-| 千度AI     | 文件内容智能搜索的模式入口；索引与向量检索待实现 |
+| 扣扣Claw   | 网盘文档内容检索、来源引用问答与持久索引 |
 
 ## 它如何工作
 
@@ -75,7 +75,7 @@ npm run dev
 
 ### 启动前配置扣扣AI
 
-智能对话兼容 **OpenAI Chat Completions** 接口。启动后端前，在仓库根目录的本地 `.env`（已被 Git 忽略）中设置：
+智能对话兼容 **OpenAI Chat Completions** 接口，模型服务需支持 SSE 流式文本响应，回答会逐段显示。启动后端前，在仓库根目录的本地 `.env`（已被 Git 忽略）中设置：
 
 ```dotenv
 CENDO_AI_CHAT_BASE_URL=https://api.openai.com/v1
@@ -89,7 +89,7 @@ Compose 会把三项注入后端；配置好后执行 `docker compose up -d --bu
 - 三项全部留空时，其他功能正常启动，聊天页面明确提示未配置；只填部分配置会阻止后端启动，避免误配置。状态显示“已配置”只代表三项齐全，不代表凭据或模型已验证可用。
 - Key 只放后端；不要写进 `VITE_*`、前端代码或提交。请求中的提问与上下文会发送给配置的模型服务商，请先评估隐私和费用；上线前在网关增加用户额度、限流与监控。
 
-登录后通过首页“扣扣AI”进入 `/ai`，点击顶部切换“智能对话 / 千度AI”。对话历史仅保存在当前页面内存，离开或刷新即清空。千度AI 当前仅展示入口与说明，不会上传内容、向量化或发起文件内容搜索。旧索引事件对接已移除，上传及文件生命周期不再生成或投递索引任务。
+登录后通过首页“扣扣AI”进入 `/ai`，顶部切换“智能对话 / 扣扣Claw”（`/ai?mode=search`）。可以停止生成并保留已显示的内容（标记为未完成）；中途失败会恢复问题供重试。对话历史仅保存在当前页面内存，离开或刷新即清空。启用扣扣Claw后，上传及文件生命周期通过持久任务维护文档索引，使用嵌入模型与 Qdrant 检索当前用户可见的文档，并生成带来源引用的回答。额外配置见下方接口与配置文档。
 
 接口、上下文限制与排错见 [AI 智能对话接口与配置](docs/AI智能对话接口与配置.md)。
 
@@ -130,7 +130,7 @@ cendoDrive/
 
 ## 接口与质量检查
 
-后端启动后访问 [Swagger UI](http://localhost:8080/swagger-ui/index.html) 或 [OpenAPI JSON](http://localhost:8080/v3/api-docs)。主要接口包括 `/api/auth/*`、`/api/user/me`、`/api/files/*`、`/api/ai/chat`；受保护接口需要 `Authorization: Bearer <token>`。
+后端启动后访问 [Swagger UI](http://localhost:8080/swagger-ui/index.html) 或 [OpenAPI JSON](http://localhost:8080/v3/api-docs)。主要接口包括 `/api/auth/*`、`/api/user/me`、`/api/files/*`、`/api/ai/chat`、`/api/ai/chat/stream`；受保护接口需要 `Authorization: Bearer <token>`。
 
 ```sh
 (cd backend && mvn test)

@@ -1,0 +1,5 @@
+# Host-run backend: docker compose -f compose.yaml -f compose.local.yaml up -d qdrant
+services:
+  qdrant:
+    ports:
+      - "127.0.0.1:6333:6333"

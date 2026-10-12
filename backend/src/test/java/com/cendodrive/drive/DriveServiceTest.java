@@ -28,7 +28,7 @@ class DriveServiceTest {
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, storageCleanup);
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, storageCleanup, org.mockito.Mockito.mock(com.cendodrive.ai.claw.ClawIndexQueue.class));
         lenient().when(user.getId()).thenReturn(7L);
         lenient().when(user.getStorageLimit()).thenReturn(1024L * 1024 * 1024);
     }

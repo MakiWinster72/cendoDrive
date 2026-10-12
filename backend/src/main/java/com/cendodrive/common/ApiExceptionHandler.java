@@ -35,12 +35,14 @@ public class ApiExceptionHandler {
     Map<String, String> fields = new LinkedHashMap<>();
     ex.getBindingResult().getFieldErrors()
         .forEach(error -> fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
-    return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Invalid input", fields));
+    return ResponseEntity.badRequest().contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+        .body(new ApiError("INVALID_INPUT", "Invalid input", fields));
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   ResponseEntity<ApiError> malformed() {
-    return ResponseEntity.badRequest().body(ApiError.of("INVALID_JSON", "Invalid JSON body"));
+    return ResponseEntity.badRequest().contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+        .body(ApiError.of("INVALID_JSON", "Invalid JSON body"));
   }
 
   @ExceptionHandler(MissingRequestHeaderException.class)
@@ -93,7 +95,8 @@ public class ApiExceptionHandler {
 
   @ExceptionHandler(com.cendodrive.ai.AiChatService.AiFailure.class)
   ResponseEntity<ApiError> ai(com.cendodrive.ai.AiChatService.AiFailure ex) {
-    return ResponseEntity.status(ex.status()).body(ApiError.of(ex.code(), ex.getMessage()));
+    return ResponseEntity.status(ex.status()).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+        .body(ApiError.of(ex.code(), ex.getMessage()));
   }
 
   @ExceptionHandler(AuthFailure.class)

@@ -26,6 +26,7 @@ public class UserDeletionCleanup {
   private final TransferRecordRepository transfers;
   private final UserAvatarRepository avatars;
   private final FileStorage storage;
+  private final com.cendodrive.ai.claw.ClawIndexQueue claw;
   private final Path uploadRoot, storageRoot;
   private final Clock clock;
   private final TransactionTemplate tx;
@@ -33,7 +34,7 @@ public class UserDeletionCleanup {
   public UserDeletionCleanup(UserRepository users, DriveFileRepository files, ShareLinkRepository shares,
       UploadSessionRepository uploads, TransferRecordRepository transfers, UserAvatarRepository avatars,
       FileStorage storage,
-      PlatformTransactionManager manager, Clock clock,
+      PlatformTransactionManager manager, Clock clock, com.cendodrive.ai.claw.ClawIndexQueue claw,
       @Value("${cendo.upload.root:./storage/uploads}") String uploadRoot,
       @Value("${cendo.storage.root:./storage}") String storageRoot) {
     this.users = users;
@@ -45,6 +46,7 @@ public class UserDeletionCleanup {
     this.storage = storage;
     this.tx = new TransactionTemplate(manager);
     this.clock = clock;
+    this.claw = claw;
     this.uploadRoot = Path.of(uploadRoot).toAbsolutePath().normalize();
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
@@ -66,20 +68,15 @@ public class UserDeletionCleanup {
   // physical cleanup.
   public void purge(Long id) {
     while (Boolean.TRUE.equals(tx.execute(status -> {
-      User user = users.lock(id).orElse(null);
-      if (!due(user))
-        return false;
-      var candidates = files.findTop100ByOwnerIdAndKindOrderByIdAsc(id, "file");
-      if (candidates.isEmpty())
-        return false;
-      DriveFile file = candidates.get(0);
-      try {
-        deleteStorage(file);
-      } catch (IOException ex) {
-        throw new java.io.UncheckedIOException(ex);
-      }
-      files.delete(file);
-      files.flush();
+      User user=users.lock(id).orElse(null);
+      if (!due(user)) return false;
+      var candidates=files.findTop100ByOwnerIdAndKindOrderByIdAsc(id,"file");
+      if (candidates.isEmpty()) return false;
+      DriveFile file=candidates.get(0);
+      try { deleteStorage(file); }
+      catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
+      claw.removed(file);
+      files.delete(file); files.flush();
       return true;
     }))) {
       /* Persist progress before processing another key. */ }
