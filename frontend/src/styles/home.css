@@ -378,46 +378,61 @@
     text-overflow: ellipsis;
     overflow: hidden;
   }
-  .m-discover {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .mobile-app:has(.m-home-top) .m-memory {
+    padding: 12px 0 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .m-memory > .m-panel-title {
+    padding: 0 var(--mobile-gutter);
+  }
+  .m-ad-waterfall {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+  }
+  .m-ad-column {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
     gap: 8px;
   }
-  .m-discover button {
+  .m-ad-card {
     overflow: hidden;
-    border: 0;
-    background: #f8f9fc;
-    padding: 0 0 12px;
-    text-align: left;
-    border-radius: 13px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    background: #fff;
+    border-radius: 8px;
   }
-  .m-discover-art {
-    height: 125px;
+  .m-ad-cover {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    background: #e8ecf2;
+  }
+  .m-ad-cover img {
+    display: block;
     width: 100%;
-    display: grid;
-    place-items: center;
+    height: 100%;
+    object-fit: cover;
+  }
+  .m-ad-label {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: #0006;
     color: #fff;
-    margin-bottom: 8px;
+    font-size: 10px;
+    line-height: 1.4;
   }
-  .m-discover-art.photo {
-    background: linear-gradient(145deg, #7fbbe8, #b6d4ea 45%, #81b6a9);
-  }
-  .m-discover-art.film {
-    background: linear-gradient(145deg, #d0b3d9, #708db4 55%, #334d7c);
-  }
-  .m-discover b,
-  .m-discover small {
-    margin: 0 10px;
-  }
-  .m-discover b {
+  .m-ad-card p {
+    margin: 0;
+    padding: 9px 10px 11px;
     font-size: 14px;
-  }
-  .m-discover small {
-    font-size: 11px;
-    color: #9ca5b5;
+    font-weight: 600;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
   }
   .m-home-top button:focus-visible,
   .m-panel button:focus-visible,

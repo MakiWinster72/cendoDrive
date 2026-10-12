@@ -53,7 +53,7 @@ onBeforeUnmount(() => {
       aria-modal="true"
       aria-label="开屏广告"
     >
-      <button class="splash-ad-content" @click="openAd">
+      <button class="splash-ad-content" :aria-label="ad.title" @click="openAd">
         <img
           v-if="!imageFailed"
           :src="ad.imageUrl"
@@ -61,7 +61,6 @@ onBeforeUnmount(() => {
           @error="imageFailed = true"
         />
         <span v-else class="splash-ad-image-fallback">CendoDrive</span>
-        <span class="splash-ad-title">{{ ad.title }}</span>
       </button>
       <button
         class="splash-ad-skip"

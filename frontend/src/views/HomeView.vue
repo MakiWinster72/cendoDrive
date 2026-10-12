@@ -105,12 +105,15 @@ import {
   shareErrorMessage,
   type ShareRecord,
 } from "../api/shares";
-import {
-  getHomeContent,
-  type SplashAdContent,
-} from "../api/content";
+import { getHomeContent, type SplashAdContent } from "../api/content";
 import { demoHomeContent } from "../api/contentDemo";
-import { getLocalSplashAd, localSplashAdId } from "../api/localSplashAd";
+import { getLocalSplashAd } from "../api/localSplashAd";
+
+import { localRecommendationAds as recommendationAds } from "../api/localRecommendationAds";
+const recommendationColumns = [
+  recommendationAds.filter((_, index) => index % 2 === 0),
+  recommendationAds.filter((_, index) => index % 2 === 1),
+];
 
 type Mode =
   | "all"
@@ -136,7 +139,9 @@ function navigationFolder(id: string) {
     drive.get(id) ?? navigationFolders.value.find((item) => item.id === id)
   );
 }
-const mobileSearchPanel = ref<InstanceType<typeof FileSearchPanel> | null>(null);
+const mobileSearchPanel = ref<InstanceType<typeof FileSearchPanel> | null>(
+  null,
+);
 const keyword = ref(""),
   checked = ref<string[]>([]),
   menuOpen = ref(false),
@@ -467,24 +472,11 @@ async function loadHomeContent() {
   }
 }
 async function loadSplashAd() {
-  splashAd.value = wasSplashSeen(localSplashAdId) ? null : getLocalSplashAd();
+  // A fresh page load always shows the splash, including after a refresh.
+  splashAd.value = getLocalSplashAd();
   splashAdDemo.value = false;
 }
-function wasSplashSeen(id: string) {
-  try {
-    return sessionStorage.getItem(`cendo:splash-ad-seen:${id}`) === "1";
-  } catch {
-    return false;
-  }
-}
 function closeSplashAd() {
-  if (splashAd.value) {
-    try {
-      sessionStorage.setItem(`cendo:splash-ad-seen:${splashAd.value.id}`, "1");
-    } catch {
-      /* The ad still closes when session storage is unavailable. */
-    }
-  }
   splashAd.value = null;
   splashAdDemo.value = false;
 }
@@ -1138,7 +1130,7 @@ onUnmounted(() => {
       </section>
       <section class="m-memory">
         <div class="m-panel-title">
-          <h2>推荐 <span>创意</span></h2>
+          <h2>推荐</h2>
           <button
             aria-label="更多推荐"
             @click="showUnavailable('更多推荐内容暂未接入。')"
@@ -1146,14 +1138,20 @@ onUnmounted(() => {
             <MoreHorizontal :size="22" />
           </button>
         </div>
-        <div class="m-discover">
-          <button @click="openHomeCategory('image')">
-            <span class="m-discover-art photo"><Image :size="38" /></span
-            ><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button
-          ><button @click="router.push({ name: 'videos' })">
-            <span class="m-discover-art film"><Video :size="38" /></span
-            ><b>收藏精彩视频</b><small>你的回忆都在这里</small>
-          </button>
+        <div class="m-ad-waterfall">
+          <div
+            v-for="(column, index) in recommendationColumns"
+            :key="index"
+            class="m-ad-column"
+          >
+            <article v-for="ad in column" :key="ad.image" class="m-ad-card">
+              <div class="m-ad-cover">
+                <img :src="`/ad/${ad.image}`" :alt="ad.title" loading="lazy" />
+                <span class="m-ad-label">广告</span>
+              </div>
+              <p>{{ ad.title }}</p>
+            </article>
+          </div>
         </div>
       </section>
     </template>
@@ -1225,7 +1223,11 @@ onUnmounted(() => {
           </button>
         </div>
       </header>
-      <header v-else-if="!searchActive" class="m-file-head" @keydown.esc="folderMenuOpen = false">
+      <header
+        v-else-if="!searchActive"
+        class="m-file-head"
+        @keydown.esc="folderMenuOpen = false"
+      >
         <template v-if="checked.length && mode !== 'trash'"
           ><button
             class="m-selection-close"
@@ -1289,10 +1291,24 @@ onUnmounted(() => {
           </div></template
         >
       </header>
-      <form v-if="searchActive && mobileViewport" class="m-search-page-header" role="search" @submit.prevent="mobileSearchPanel?.retry()">
-        <button type="button" aria-label="返回文件列表" @click="keyword = ''"><ChevronLeft :size="24" /></button>
-        <input v-model="keyword" aria-label="搜索文件名" maxlength="100" placeholder="搜索文件名" />
-        <button type="button" aria-label="清空搜索" @click="keyword = ''"><X :size="18" /></button>
+      <form
+        v-if="searchActive && mobileViewport"
+        class="m-search-page-header"
+        role="search"
+        @submit.prevent="mobileSearchPanel?.retry()"
+      >
+        <button type="button" aria-label="返回文件列表" @click="keyword = ''">
+          <ChevronLeft :size="24" />
+        </button>
+        <input
+          v-model="keyword"
+          aria-label="搜索文件名"
+          maxlength="100"
+          placeholder="搜索文件名"
+        />
+        <button type="button" aria-label="清空搜索" @click="keyword = ''">
+          <X :size="18" />
+        </button>
         <button type="submit" class="m-search-submit">搜索</button>
       </form>
       <div v-if="!currentFolder && !searchActive" class="m-search">
@@ -1412,7 +1428,10 @@ onUnmounted(() => {
           隐藏空间
         </button>
       </div>
-      <p v-if="!currentFolder && !searchActive && drive.state.usage" class="m-capacity">
+      <p
+        v-if="!currentFolder && !searchActive && drive.state.usage"
+        class="m-capacity"
+      >
         已用 {{ formatBytes(drive.state.usage.usedBytes) }} /
         {{ formatBytes(drive.state.usage.limitBytes) }} · 可用
         {{ formatBytes(drive.state.usage.availableBytes) }}

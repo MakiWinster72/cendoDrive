@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# This Compose stack is for local development; keep a nonzero disk safety margin.
+# 开发用，防止空间不足，默认保留 5% 空间
 reserve=${FDFS_RESERVED_STORAGE_SPACE:-5%}
 if ! printf '%s\n' "$reserve" | grep -Eq '^([1-9]|[1-9][0-9])%$'; then
   echo 'FDFS_RESERVED_STORAGE_SPACE must be an integer percentage from 1% to 99%' >&2
