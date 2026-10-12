@@ -2,7 +2,7 @@
 
 当前实现 Spring Boot 基础工程、用户认证、普通与分片上传、文件下载、回收站、复制、收藏、隐藏空间、详情、按类型整理、真实容量统计、限时分享及跨用户独立转存。前端位于 `../frontend`；已提供扣扣AI智能对话代理，千度AI语义搜索暂只提供前端入口。文件接口契约见 [文件管理接口文档](../docs/文件管理接口文档.md)。
 
-旧索引服务对接及后台事件投递已移除，上传、回收站、恢复与永久删除不再生成索引任务。千度AI目前仅保留模式入口，文件名与内容索引、向量化及向量检索留待后续实现。物理文件清理任务继续独立运行。整合初始化脚本保留历史索引表/字段，运行时代码不读取、更新或删除已有索引任务。
+旧索引服务对接及后台事件投递已移除，上传、回收站、恢复与永久删除不再生成索引任务。千度AI目前仅保留模式入口，文件名与内容索引、向量化及向量检索留待后续实现。物理文件清理任务继续独立运行。为兼容现有数据库，保留原始 V12 迁移及其历史表/字段，运行时代码不读取、更新或删除已有索引任务。
 
 ## 环境
 
@@ -16,13 +16,20 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PA
 DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn spring-boot:run
 ```
 
-首次启动时 Flyway 创建 `users`、`drive_files` 和 `share_links` 等表，（单个整合初始化迁移）。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
+首次启动时 Flyway 创建 `users`、`drive_files` 和 `share_links` 等表，并应用后续迁移。已执行过的迁移文件不要修改；表结构变更应新增版本迁移。默认监听 8080，使用 `PORT` 更改。MySQL 账户需要迁移所需的建表、索引及读写权限。生产部署应使用 TLS 与受控的 Redis 网络/凭据，避免公开数据库端口。
 
-## 数据库初始化
+## 切换分支后的迁移校验
 
-`db/migration/V1__init_schema.sql` 整合原 V1～V17，仅支持空数据库初始化，不再兼容旧迁移历史。已有数据库请保留原版本代码；需要切换时先备份并制定数据迁移方案，不要删除迁移历史、关闭校验或直接运行 repair。此次整理不修改实际数据库或 Docker 数据卷。后续结构变更新增 V2 及以上迁移。
+若启动提示 `Detected applied migration not resolved locally: 5.`，表示数据库已经执行 V5，但当前运行代码缺少该迁移。此分支保留原始 `src/main/resources/db/migration/V5__create_share_links.sql`，用于兼容已经执行过分享迁移的数据库；当前已实现分享接口，V11 在此表追加可选提取码散列（V9/V10 为聊天及聊天文件迁移）。
 
-修改迁移资源后先执行 `mvn clean test`，避免 target 中残留旧 SQL。`FlywayMigrationTest` 使用独立 H2 数据库检查建库、关键字段、校验及重复启动。
+已应用迁移应在各分支保留原始文件和校验和；不要改写旧 SQL、删除 `flyway_schema_history` 记录或关闭校验来绕过错误，也不要仅因切换分支就运行 `repair`。先确认代码中包含原始迁移，再清理旧编译产物并重新启动：
+
+```sh
+# 在 backend 目录，使用前文相同的数据库环境变量
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH mvn clean spring-boot:run
+```
+
+`FlywayMigrationTest` 使用独立 H2 数据库覆盖全新建库，以及历史 V1～V8 已执行后补齐 V9～V11、校验和分享数据保留，不连接或修改开发数据库。
 
 ## 群号
 
@@ -36,7 +43,7 @@ DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/
 
 成员通过 `POST /api/chat/rooms/{room}/files/{messageId}/save` 转存，传入 `{"parentId":"8"}` 选择自己的目录；省略请求体或传入 `{"parentId":null}` 则保存到根目录。文件操作页支持图片、PDF、文本、Markdown、DOCX 和浏览器可播放视频预览；不支持的格式显示“不支持预览此文件”，仍可下载或转存。选择页支持目录路径、当前目录搜索、名称/最近修改排序，以及发送前确认。转存页仅显示文件夹，加载失败时禁止确认；成功后明确提示独立副本。服务端从该聊天的消息解析发送者及源文件，不接受客户端指定所有者；转存执行容量、同名冲突和源文件有效性检查，并复制为独立存储。源文件失效后不能再转存，但已经转存的副本不受影响。新加入的群成员可以转存可见历史消息中的文件。
 
-文件字段可空，文本消息无需附件。`ChatFileWorkflowTest` 使用 H2 与内存存储替身验证上传、发送、越权拦截、独立转存及源文件删除后的副本下载。
+V10 仅新增可空文件字段，旧文本消息保持兼容，不改写已应用迁移。`ChatFileWorkflowTest` 使用 H2 与内存存储替身验证上传、发送、越权拦截、独立转存及源文件删除后的副本下载。
 
 ## 扣扣AI智能对话
 
@@ -81,7 +88,7 @@ DB_PASSWORD=cendo_dev_password JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/
 
 ## 账号管理与七天注销
 
-资料、头像、改密、精确用户名查询和恢复接口见[账号管理接口文档](../docs/账号管理接口文档.md)。账号生命周期结构已包含在整合初始化脚本中。用户 ID 仍由数据库自动分配，用户名和 ID 不因修改昵称而变化。
+资料、头像、改密、精确用户名查询和恢复接口见[账号管理接口文档](../docs/账号管理接口文档.md)。新增 V8 迁移，不修改历史迁移；启动后 Flyway 自动应用。用户 ID 仍由数据库自动分配，用户名和 ID 不因修改昵称而变化。
 
 - 密码修改 / 注销 / 恢复均递增 `users.auth_version`。每次鉴权同时检查数据库的启用状态和版本，所有旧设备 Token 立即失效；不依赖 Redis 扫描删除。旧版仅含用户 ID 的会话只兼容版本 0。过期 Redis 会话由原有 TTL 自动清理。
 - 注销立即标记 `active=false`、记录 UTC `deleted_at` 并撤销本人所有分享。7×24 小时内可凭原用户名和密码恢复，恢复后必须重新登录；旧分享和旧 Token 不恢复。期间用户名仍被占用，不能重新注册。
