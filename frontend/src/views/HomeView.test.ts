@@ -501,7 +501,6 @@ describe("folder navigation and screenshot layout", () => {
     const wrapper = await inside();
     expect(wrapper.find(".m-folder-head select").exists()).toBe(false);
     await wrapper.find(".m-folder-toolbar select").setValue("name");
-    await wrapper.find(".m-folder-search input").setValue("S01");
     const loads = vi.mocked(api.listFiles).mock.calls.length;
     await wrapper.find(".m-folder-head .m-transfer-button").trigger("click");
     expect(wrapper.find(".transfer-tabs button.active").text()).toBe("下载");
@@ -515,10 +514,9 @@ describe("folder navigation and screenshot layout", () => {
       (wrapper.find(".m-folder-toolbar select").element as HTMLSelectElement)
         .value,
     ).toBe("name");
-    expect(
-      (wrapper.find(".m-folder-search input").element as HTMLInputElement)
-        .value,
-    ).toBe("S01");
+    await wrapper.find(".m-folder-search input").setValue("S01");
+    expect(wrapper.find(".m-folder-head").exists()).toBe(false);
+    expect((wrapper.find(".m-search-page-header input").element as HTMLInputElement).value).toBe("S01");
     expect(api.listFiles).toHaveBeenCalledTimes(loads);
   });
   it("returns one level at a time, not directly from a nested folder to root", async () => {
@@ -563,6 +561,10 @@ describe("folder navigation and screenshot layout", () => {
     expect(wrapper.find(".inline-name-editor").exists()).toBe(false);
     await wrapper.find(".m-folder-search input").setValue("S01");
     expect(wrapper.find(".file-search-panel").exists()).toBe(true);
+    expect(wrapper.find(".m-search-page-header").exists()).toBe(true);
+    expect(wrapper.find(".m-folder-breadcrumb").exists()).toBe(false);
+    expect(wrapper.find(".m-filter").exists()).toBe(false);
+    await wrapper.find('[aria-label="返回文件列表"]').trigger("click");
     await wrapper.find(".m-folder-breadcrumb button").trigger("click");
     await flushPromises();
     expect(wrapper.find(".m-selection-sheet").exists()).toBe(false);

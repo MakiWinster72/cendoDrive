@@ -1,3 +1,21 @@
+.file-search-tabs { display: none; }
+.m-search-page-header { display: flex; align-items: center; gap: 6px; margin: 16px var(--mobile-gutter, 18px); padding: 6px; border: 1.5px solid #111925; border-radius: 12px; background: #fff; }
+.m-search-page-header input { flex: 1; min-width: 0; width: 0; border: 0; font: inherit; font-size: 16px; background: transparent; }
+.m-search-page-header button { display: grid; place-items: center; min-width: 36px; min-height: 44px; border: 0; background: transparent; }
+.m-search-page-header .m-search-submit { border-radius: 8px; background: #2589ff; color: white; padding: 0 14px; font-size: 14px; }
+@media (width < 768px) {
+.file-search-panel .file-search-controls, .file-search-panel .file-search-note { display: none; }
+.file-search-tabs { display: flex; overflow-x: auto; scrollbar-width: none; gap: 24px; margin-bottom: 20px; }
+.file-search-tabs button { position: relative; flex-shrink: 0; border: 0; background: transparent; color: #858e9f; font-size: 16px; font-weight: 600; padding: 8px 0 12px; min-height: 44px; }
+.file-search-tabs button.active { color: #111925; }
+.file-search-tabs button.active::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 3px; background: #2589ff; border-radius: 3px; }
+.file-search-panel .file-search-summary { padding: 12px 0; font-size: 14px; color: #111925; }
+.file-search-panel .file-search-results li { min-height: 86px; border-top: 0; }
+.file-search-panel .file-search-open { gap: 14px; }
+.file-search-panel .file-search-open b { font-size: 16px; }
+.file-search-panel .file-search-path { padding-left: 48px; font-size: 12px; }
+}
+
 .file-search-panel { min-width: 0; color: #576170; font-size: 12px; }
 .file-search-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-height: 70px; }
 .file-search-controls label { display: flex; align-items: center; gap: 8px; min-width: 0; color: #9098a5; }

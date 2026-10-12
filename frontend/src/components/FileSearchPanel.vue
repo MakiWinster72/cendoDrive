@@ -19,6 +19,7 @@ const emit = defineEmits<{
   locate: [hit: FileSearchHit];
   clear: [];
 }>();
+const categories: { value: SearchType; label: string }[] = [{ value: "all", label: "综合" }, { value: "folder", label: "文件夹" }, { value: "audio", label: "音频" }, { value: "image", label: "图片" }, { value: "video", label: "视频" }, { value: "doc", label: "文档" }, { value: "other", label: "其他" }];
 const scope = ref<"all" | "folder">(props.parentId ? "folder" : "all");
 const type = ref<SearchType>(props.initialType);
 watch(
@@ -41,6 +42,7 @@ const params = computed(() => ({
   sort: props.sort,
 }));
 const { result, loading, error, page, goPage, retry } = useFileSearch(params);
+defineExpose({ retry });
 const pageCount = computed(() =>
   Math.max(1, Math.ceil((result.value?.total ?? 0) / 20)),
 );
@@ -52,6 +54,7 @@ const pageCount = computed(() =>
     aria-label="文件名搜索结果"
     :aria-busy="loading"
   >
+    <nav class="file-search-tabs" aria-label="搜索分类"><button v-for="category in categories" :key="category.value" type="button" :aria-pressed="type === category.value" :class="{ active: type === category.value }" @click="type = category.value">{{ category.label }}</button></nav>
     <div class="file-search-controls">
       <label
         >范围<select v-model="scope" aria-label="搜索范围">
@@ -107,7 +110,7 @@ const pageCount = computed(() =>
             />
             <span
               ><b>{{ hit.file.name }}</b
-              ><small class="file-search-mobile-meta">{{ hit.file.kind === "folder" ? "文件夹" : formatBytes(hit.file.size) }}</small></span
+              ><small class="file-search-mobile-meta">{{ hit.file.updatedAt.slice(0, 10) }} · {{ hit.file.kind === "folder" ? "文件夹" : formatBytes(hit.file.size) }}</small></span
             >
           </button>
           <span class="file-search-path" :title="hit.path">{{ hit.path === "/" ? "我的网盘" : "我的网盘" + hit.path }}</span>

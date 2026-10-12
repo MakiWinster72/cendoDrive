@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-import type { DefineComponent } from "vue";
-import { mount, flushPromises } from "@vue/test-utils";
+import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import FileSearchPanel from "./FileSearchPanel.vue";
 import * as api from "../api/drive";
@@ -27,16 +26,10 @@ const response = (
   total = items.length,
   page = 0,
 ): api.FileSearchResponse => ({ items, total, page, size: 20 });
-const wrappers: ReturnType<typeof mount>[] = [];
+const wrappers: VueWrapper<InstanceType<typeof FileSearchPanel>>[] = [];
 function open(parentId: string | null = null) {
   const wrapper = mount(
-    FileSearchPanel as DefineComponent<{
-      query: string;
-      parentId: string | null;
-      initialType: api.SearchType;
-      sort: "time" | "name" | "size";
-      busy?: boolean;
-    }>,
+    FileSearchPanel,
     { props: { query: "合同", parentId, initialType: "all", sort: "time" } },
   );
   wrappers.push(wrapper);
@@ -83,6 +76,16 @@ describe("filename search panel", () => {
     expect(wrapper.find(".file-search-head").text()).toContain("文件名");
     expect(wrapper.find(".file-search-size").text()).toBe("1.0 KiB");
     expect(wrapper.text()).toContain("不搜索正文或图片文字");
+  });
+  it("switches categories using the search tabs", async () => {
+    const wrapper = open();
+    await settle();
+    const tab = wrapper.findAll(".file-search-tabs button").find(button => button.text() === "文件夹")!;
+    await tab.trigger("click");
+    await settle();
+    expect(vi.mocked(api.searchFiles).mock.lastCall![0].type).toBe("folder");
+    expect(tab.attributes("aria-pressed")).toBe("true");
+    expect(wrapper.find(".file-search-mobile-meta").text()).toContain("2026-01-01");
   });
   it("ignores stale success and failure even if transport ignores abort", async () => {
     let resolve!: (result: api.FileSearchResponse) => void;
