@@ -484,6 +484,9 @@
   resize: none;
   overflow-y: auto;
 }
+.chat-compose textarea:placeholder-shown {
+  padding-block: calc((var(--chat-compose-height) - 2px - 18px) / 2);
+}
 .chat-compose button {
   display: flex;
   flex-shrink: 0;
