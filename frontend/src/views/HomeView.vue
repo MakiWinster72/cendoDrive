@@ -61,7 +61,8 @@ import {
   FolderInput,
 } from "@lucide/vue";
 import BrandLogo from "../components/BrandLogo.vue";
-import { fileCategory, iconForFile } from "../components/fileIcon";
+import FileThumbnail from "../components/FileThumbnail.vue";
+import { fileCategory } from "../components/fileIcon";
 import HomeToolIcon from "../components/HomeToolIcon.vue";
 import UploadPanel from "../components/UploadPanel.vue";
 import TransferPage from "../components/TransferPage.vue";
@@ -1084,7 +1085,7 @@ onUnmounted(() => {
             @click="openItem(item)"
           >
             <span class="m-item-icon"
-              ><component :is="iconForFile(item)"
+              ><FileThumbnail :file="item"
             /></span>
             <div>
               <b>{{ item.name }}</b
@@ -1124,7 +1125,7 @@ onUnmounted(() => {
             @click="openMyShares"
           >
             <span class="m-item-icon"
-              ><component :is="iconForFile(item)" /></span
+              ><FileThumbnail :file="item" /></span
             ><span
               ><b>{{ item.name }}</b
               ><small>位置：我的资源 ❯</small></span
@@ -1486,9 +1487,9 @@ onUnmounted(() => {
         >
           <span class="m-folder"
             ><FolderGlyph
-              v-if="currentFolder && item.kind === 'folder'" /><component
+              v-if="currentFolder && item.kind === 'folder'" /><FileThumbnail
               v-else
-              :is="iconForFile(item)"
+              :file="item"
           /></span>
           <div>
             <InlineNameEditor
@@ -2140,8 +2141,8 @@ onUnmounted(() => {
                     :value="item.id" /><span><CheckSquare :size="13" /></span
                 ></label>
                 <div class="file-name" @click="openItem(item)">
-                  <component
-                    :is="iconForFile(item)"
+                  <FileThumbnail
+                    :file="item"
                     :class="item.kind"
                     :size="31"
                   /><InlineNameEditor
@@ -2245,8 +2246,8 @@ onUnmounted(() => {
                     <Trash2 :size="15" />
                   </button>
                 </div>
-                <component
-                  :is="iconForFile(item)"
+                <FileThumbnail
+                  :file="item"
                   :class="item.kind"
                   :size="58"
                   @click="openItem(item)"
