@@ -79,6 +79,48 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("file tools workflows", () => {
+  it("keeps four primary actions and reveals secondary actions on demand", async () => {
+    const wrapper = await open("menu");
+    expect(wrapper.get("h2").text()).toBe(file.name);
+    expect(wrapper.find(".tools-selection").exists()).toBe(false);
+    expect(
+      wrapper.findAll(".tools-menu button").map((entry) => entry.text()),
+    ).toEqual(["移动", "复制", "收藏", "重命名"]);
+    expect(wrapper.find("footer").exists()).toBe(false);
+    expect(wrapper.find(".tools-more").exists()).toBe(false);
+    await button(wrapper, "更多操作").trigger("click");
+    expect(button(wrapper, "更多操作").attributes("aria-expanded")).toBe(
+      "true",
+    );
+    expect(
+      wrapper.findAll(".tools-more button").map((entry) => entry.text()),
+    ).toEqual(["隐藏", "整理", "详情", "移入回收站"]);
+    await button(wrapper, "更多操作").trigger("click");
+    expect(wrapper.find(".tools-more").exists()).toBe(false);
+  });
+  it("disables single-item actions for multiple selections without losing bulk actions", async () => {
+    const wrapper = await open("menu", [file, { ...file, id: "43" }]);
+    expect(wrapper.get("h2").text()).toBe("已选 2 项");
+    expect(button(wrapper, "重命名").attributes("disabled")).toBeDefined();
+    await button(wrapper, "更多操作").trigger("click");
+    expect(button(wrapper, "详情").attributes("disabled")).toBeDefined();
+    await button(wrapper, "移入回收站").trigger("click");
+    expect(wrapper.emitted("trash")).toEqual([[["42", "43"]]]);
+  });
+  it("preserves rename and the hidden-space warning in the compact menu", async () => {
+    let wrapper = await open("menu");
+    await button(wrapper, "重命名").trigger("click");
+    expect(wrapper.emitted("rename")).toHaveLength(1);
+    expect(wrapper.emitted("close")).toHaveLength(1);
+    wrapper = await open("menu");
+    await button(wrapper, "更多操作").trigger("click");
+    await button(wrapper, "隐藏").trigger("click");
+    expect(wrapper.text()).toContain("非加密");
+    expect(api.setHidden).not.toHaveBeenCalled();
+    expect(wrapper.findAll('button[aria-label="关闭文件操作"]')).toHaveLength(
+      1,
+    );
+  });
   it.each(["move", "copy"] as const)(
     "creates a new target before %s without losing selection",
     async (action) => {
@@ -195,7 +237,7 @@ describe("file tools workflows", () => {
     await flushPromises();
     expect(wrapper.find('[role="alert"]').text()).toContain("同名冲突");
     expect(wrapper.emitted("close")).toBeUndefined();
-    await button(wrapper, "重新加载 / 重试").trigger("click");
+    await button(wrapper, "重试").trigger("click");
     await flushPromises();
     await button(wrapper, "确认移动").trigger("click");
     await flushPromises();

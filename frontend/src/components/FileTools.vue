@@ -10,6 +10,7 @@ import {
   Sparkles,
   Pencil,
   Trash2,
+  ChevronDown,
 } from "@lucide/vue";
 import {
   getFileDetails,
@@ -83,6 +84,7 @@ const titles = computed(() => ({
   organize: "按类型整理",
   details: "文件详情",
 }));
+const moreOpen = ref(false);
 const menu = [
   { key: "move", icon: FolderInput },
   { key: "copy", icon: Copy },
@@ -186,7 +188,20 @@ onBeforeUnmount(() => {
     @click.self="close"
   >
     <header>
-      <h2 id="file-tools-title">{{ titles[action] }}</h2>
+      <h2
+        id="file-tools-title"
+        :title="
+          action === 'menu' && items.length === 1 ? items[0]?.name : undefined
+        "
+      >
+        {{
+          action === "menu"
+            ? items.length === 1
+              ? items[0]?.name
+              : `已选 ${items.length} 项`
+            : titles[action]
+        }}
+      </h2>
       <button
         type="button"
         aria-label="关闭文件操作"
@@ -197,29 +212,57 @@ onBeforeUnmount(() => {
         <X :size="22" />
       </button>
     </header>
-    <p class="tools-selection">
-      已选择 {{ items.length }} 个项目<span v-if="items.length === 1">
-        · {{ items[0]?.name }}</span
-      >
+    <p v-if="action !== 'menu'" class="tools-selection">
+      {{ items.length === 1 ? items[0]?.name : `已选 ${items.length} 项` }}
     </p>
-    <div v-if="action === 'menu'" class="tools-menu">
+    <template v-if="action === 'menu'">
+      <div class="tools-menu">
+        <button
+          v-for="entry in menu.slice(0, 3)"
+          :key="entry.key"
+          @click="choose(entry.key)"
+        >
+          <component :is="entry.icon" :size="22" />{{ titles[entry.key] }}
+        </button>
+        <button :disabled="items.length !== 1" @click="rename">
+          <Pencil :size="22" />重命名
+        </button>
+      </div>
       <button
-        v-for="entry in menu"
-        :key="entry.key"
-        :disabled="entry.key === 'details' && items.length !== 1"
-        @click="choose(entry.key)"
+        class="tools-more-toggle"
+        :aria-expanded="moreOpen"
+        aria-controls="tools-more"
+        @click="moreOpen = !moreOpen"
       >
-        <component :is="entry.icon" :size="21" />{{ titles[entry.key] }}
+        更多操作<ChevronDown :size="16" />
       </button>
-      <button :disabled="items.length !== 1" @click="rename">
-        <Pencil :size="21" />重命名</button
-      ><button @click="trash"><Trash2 :size="21" />移入回收站</button>
-    </div>
+      <div v-if="moreOpen" id="tools-more" class="tools-more">
+        <button
+          v-for="entry in menu.slice(3)"
+          :key="entry.key"
+          :disabled="entry.key === 'details' && items.length !== 1"
+          @click="choose(entry.key)"
+        >
+          <component :is="entry.icon" :size="18" />{{
+            entry.key === "hide"
+              ? hiddenValue
+                ? "隐藏"
+                : "取消隐藏"
+              : entry.key === "organize"
+                ? "整理"
+                : "详情"
+          }}
+        </button>
+        <button class="tools-danger" @click="trash">
+          <Trash2 :size="18" />移入回收站
+        </button>
+      </div>
+    </template>
     <p v-if="loading" role="status">正在加载…</p>
     <div v-if="error" role="alert">
       <p>{{ error }}</p>
       <button :disabled="busy || targetSaving" @click="choose(action)">
-        重新加载 / 重试
+        重试
       </button>
     </div>
     <template v-if="!loading && !error">
@@ -260,26 +303,20 @@ onBeforeUnmount(() => {
             />
           </div>
         </div>
-        <small
-          >在所选位置创建目录后自动选中，可直接确认移动或复制。不能选择自身或子目录，复制会占用额外容量。</small
-        >
+        <small v-if="action === 'copy'">复制会占用额外空间。</small>
       </div>
       <p v-if="action === 'favorite'">
-        {{
-          favoriteValue
-            ? "添加到我的收藏，不移动原文件。"
-            : "取消所选项目的收藏。"
-        }}
+        {{ favoriteValue ? "添加到我的收藏。" : "取消收藏。" }}
       </p>
       <p v-if="action === 'hide'">
         {{
           hiddenValue
-            ? "从普通列表隐藏，可在隐藏空间管理。此功能不是加密或密码保护。"
-            : "恢复在普通文件列表中显示。"
+            ? "隐藏后可在隐藏空间查看（非加密）。"
+            : "恢复到文件列表。"
         }}
       </p>
       <p v-if="action === 'organize'">
-        按扩展名归入图片、视频、音频、文档或其他文件夹。仅整理文件，不修改内容，不覆盖同名项目；文件夹保持原样。
+        按扩展名分类，不覆盖同名文件；文件夹保持原样。
       </p>
       <dl v-if="action === 'details' && details">
         <dt>路径</dt>
@@ -299,16 +336,11 @@ onBeforeUnmount(() => {
         </dd>
       </dl>
     </template>
-    <footer>
-      <button
-        v-if="action !== 'menu'"
-        :disabled="busy || targetSaving"
-        @click="choose('menu')"
-      >
+    <footer v-if="action !== 'menu'">
+      <button :disabled="busy || targetSaving" @click="choose('menu')">
         返回操作</button
-      ><button :disabled="busy || targetSaving" @click="close">关闭</button
       ><button
-        v-if="action !== 'menu' && action !== 'details'"
+        v-if="action !== 'details'"
         class="tools-primary"
         :disabled="busy || targetSaving || !!targetEdit || loading || !!error"
         @click="submit"
