@@ -75,6 +75,18 @@ class UploadServiceTest {
         assertArrayEquals("abcd".getBytes(), Files.readAllBytes(root.resolve("7").resolve(UPLOAD_ID).resolve("0.part")));
     }
 
+    @Test void chunkAcceptanceIsPacedAndBytesPreserved() throws Exception {
+        byte[] bytes = new byte[16384];
+        UploadSession current = new UploadSession(UPLOAD_ID, 7L, null, "paced.bin", bytes.length, HASH,
+                bytes.length, 1, LocalDateTime.now(Clock.systemUTC()).plusHours(1));
+        when(sessions.lock(UPLOAD_ID, 7L)).thenReturn(Optional.of(current));
+        long started = System.nanoTime();
+        service.chunk(user, UPLOAD_ID, 0, 1, HASH,
+                new MockMultipartFile("chunk", "paced.bin", "application/octet-stream", bytes));
+        assertTrue(System.nanoTime() - started >= 125_000_000L);
+        assertArrayEquals(bytes, Files.readAllBytes(root.resolve("7").resolve(UPLOAD_ID).resolve("0.part")));
+    }
+
     @Test void chunkRejectsWrongSizeWithoutWriting() throws Exception {
         when(sessions.lock(UPLOAD_ID, 7L)).thenReturn(Optional.of(session()));
         DriveFailure error = assertThrows(DriveFailure.class, () ->

@@ -160,7 +160,7 @@ export async function uploadFile(
   if (parentId !== null) form.append("parentId", parentId);
   const { data } = await http.post<DriveItemResponse>("/files/upload", form, {
     headers: { "Content-Type": undefined },
-    timeout: 120000,
+    timeout: 0,
   });
   return data;
 }

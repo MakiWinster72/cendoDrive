@@ -22,6 +22,9 @@ app:
 server:
   port: ${PORT:8080}
 cendo:
+  membership:
+    # Demo-only: disable on public production deployments.
+    simulated-payment-enabled: ${CENDO_MEMBERSHIP_SIMULATED_PAYMENT_ENABLED:true}
   storage:
     root: ${CENDO_STORAGE_ROOT:./storage}
     backend: ${CENDO_STORAGE_BACKEND:fastdfs}
