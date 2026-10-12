@@ -15,6 +15,15 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("shares one border-box height between chat input and send button", () => {
+    const chat = read("./chat.css");
+    expect(chat).toContain("--chat-compose-height: 48px");
+    for (const selector of ["textarea", "button"]) {
+      const block = chat.split(`.chat-compose ${selector} {`)[1]!.split("}")[0]!;
+      expect(block).toContain("height: var(--chat-compose-height)");
+      expect(block).toContain("box-sizing: border-box");
+    }
+  });
   it("aligns file filters and capacity with shared mobile geometry", () => {
     expect(main).toMatch(/\.m-filter\s*\{[^}]*display: flex/);
     expect(main).toMatch(/\.m-filter\s*\{[^}]*height: 83px/);
