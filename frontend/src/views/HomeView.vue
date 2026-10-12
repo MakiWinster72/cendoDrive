@@ -115,12 +115,6 @@ const recommendationColumns = [
   recommendationAds.filter((_, index) => index % 2 === 1),
 ];
 
-import { localRecommendationAds as recommendationAds } from "../api/localRecommendationAds";
-const recommendationColumns = [
-  recommendationAds.filter((_, index) => index % 2 === 0),
-  recommendationAds.filter((_, index) => index % 2 === 1),
-];
-
 type Mode =
   | "all"
   | "recent"
