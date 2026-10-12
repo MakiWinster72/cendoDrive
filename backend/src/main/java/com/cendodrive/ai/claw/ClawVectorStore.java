@@ -69,21 +69,31 @@ public class ClawVectorStore {
     if(!settings.vectorKey.isBlank()) request.header("api-key",settings.vectorKey);
     ClawHttp.json(request.body(Map.of("filter",Map.of("must",conditions))),"CLAW_VECTOR_UNAVAILABLE",true);
   }
-  public List<Hit> query(long owner,List<Long> allowedIds,List<Double> vector) {
-    settings.requireEnabled(); if(allowedIds.isEmpty()) return List.of();
-    if(allowedIds.size()>5000 || vector.size()!=settings.dimensions) throw new IllegalArgumentException("Invalid vector query scope");
-    var filter=Map.of("must",List.of(match("owner_id",owner),Map.of("key","file_id","match",Map.of("any",allowedIds))));
+  public List<Hit> query(long owner,Map<Long,Long> currentGenerations,List<Double> vector) {
+    settings.requireEnabled(); if(currentGenerations.isEmpty()) return List.of();
+    if(currentGenerations.size()>5000 || vector.size()!=settings.dimensions) throw new IllegalArgumentException("Invalid vector query scope");
+    currentGenerations=Map.copyOf(currentGenerations);
+    var groups=new TreeMap<Long,List<Long>>();
+    currentGenerations.forEach((id,generation)->{
+      if(id<1 || generation<1) throw new IllegalArgumentException("Invalid vector query scope");
+      groups.computeIfAbsent(generation,key->new ArrayList<>()).add(id);
+    });
+    groups.values().forEach(Collections::sort);
+    var scopes=groups.entrySet().stream().map(group->Map.of("must",List.of(
+        Map.of("key","file_id","match",Map.of("any",group.getValue())),match("generation",group.getKey())))).toList();
+    // File/generation pairs must be filtered remotely BEFORE score ranking and the top-24 limit.
+    var filter=Map.of("must",List.of(match("owner_id",owner)),"should",scopes);
     var response=post("/points/query",Map.of("query",vector,"filter",filter,"limit",24,"with_payload",true,"score_threshold",0.3),false);
     var points=response==null?null:response.path("result").path("points");
     if(points==null || !points.isArray() || points.size()>24) throw new ClawFailure("CLAW_VECTOR_INVALID");
-    var allowed=new HashSet<>(allowedIds); var result=new ArrayList<Hit>();
+    var result=new ArrayList<Hit>();
     for(var point:points) {
       var p=point.path("payload");
       if(!p.path("owner_id").isIntegralNumber() || !p.path("file_id").isIntegralNumber() || !p.path("generation").isIntegralNumber()
           || !p.path("owner_id").canConvertToLong() || !p.path("file_id").canConvertToLong() || !p.path("generation").canConvertToLong()
-          || !p.path("chunk").canConvertToInt() || !p.path("text").isTextual() || !point.path("score").isNumber()) throw new ClawFailure("CLAW_VECTOR_INVALID");
+          || !p.path("chunk").isIntegralNumber() || !p.path("chunk").canConvertToInt() || !p.path("text").isTextual() || !point.path("score").isNumber()) throw new ClawFailure("CLAW_VECTOR_INVALID");
       var hit=new Hit(p.path("owner_id").asLong(),p.path("file_id").asLong(),p.path("generation").asLong(),p.path("chunk").asInt(),p.path("text").asText(),point.path("score").asDouble());
-      if(hit.ownerId()!=owner || !allowed.contains(hit.fileId()) || hit.generation()<1 || hit.chunk()<0 || hit.chunk()>=128
+      if(hit.ownerId()!=owner || !Objects.equals(currentGenerations.get(hit.fileId()),hit.generation()) || hit.generation()<1 || hit.chunk()<0 || hit.chunk()>=128
           || hit.text().isBlank() || hit.text().length()>1800 || !Double.isFinite(hit.score())) throw new ClawFailure("CLAW_VECTOR_INVALID");
       result.add(hit);
     }

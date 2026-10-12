@@ -69,15 +69,39 @@ class ClawClientsTest {
     var settings=settings(2);var builder=RestClient.builder();var server=MockRestServiceServer.bindTo(builder).build();
     server.expect(requestTo("http://vector.test:6333/collections/"+settings.collection()+"/points/query"))
         .andRespond(withSuccess("{\"result\":{\"points\":[{\"score\":0.8,\"payload\":{\"owner_id\":8,\"file_id\":12,\"generation\":3,\"chunk\":0,\"text\":\"不该泄露\"}}]}}",MediaType.APPLICATION_JSON));
-    assertEquals("CLAW_VECTOR_INVALID",assertThrows(ClawFailure.class,()->new ClawVectorStore(builder.build(),settings).query(7L,List.of(12L),List.of(1.0,0.0))).code());server.verify();
+    assertEquals("CLAW_VECTOR_INVALID",assertThrows(ClawFailure.class,()->new ClawVectorStore(builder.build(),settings).query(7L,Map.of(12L,3L),List.of(1.0,0.0))).code());server.verify();
   }
-  @Test void scopesQueryToOwnerAndAllowedFileIds() {
+  @Test void rejectsVectorServiceReturningStaleGeneration() {
+    var settings=settings(2);var builder=RestClient.builder();var server=MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://vector.test:6333/collections/"+settings.collection()+"/points/query"))
+        .andRespond(withSuccess("{\"result\":{\"points\":[{\"score\":0.8,\"payload\":{\"owner_id\":7,\"file_id\":12,\"generation\":2,\"chunk\":0,\"text\":\"旧资料\"}}]}}",MediaType.APPLICATION_JSON));
+    assertEquals("CLAW_VECTOR_INVALID",assertThrows(ClawFailure.class,()->new ClawVectorStore(builder.build(),settings)
+        .query(7L,Map.of(12L,3L),List.of(1.0,0.0))).code());server.verify();
+  }
+  @Test void rejectsNonIntegralChunkNumbers() {
+    for(String chunk:List.of("0.5","0.0")) {
+      var settings=settings(2);var builder=RestClient.builder();var server=MockRestServiceServer.bindTo(builder).build();
+      String body="""
+          {"result":{"points":[{"score":0.8,"payload":{"owner_id":7,"file_id":12,"generation":3,"chunk":%s,"text":"正文"}}]}}
+          """.formatted(chunk);
+      server.expect(requestTo("http://vector.test:6333/collections/"+settings.collection()+"/points/query"))
+          .andRespond(withSuccess(body,MediaType.APPLICATION_JSON));
+      assertEquals("CLAW_VECTOR_INVALID",assertThrows(ClawFailure.class,()->new ClawVectorStore(builder.build(),settings)
+          .query(7L,Map.of(12L,3L),List.of(1.0,0.0)),"Chunk numbers must use integral JSON nodes, not truncated decimal values").code());
+      server.verify();
+    }
+  }
+  @Test void scopesQueryToOwnerAndCurrentFileGenerationsBeforeRanking() {
     var settings=settings(2); var builder=RestClient.builder(); var server=MockRestServiceServer.bindTo(builder).build();
     server.expect(requestTo("http://vector.test:6333/collections/"+settings.collection()+"/points/query"))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("owner_id")))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("\"any\":[12]")))
+        .andExpect(jsonPath("$.filter.must[0].key").value("owner_id"))
+        .andExpect(jsonPath("$.filter.must[0].match.value").value(7))
+        .andExpect(jsonPath("$.filter.should[0].must[0].match.any[0]").value(12))
+        .andExpect(jsonPath("$.filter.should[0].must[1].key").value("generation"))
+        .andExpect(jsonPath("$.filter.should[0].must[1].match.value").value(3))
+        .andExpect(jsonPath("$.limit").value(24))
         .andRespond(withSuccess("{\"result\":{\"points\":[{\"score\":0.8,\"payload\":{\"owner_id\":7,\"file_id\":12,\"generation\":3,\"chunk\":0,\"text\":\"合成内容\"}}]}}",MediaType.APPLICATION_JSON));
-    var hits=new ClawVectorStore(builder.build(),settings).query(7L,List.of(12L),List.of(1.0,0.0));
+    var hits=new ClawVectorStore(builder.build(),settings).query(7L,Map.of(12L,3L),List.of(1.0,0.0));
     assertEquals(1,hits.size()); assertEquals(12L,hits.get(0).fileId()); server.verify();
   }
 }

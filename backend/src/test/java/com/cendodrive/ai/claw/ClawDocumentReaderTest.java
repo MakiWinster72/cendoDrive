@@ -21,6 +21,15 @@ class ClawDocumentReaderTest {
     var chunks=reader.chunks(DriveFile.uploaded(1L,null,"document.txt",5400,"test"));
     assertEquals(2,chunks.size());assertTrue(chunks.get(0).startsWith("文件名：document.txt\n"));
   }
+  @Test void keepsUnicodeCodePointsIntactAtChunkAndOverlapBoundaries() throws Exception {
+    var storage=mock(FileStorage.class);var reader=new ClawDocumentReader(storage,"/tmp/claw-reader");
+    String text="甲".repeat(799)+"😀"+"乙".repeat(198)+"🌙"+"丙".repeat(850);
+    doAnswer(call->{((OutputStream)call.getArgument(1)).write(text.getBytes(StandardCharsets.UTF_8));return null;}).when(storage).download(eq("unicode"),any());
+    var chunks=reader.chunks(DriveFile.uploaded(1L,null,"unicode.txt",text.getBytes(StandardCharsets.UTF_8).length,"unicode"));
+    assertTrue(chunks.stream().allMatch(chunk->StandardCharsets.UTF_8.newEncoder().canEncode(chunk)),"Chunk and overlap boundaries must not split surrogate pairs");
+    assertTrue(chunks.stream().anyMatch(chunk->chunk.contains("😀")));
+    assertTrue(chunks.stream().anyMatch(chunk->chunk.contains("🌙")));
+  }
   @Test void extractsRealPdfAndDocxIncludingTables() throws Exception {
     var reader=new ClawDocumentReader(mock(FileStorage.class),"/tmp/claw-reader");var bytes=new ByteArrayOutputStream();
     try(var pdf=new PDDocument()) {

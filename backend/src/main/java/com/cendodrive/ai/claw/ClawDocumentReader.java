@@ -43,8 +43,12 @@ public class ClawDocumentReader {
       if(text.length()>MAX_TEXT) throw new ClawFailure("CLAW_TOO_LARGE");
       var result=new ArrayList<String>();
       for(int start=0;start<text.length();start+=800) {
+        // Keep the existing UTF-16 payload budget, but never cut a supplementary character in half.
+        int safeStart=start;
+        if(safeStart>0 && Character.isLowSurrogate(text.charAt(safeStart))) safeStart--;
         int end=Math.min(start+1000,text.length());
-        result.add("文件名："+file.getName()+"\n"+text.substring(start,end));
+        if(end<text.length() && Character.isHighSurrogate(text.charAt(end-1))) end--;
+        result.add("文件名："+file.getName()+"\n"+text.substring(safeStart,end));
         if(end==text.length()) break;
       }
       return List.copyOf(result);
