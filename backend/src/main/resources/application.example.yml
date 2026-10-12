@@ -1,5 +1,6 @@
 spring:
   datasource:
+    # TODO: 配置 MySQL 数据库
     url: ${DB_URL:jdbc:mysql://localhost:3306/cendo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:cendo}
     password: ${DB_PASSWORD:cendo}
@@ -16,6 +17,7 @@ spring:
     enabled: true
 app:
   cors:
+    # TODO: 设置允许的 ip
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 server:
   port: ${PORT:8080}
@@ -28,15 +30,15 @@ cendo:
     root: ${CENDO_UPLOAD_ROOT:./storage/uploads}
     ttl-hours: ${CENDO_UPLOAD_TTL_HOURS:24}
   ai:
+    # TODO: 配置 AI
     chat:
-      # OpenAI-compatible API base (include /v1 when required). Secrets stay server-side.
       base-url: ${CENDO_AI_CHAT_BASE_URL:}
       model: ${CENDO_AI_CHAT_MODEL:}
       key: ${CENDO_AI_CHAT_KEY:}
     claw:
+      # TODO: 是否开启 AI Claw 功能
       enabled: ${CENDO_AI_CLAW_ENABLED:false}
       embedding:
-        # Blank base/key inherit chat configuration; use an API base ending in /v1.
         base-url: ${CENDO_AI_EMBEDDING_BASE_URL:}
         model: ${CENDO_AI_EMBEDDING_MODEL:Qwen/Qwen3-VL-Embedding-8B}
         key: ${CENDO_AI_EMBEDDING_KEY:}
@@ -46,6 +48,7 @@ cendo:
         key: ${CENDO_AI_VECTOR_KEY:}
         collection: ${CENDO_AI_VECTOR_COLLECTION:cendo_claw}
 fdfs:
+  # TODO: 配置 tracker 地址
   tracker-list:
     - ${FASTDFS_TRACKER:localhost:22122}
   connect-timeout: 3000
