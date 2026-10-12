@@ -31,7 +31,14 @@ class ClawMysqlConcurrencyTest {
     jdbc.execute("DROP TABLE IF EXISTS claw_documents");
     jdbc.execute("DROP TABLE IF EXISTS drive_files");
     jdbc.execute("CREATE TABLE drive_files(id BIGINT PRIMARY KEY) ENGINE=InnoDB");
-    new ResourceDatabasePopulator(new ClassPathResource("db/migration/V17__create_claw_documents_and_tasks.sql")).execute(ds);
+    try (var input = new ClassPathResource("db/migration/V1__init_schema.sql").getInputStream()) {
+      String schema = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+      String clawSchema = schema.substring(schema.indexOf("CREATE TABLE claw_documents"));
+      new ResourceDatabasePopulator(new org.springframework.core.io.ByteArrayResource(
+          clawSchema.getBytes(java.nio.charset.StandardCharsets.UTF_8))).execute(ds);
+    } catch (java.io.IOException error) {
+      throw new java.io.UncheckedIOException(error);
+    }
     jdbc.update("INSERT INTO drive_files(id) VALUES(12)");
     tx=new TransactionTemplate(new DataSourceTransactionManager(ds));
     tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
