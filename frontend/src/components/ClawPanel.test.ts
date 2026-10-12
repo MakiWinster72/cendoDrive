@@ -28,6 +28,31 @@ it("retains failed questions, hides diagnostics and submits confirmed reindex", 
   await wrapper.findAll("button").find(b => b.text() === "确认重建已有文档索引")!.trigger("click"); await flushPromises();
   expect(reindexClaw).toHaveBeenCalledWith(undefined, expect.any(AbortSignal));
 });
+it("keeps the sent question visible independently of composer updates before the answer", async () => {
+  let resolve!: (answer: Awaited<ReturnType<typeof askClaw>>) => void;
+  vi.mocked(askClaw).mockImplementation(() => new Promise(done => { resolve = done; }));
+  wrapper = mount(ClawPanel); await flushPromises();
+  await wrapper.get("textarea").setValue("预算多少？"); await wrapper.get("form").trigger("submit"); await flushPromises();
+  expect(wrapper.get(".message.user .user-content").text()).toBe("预算多少？");
+  await wrapper.get("textarea").setValue("");
+  expect(wrapper.get(".message.user .user-content").text()).toBe("预算多少？");
+  resolve({ content: "回答", matched: false, sources: [] }); await flushPromises();
+  expect(wrapper.findAll(".message.user")).toHaveLength(1);
+  expect(wrapper.get(".message.user .user-content").text()).toBe("预算多少？");
+});
+it("restores the sent question on stop and ignores a late answer", async () => {
+  let resolve!: (answer: Awaited<ReturnType<typeof askClaw>>) => void;
+  vi.mocked(askClaw).mockImplementation(() => new Promise(done => { resolve = done; }));
+  wrapper = mount(ClawPanel); await flushPromises();
+  await wrapper.get("textarea").setValue("预算多少？"); await wrapper.get("form").trigger("submit"); await flushPromises();
+  expect(wrapper.get("textarea").element.value).toBe("");
+  await wrapper.get('[aria-label="停止回答"]').trigger("click");
+  expect(wrapper.get("textarea").element.value).toBe("预算多少？");
+  expect(vi.mocked(askClaw).mock.calls[0]![2].aborted).toBe(true);
+  resolve({ content: "迟到的回答", matched: false, sources: [] }); await flushPromises();
+  expect(wrapper.findAll(".message")).toHaveLength(0);
+  expect(wrapper.get("textarea").element.value).toBe("预算多少？");
+});
 it("aborts pending inference when the panel unmounts", async () => {
   vi.mocked(askClaw).mockImplementation(() => new Promise(() => {}));
   wrapper = mount(ClawPanel); await flushPromises();
