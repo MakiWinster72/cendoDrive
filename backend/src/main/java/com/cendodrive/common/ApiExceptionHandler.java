@@ -1,5 +1,9 @@
 package com.cendodrive.common;
 
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.util.DisconnectedClientHelper;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.apache.catalina.connector.ClientAbortException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
@@ -18,6 +22,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  private static final DisconnectedClientHelper disconnectedClient =
+      new DisconnectedClientHelper(ApiExceptionHandler.class.getName());
   @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
   ResponseEntity<ApiError> uploadTooLarge() {
     return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
@@ -25,9 +31,33 @@ public class ApiExceptionHandler {
   }
 
   @ExceptionHandler(java.io.IOException.class)
-  ResponseEntity<ApiError> storageUnavailable() {
+  ResponseEntity<ApiError> storageUnavailable(java.io.IOException ex, HttpServletResponse response) {
+    // A disconnected HTTP client cannot receive another response. Do not confuse
+    // an upstream storage socket reset with a failure writing to the servlet output.
+    if (isClientOutputFailure(ex) && disconnectedClient.checkAndLogClientDisconnectedException(ex))
+      return null;
+    if (response.isCommitted()) {
+      org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class)
+          .error("Storage failed after the download response was committed", ex);
+      return null;
+    }
     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
         .body(ApiError.of("STORAGE_UNAVAILABLE", "Storage unavailable"));
+  }
+
+  private static boolean isClientOutputFailure(Throwable ex) {
+    for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+      if (cause instanceof ClientAbortException || cause instanceof AsyncRequestNotUsableException)
+        return true;
+      for (StackTraceElement frame : cause.getStackTrace()) {
+        if (frame.getClassName().equals("org.apache.catalina.connector.OutputBuffer")
+            || frame.getClassName().startsWith(
+                "org.springframework.web.context.request.async.StandardServletAsyncWebRequest$LifecycleServletOutputStream"))
+          return true;
+      }
+    }
+    return false;
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
