@@ -56,8 +56,7 @@ describe("mobile membership page", () => {
     await plans[0]!.trigger("click");
     expect(plans[0]!.attributes("aria-pressed")).toBe("true");
     await wrapper.find(".primary-pay").trigger("click");
-    expect(dialogText()).toContain("支付功能暂未接入");
-    expect(dialogText()).toContain("不会产生扣款");
+    expect(dialogText()).toContain("请先登录再开通模拟会员");
   });
 
   it("keeps payment selection and agreement validation after resizing", async () => {

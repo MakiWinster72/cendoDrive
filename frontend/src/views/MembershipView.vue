@@ -10,6 +10,9 @@ import {
 } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
+import SimulatedPaymentDialog from "../components/SimulatedPaymentDialog.vue";
+import { useAuth } from "../stores/auth";
+import type { MembershipPlanContent } from "../api/content";
 import {
   getMembershipContent,
   type MembershipContentResponse,
@@ -19,10 +22,12 @@ import "../styles/mobile-commerce.css";
 import "../styles/membership.css";
 
 const router = useRouter();
+const auth = useAuth();
+const paymentPlan = ref<MembershipPlanContent | null>(null);
 const content = ref<MembershipContentResponse>(demoMembershipContent);
 const contentSource = ref<"demo" | "backend">("demo");
 const selectedPlan = ref(1);
-const paymentMethod = ref<"alipay" | "wechat">("alipay");
+const paymentMethod = ref<"alipay" | "wechat">("wechat");
 const agreed = ref(true);
 const notice = ref("");
 const activePlan = computed(
@@ -58,7 +63,24 @@ function pay() {
     showNotice("请先阅读并同意会员服务协议");
     return;
   }
-  showNotice("支付功能暂未接入，当前不会产生扣款");
+  if (paymentMethod.value !== "wechat") {
+    showNotice("支付宝暂未接入，请选择微信模拟支付，不会产生扣款");
+    return;
+  }
+  if (!auth.user.value) {
+    showNotice("请先登录再开通模拟会员");
+    return;
+  }
+  const prices: Record<string, string> = {
+    trial: "5.8",
+    year: "152",
+    month: "0.6",
+  };
+  if (prices[activePlan.value.id] !== activePlan.value.price) {
+    showNotice("当前套餐不支持模拟支付，请选择有效的演示套餐");
+    return;
+  }
+  paymentPlan.value = { ...activePlan.value };
 }
 </script>
 
@@ -78,11 +100,20 @@ function pay() {
       <section class="member-hero">
         <div class="member-account">
           <div class="member-avatar">U</div>
-          <div><strong>173****831</strong><span>您还不是 SVIP ›</span></div>
+          <div>
+            <strong>{{
+              auth.user.value?.nickname || auth.user.value?.username || "未登录"
+            }}</strong
+            ><span>{{
+              auth.user.value?.vipLevel === "SVIP"
+                ? "SVIP 会员 · 无到期时间"
+                : "您还不是 SVIP ›"
+            }}</span>
+          </div>
         </div>
         <div class="member-levels" aria-label="会员等级权益">
           <div class="level-active">
-            <strong>SVIP</strong><span>不限速下载</span>
+            <strong>SVIP</strong><span>模拟会员账户</span>
           </div>
           <div><strong>VIP</strong><span>基础会员</span></div>
           <div><strong>空间扩容</strong><span>最高 5T</span></div>
@@ -94,7 +125,7 @@ function pay() {
         {{
           contentSource === "demo"
             ? "内容接口尚未接入；当前展示内容均为演示数据"
-            : "套餐和权益由内容接口返回；优惠、购买服务尚未接入"
+            : "套餐和权益由内容接口返回；当前仅支持演示套餐模拟支付"
         }}
       </p>
       <section
@@ -207,7 +238,9 @@ function pay() {
           </template>
         </div>
         <p class="demo-caption">
-          <ShieldCheck :size="14" /> 页面为前端演示，支付与会员权益尚未接入
+          <ShieldCheck :size="14" />
+          微信模拟支付，不扣款；仅开通会员身份，无到期时间。所有用户每文件上传上限
+          128 KB/s，其他展示权益尚未接入。
         </p>
       </section>
     </div>
@@ -227,6 +260,15 @@ function pay() {
         }}
       </button>
     </footer>
+    <SimulatedPaymentDialog
+      v-if="paymentPlan"
+      :plan="paymentPlan"
+      @close="paymentPlan = null"
+      @paid="
+        paymentPlan = null;
+        showNotice('模拟支付成功，已开通 SVIP 会员，不设到期时间');
+      "
+    />
     <UnavailableFeatureDialog
       :open="Boolean(notice)"
       :message="notice"

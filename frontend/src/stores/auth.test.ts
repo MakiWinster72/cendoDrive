@@ -62,6 +62,28 @@ it.each([true, false])(
     expect(other.getItem(key)).toBeNull();
   },
 );
+it.each([true, false])(
+  "persists membership without altering expiry (remember=%s)",
+  async (remember) => {
+    api.loginRequest.mockResolvedValue({
+      token: "test-token",
+      expiresInSeconds: 86400,
+      user,
+    });
+    const { useAuth } = await import("./auth");
+    const auth = useAuth();
+    await auth.login({ username: "tester", password: "password123" }, remember);
+    const target = remember ? localStorage : sessionStorage;
+    const before = JSON.parse(target.getItem(key)!);
+    auth.updateUser({ ...user, vipLevel: "SVIP" });
+    const after = JSON.parse(target.getItem(key)!);
+    expect(after.user.vipLevel).toBe("SVIP");
+    expect(after.token).toBe(before.token);
+    expect(after.expiresAt).toBe(before.expiresAt);
+    auth.updateUser({ ...user, id: "another-user", vipLevel: "NORMAL" });
+    expect(auth.user.value?.vipLevel).toBe("SVIP");
+  },
+);
 describe("auth session", () => {
   it("stores login only in sessionStorage unless remember is selected", async () => {
     api.loginRequest.mockResolvedValue({
