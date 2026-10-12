@@ -90,6 +90,7 @@ const pageCount = computed(() =>
       <p class="file-search-summary" role="status">
         找到 {{ result.total }} 个项目
       </p>
+      <div v-if="result.items.length" class="file-search-head" aria-hidden="true"><span>文件名</span><span>所在位置</span><span>大小</span><span></span></div>
       <ul v-if="result.items.length" class="file-search-results">
         <li v-for="hit in result.items" :key="hit.file.id">
           <button
@@ -101,21 +102,16 @@ const pageCount = computed(() =>
           >
             <component
               :is="iconForFile(hit.file)"
-              :size="30"
+              :size="34"
               :class="hit.file.kind"
             />
             <span
               ><b>{{ hit.file.name }}</b
-              ><small
-                >{{ hit.path === "/" ? "我的网盘" : "我的网盘" + hit.path }} ·
-                {{
-                  hit.file.kind === "folder"
-                    ? "文件夹"
-                    : formatBytes(hit.file.size)
-                }}</small
-              ></span
+              ><small class="file-search-mobile-meta">{{ hit.file.kind === "folder" ? "文件夹" : formatBytes(hit.file.size) }}</small></span
             >
           </button>
+          <span class="file-search-path" :title="hit.path">{{ hit.path === "/" ? "我的网盘" : "我的网盘" + hit.path }}</span>
+          <span class="file-search-size">{{ hit.file.kind === "folder" ? "—" : formatBytes(hit.file.size) }}</span>
           <button
             type="button"
             class="file-search-locate"

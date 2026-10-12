@@ -79,7 +79,9 @@ describe("filename search panel", () => {
       },
       expect.any(AbortSignal),
     );
-    expect(wrapper.text()).toContain("我的网盘/工作/资料");
+    expect(wrapper.find(".file-search-path").text()).toBe("我的网盘/工作/资料");
+    expect(wrapper.find(".file-search-head").text()).toContain("文件名");
+    expect(wrapper.find(".file-search-size").text()).toBe("1.0 KiB");
     expect(wrapper.text()).toContain("不搜索正文或图片文字");
   });
   it("ignores stale success and failure even if transport ignores abort", async () => {

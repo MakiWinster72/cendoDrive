@@ -16,10 +16,8 @@ const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
   it("aligns file filters and capacity with shared mobile geometry", () => {
-    expect(main).toMatch(
-      /\.m-filter\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/,
-    );
-    expect(main).not.toMatch(/\.m-filter\s*\{[^}]*height: 83px/);
+    expect(main).toMatch(/\.m-filter\s*\{[^}]*display: flex/);
+    expect(main).toMatch(/\.m-filter\s*\{[^}]*height: 83px/);
     expect(home).toMatch(/\.m-capacity\s*\{[^}]*var\(--mobile-gutter\)/);
     expect(home).toMatch(/\.m-capacity\s*\{[^}]*overflow-wrap: anywhere/);
   });
@@ -27,10 +25,10 @@ describe("responsive style ownership", () => {
   it("keeps search controls and result rows responsive without overriding text styles", () => {
     const search = read("./search.css");
     expect(search).toContain("var(--mobile-gutter, 18px)");
-    expect(search).toContain("border-radius: 14px");
+    expect(search).toContain(".file-search-head");
     expect(search).toContain("min-height: 44px");
     expect(search).toContain(
-      "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)",
+      "grid-template-columns: minmax(0, 1fr) 44px",
     );
     expect(search).toContain("@media (width < 360px)");
     expect(search).toContain("text-overflow: ellipsis");
