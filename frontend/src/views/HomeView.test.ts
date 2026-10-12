@@ -99,7 +99,7 @@ beforeEach(() => {
     value: 390,
     writable: true,
   });
-  window.sessionStorage.removeItem("cendo:splash-ad-seen:demo-splash-ad");
+  window.sessionStorage.removeItem("cendo:splash-ad-seen:local-pop-ad");
   vi.resetAllMocks();
   useDrive().reset();
   vi.stubGlobal(
@@ -1164,24 +1164,26 @@ describe("mobile profile unavailable destinations", () => {
 });
 
 describe("mobile home media shortcuts", () => {
-  it("shows a clearly labelled development splash demo when the ad API is missing", async () => {
+  it("shows a local splash ad without relying on the ad API", async () => {
     vi.mocked(getSplashAd).mockRejectedValueOnce(
       new Error("splash endpoint not implemented"),
     );
     const wrapper = await open();
-    expect(
-      document.body.querySelector(".splash-ad-demo-badge")?.textContent,
-    ).toContain("演示广告");
+    expect(document.body.querySelector(".splash-ad-demo-badge")).toBeNull();
+    expect(["/ad/popAD.JPG", "/ad/popAD1.jpg"]).toContain(
+      document.body.querySelector(".splash-ad-content img")?.getAttribute("src"),
+    );
+    expect(getSplashAd).not.toHaveBeenCalled();
     expect(
       document.body.querySelector(".splash-ad-content")?.textContent,
-    ).toContain("让每一份文件都井然有序");
+    ).toContain("开屏广告");
     (
       document.body.querySelector(".splash-ad-content") as HTMLButtonElement
     ).click();
     await flushPromises();
-    expect(routerPush).toHaveBeenCalledWith("/membership");
+    expect(routerPush).not.toHaveBeenCalled();
     expect(
-      window.sessionStorage.getItem("cendo:splash-ad-seen:demo-splash-ad"),
+      window.sessionStorage.getItem("cendo:splash-ad-seen:local-pop-ad"),
     ).toBe("1");
     wrapper.unmount();
   });
@@ -1197,7 +1199,7 @@ describe("mobile home media shortcuts", () => {
     await flushPromises();
     first.unmount();
     const second = await open();
-    expect(document.body.querySelector(".splash-ad-demo-badge")).toBeNull();
+    expect(document.body.querySelector(".splash-ad-overlay")).toBeNull();
     second.unmount();
   });
 

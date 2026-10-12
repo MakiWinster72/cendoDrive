@@ -106,10 +106,10 @@ import {
 } from "../api/shares";
 import {
   getHomeContent,
-  getSplashAd,
   type SplashAdContent,
 } from "../api/content";
-import { demoHomeContent, demoSplashAd } from "../api/contentDemo";
+import { demoHomeContent } from "../api/contentDemo";
+import { getLocalSplashAd, localSplashAdId } from "../api/localSplashAd";
 
 type Mode =
   | "all"
@@ -466,19 +466,8 @@ async function loadHomeContent() {
   }
 }
 async function loadSplashAd() {
-  try {
-    const ad = await getSplashAd();
-    splashAd.value = ad && !wasSplashSeen(ad.id) ? ad : null;
-    splashAdDemo.value = false;
-  } catch {
-    if (import.meta.env.DEV && !wasSplashSeen(demoSplashAd.id)) {
-      splashAd.value = demoSplashAd;
-      splashAdDemo.value = true;
-    } else {
-      splashAd.value = null;
-      splashAdDemo.value = false;
-    }
-  }
+  splashAd.value = wasSplashSeen(localSplashAdId) ? null : getLocalSplashAd();
+  splashAdDemo.value = false;
 }
 function wasSplashSeen(id: string) {
   try {
