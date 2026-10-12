@@ -28,7 +28,7 @@ class DriveServiceTest {
     DriveService service;
 
     @BeforeEach void setup() {
-        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, storageCleanup);
+        service = new DriveService(files, storage, "/tmp/cendodrive-test-storage", quota, storageCleanup, org.mockito.Mockito.mock(com.cendodrive.ai.claw.ClawIndexQueue.class));
         lenient().when(user.getId()).thenReturn(7L);
         lenient().when(user.getStorageLimit()).thenReturn(1024L * 1024 * 1024);
     }
@@ -50,11 +50,12 @@ class DriveServiceTest {
     }
 
     @Test void rejectsUploadWhenStorageQuotaIsExceeded() throws Exception {
-        when(user.getStorageLimit()).thenReturn(4L);
-        when(files.sumFileSizeByOwnerId(7L)).thenReturn(4L);
+        when(quota.check(user, 5L, null)).thenThrow(
+                new DriveFailure(org.springframework.http.HttpStatus.INSUFFICIENT_STORAGE,
+                        "QUOTA_EXCEEDED", "Storage quota exceeded"));
         var upload = new MockMultipartFile("file", "hello.txt", "text/plain", "hello".getBytes());
         DriveFailure error = assertThrows(DriveFailure.class, () -> service.upload(user, upload, null));
-        assertEquals("STORAGE_QUOTA_EXCEEDED", error.code());
+        assertEquals("QUOTA_EXCEEDED", error.code());
         verify(storage, never()).upload(any(), anyLong(), anyString());
         verify(files, never()).saveAndFlush(any());
     }

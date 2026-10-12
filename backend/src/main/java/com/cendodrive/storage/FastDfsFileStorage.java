@@ -43,7 +43,8 @@ public class FastDfsFileStorage implements FileStorage {
       client.deleteFile(key);
     } catch (com.github.tobato.fastdfs.exception.FdfsServerException ex) {
       // FastDFS ENOENT (2): a previous deletion succeeded before a DB commit failed.
-      if (ex.getErrorCode()!=2) throw new IOException("FastDFS delete failed",ex);
+      if (ex.getErrorCode() != 2)
+        throw new IOException("FastDFS delete failed", ex);
     } catch (RuntimeException ex) {
       throw new IOException("FastDFS delete failed", ex);
     }

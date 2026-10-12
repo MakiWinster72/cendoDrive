@@ -13,7 +13,12 @@ const hit: AiSearchHit = {
 describe("AI search page", () => {
   it("shows loading, matched snippets and an open-file action", async () => {
     let resolve!: (value: AiSearchHit[]) => void;
-    const search = vi.fn(() => new Promise<AiSearchHit[]>((done) => { resolve = done; }));
+    const search = vi.fn(
+      () =>
+        new Promise<AiSearchHit[]>((done) => {
+          resolve = done;
+        }),
+    );
     const wrapper = mount(AiSearchPanel, { props: { search } });
     await wrapper.find("input").setValue("缓存穿透");
     await wrapper.find("form").trigger("submit");
@@ -29,7 +34,8 @@ describe("AI search page", () => {
   });
 
   it("shows empty and failure states, then retries", async () => {
-    const search = vi.fn()
+    const search = vi
+      .fn()
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error("unavailable"))
       .mockResolvedValueOnce([hit]);
@@ -48,7 +54,10 @@ describe("AI search page", () => {
   });
 
   it("fetches fresh results after a file changes", async () => {
-    const search = vi.fn().mockResolvedValueOnce([hit]).mockResolvedValueOnce([]);
+    const search = vi
+      .fn()
+      .mockResolvedValueOnce([hit])
+      .mockResolvedValueOnce([]);
     const wrapper = mount(AiSearchPanel, { props: { search } });
     await wrapper.find("input").setValue("缓存穿透");
     await wrapper.find("form").trigger("submit");
@@ -65,8 +74,14 @@ describe("AI search page", () => {
 
   it("ignores a previous request after a new search", async () => {
     let finishOld!: (value: AiSearchHit[]) => void;
-    const search = vi.fn()
-      .mockImplementationOnce(() => new Promise<AiSearchHit[]>((done) => { finishOld = done; }))
+    const search = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<AiSearchHit[]>((done) => {
+            finishOld = done;
+          }),
+      )
       .mockResolvedValueOnce([hit]);
     const wrapper = mount(AiSearchPanel, { props: { search } });
     await wrapper.find("input").setValue("旧查询");

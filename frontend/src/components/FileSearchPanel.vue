@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { ChevronLeft, ChevronRight, FolderInput, X } from "@lucide/vue";
-import { iconForFile } from "./fileIcon";
+import FileThumbnail from "./FileThumbnail.vue";
 import { formatBytes } from "../stores/drive";
 import { useFileSearch } from "./useFileSearch";
 import type { FileSearchHit, SearchType } from "../api/drive";
@@ -14,43 +14,143 @@ const props = defineProps<{
   sort: "time" | "name" | "size";
   busy?: boolean;
 }>();
-const emit = defineEmits<{ open: [hit: FileSearchHit]; locate: [hit: FileSearchHit]; clear: [] }>();
+const emit = defineEmits<{
+  open: [hit: FileSearchHit];
+  locate: [hit: FileSearchHit];
+  clear: [];
+}>();
+const categories: { value: SearchType; label: string }[] = [{ value: "all", label: "综合" }, { value: "folder", label: "文件夹" }, { value: "audio", label: "音频" }, { value: "image", label: "图片" }, { value: "video", label: "视频" }, { value: "doc", label: "文档" }, { value: "other", label: "其他" }];
 const scope = ref<"all" | "folder">(props.parentId ? "folder" : "all");
 const type = ref<SearchType>(props.initialType);
-watch(() => props.parentId, id => { scope.value = id ? "folder" : "all"; });
-watch(() => props.initialType, value => { type.value = value; });
-const params = computed(() => ({ q: props.query, scope: scope.value,
-  parentId: scope.value === "folder" ? props.parentId : null, type: type.value, sort: props.sort }));
+watch(
+  () => props.parentId,
+  (id) => {
+    scope.value = id ? "folder" : "all";
+  },
+);
+watch(
+  () => props.initialType,
+  (value) => {
+    type.value = value;
+  },
+);
+const params = computed(() => ({
+  q: props.query,
+  scope: scope.value,
+  parentId: scope.value === "folder" ? props.parentId : null,
+  type: type.value,
+  sort: props.sort,
+}));
 const { result, loading, error, page, goPage, retry } = useFileSearch(params);
-const pageCount = computed(() => Math.max(1, Math.ceil((result.value?.total ?? 0) / 20)));
+defineExpose({ retry });
+const pageCount = computed(() =>
+  Math.max(1, Math.ceil((result.value?.total ?? 0) / 20)),
+);
 </script>
 
 <template>
-  <section class="file-search-panel" aria-label="文件名搜索结果" :aria-busy="loading">
+  <section
+    class="file-search-panel"
+    aria-label="文件名搜索结果"
+    :aria-busy="loading"
+  >
+    <nav class="file-search-tabs" aria-label="搜索分类"><button v-for="category in categories" :key="category.value" type="button" :aria-pressed="type === category.value" :class="{ active: type === category.value }" @click="type = category.value">{{ category.label }}</button></nav>
     <div class="file-search-controls">
-      <label>范围<select v-model="scope" aria-label="搜索范围"><option value="all">全网盘</option><option value="folder">当前目录及子目录</option></select></label>
-      <label>类型<select v-model="type" aria-label="搜索类型"><option value="all">全部类型</option><option value="folder">文件夹</option><option value="doc">文档</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="other">其他</option></select></label>
-      <button type="button" class="file-search-clear" aria-label="退出搜索" @click="emit('clear')"><X :size="18" />退出搜索</button>
+      <label
+        >范围<select v-model="scope" aria-label="搜索范围">
+          <option value="all">全网盘</option>
+          <option value="folder">当前目录及子目录</option>
+        </select></label
+      >
+      <label
+        >类型<select v-model="type" aria-label="搜索类型">
+          <option value="all">全部类型</option>
+          <option value="folder">文件夹</option>
+          <option value="doc">文档</option>
+          <option value="image">图片</option>
+          <option value="video">视频</option>
+          <option value="audio">音频</option>
+          <option value="other">其他</option>
+        </select></label
+      >
+      <button
+        type="button"
+        class="file-search-clear"
+        aria-label="退出搜索"
+        @click="emit('clear')"
+      >
+        <X :size="18" />退出搜索
+      </button>
     </div>
-    <p class="file-search-note">仅匹配文件名，不搜索正文或图片文字；隐藏空间和回收站不参与搜索。</p>
+    <p class="file-search-note">
+      仅匹配文件名，不搜索正文或图片文字；隐藏空间和回收站不参与搜索。
+    </p>
     <p v-if="loading" class="file-search-status" role="status">正在搜索…</p>
-    <p v-else-if="error" class="file-search-status" role="alert">{{ error }} <button type="button" @click="retry">重试</button></p>
+    <p v-else-if="error" class="file-search-status" role="alert">
+      {{ error }} <button type="button" @click="retry">重试</button>
+    </p>
     <template v-else-if="result">
-      <p class="file-search-summary" role="status">找到 {{ result.total }} 个项目</p>
+      <p class="file-search-summary" role="status">
+        找到 {{ result.total }} 个项目
+      </p>
+      <div v-if="result.items.length" class="file-search-head" aria-hidden="true"><span>文件名</span><span>所在位置</span><span>大小</span><span></span></div>
       <ul v-if="result.items.length" class="file-search-results">
         <li v-for="hit in result.items" :key="hit.file.id">
-          <button type="button" class="file-search-open" :disabled="busy" :aria-label="`打开 ${hit.file.name}`" @click="emit('open', hit)">
-            <component :is="iconForFile(hit.file)" :size="30" :class="hit.file.kind" />
-            <span><b>{{ hit.file.name }}</b><small>{{ hit.path === '/' ? '我的网盘' : '我的网盘' + hit.path }} · {{ hit.file.kind === 'folder' ? '文件夹' : formatBytes(hit.file.size) }}</small></span>
+          <button
+            type="button"
+            class="file-search-open"
+            :disabled="busy"
+            :aria-label="`打开 ${hit.file.name}`"
+            @click="emit('open', hit)"
+          >
+            <FileThumbnail
+              :file="hit.file"
+              :size="34"
+              :class="hit.file.kind"
+            />
+            <span
+              ><b>{{ hit.file.name }}</b
+              ><small class="file-search-mobile-meta">{{ hit.file.updatedAt.slice(0, 10) }} · {{ hit.file.kind === "folder" ? "文件夹" : formatBytes(hit.file.size) }}</small></span
+            >
           </button>
-          <button type="button" class="file-search-locate" :disabled="busy" :aria-label="`打开 ${hit.file.name} 所在目录`" @click="emit('locate', hit)"><FolderInput :size="18" /><span>所在目录</span></button>
+          <span class="file-search-path" :title="hit.path">{{ hit.path === "/" ? "我的网盘" : "我的网盘" + hit.path }}</span>
+          <span class="file-search-size">{{ hit.file.kind === "folder" ? "—" : formatBytes(hit.file.size) }}</span>
+          <button
+            type="button"
+            class="file-search-locate"
+            :disabled="busy"
+            :aria-label="`打开 ${hit.file.name} 所在目录`"
+            @click="emit('locate', hit)"
+          >
+            <FolderInput :size="18" /><span>所在目录</span>
+          </button>
         </li>
       </ul>
-      <p v-else class="file-search-status">没有匹配的文件名，请调整关键词、范围或类型。</p>
-      <nav v-if="result.total > 20" class="file-search-pagination" aria-label="搜索分页">
-        <button type="button" aria-label="搜索上一页" :disabled="page === 0" @click="goPage(page - 1)"><ChevronLeft :size="18" />上一页</button>
+      <p v-else class="file-search-status">
+        没有匹配的文件名，请调整关键词、范围或类型。
+      </p>
+      <nav
+        v-if="result.total > 20"
+        class="file-search-pagination"
+        aria-label="搜索分页"
+      >
+        <button
+          type="button"
+          aria-label="搜索上一页"
+          :disabled="page === 0"
+          @click="goPage(page - 1)"
+        >
+          <ChevronLeft :size="18" />上一页
+        </button>
         <span>{{ page + 1 }} / {{ pageCount }}</span>
-        <button type="button" aria-label="搜索下一页" :disabled="page + 1 >= pageCount" @click="goPage(page + 1)">下一页<ChevronRight :size="18" /></button>
+        <button
+          type="button"
+          aria-label="搜索下一页"
+          :disabled="page + 1 >= pageCount"
+          @click="goPage(page + 1)"
+        >
+          下一页<ChevronRight :size="18" />
+        </button>
       </nav>
     </template>
   </section>

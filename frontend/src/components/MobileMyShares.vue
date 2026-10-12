@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import {
-  Check,
-  ChevronLeft,
-  Link2,
-  Share2,
-  XCircle,
-} from "@lucide/vue";
+import { Check, ChevronLeft, Link2, Share2, XCircle } from "@lucide/vue";
 import { iconForFile } from "./fileIcon";
 import { shareExpiryLabel, type ShareRecord } from "../api/shares";
 

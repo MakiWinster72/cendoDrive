@@ -24,8 +24,7 @@ docker compose version
 ```sh
 git clone '仓库地址'
 cd cendoDrive
-# 当前预览和 FastDFS 修复位于 feat/preview；按实际发布分支选择。
-git switch feat/preview
+# 按实际发布分支选择，不要依赖历史功能分支名称。
 ```
 
 只有已经推送的提交才能在新设备拉取到。**Git 只同步代码，不迁移账号、已上传文件或 Docker 数据卷。**
@@ -36,11 +35,9 @@ git switch feat/preview
 
 ### 2.1 前端服务与访问配置
 
-Compose 前端使用 Dockerfile 的 Node 构建阶段，运行 `vite preview` 提供构建后的页面；通过 `VITE_API_PROXY_TARGET=http://backend:8080` 将 `/api` 代理至后端。访问地址仍为 `http://localhost`，无需 Nginx 或 `compose.local.yaml`。
+前端使用 Dockerfile 的 Node 阶段构建页面，最终由 **Nginx** 提供静态资源，并将 `/api/` 代理至 `backend:8080`。仓库的 `frontend/nginx.conf` 已设置 `100m` 请求限制和 AI 流式响应不缓冲；无需额外覆盖启动命令。页面与 API 同源访问。
 
-Vite Preview 仅用于本机开发/验收，不是生产服务器。页面与 API 同源访问，无需额外配置后端 CORS。
-
-旧部署不要再加载 `compose.local.yaml` 中的 Nginx `command` 覆盖。以下命令只使用仓库配置；保留原项目名和环境变量。纯 Docker 方式仍使用第 3 节的 Nginx 方案；FastDFS 镜像不受本次前端调整影响。
+`compose.local.yaml` 现在只用于向宿主机开放 Qdrant 的 `127.0.0.1:6333`，不是前端或 Nginx 配置。全容器运行时只需 `compose.yaml`；更新已有环境务必保留原项目名和环境变量。
 
 ### 2.2 构建并启动
 
@@ -53,12 +50,15 @@ docker compose up -d --build
 
 | 服务 | 作用 |
 | --- | --- |
-| frontend | Vite Preview 静态页面及 `/api/` 代理 |
+| frontend | Nginx 静态页面及 `/api/` 代理 |
 | backend | Spring Boot API、Flyway 数据库迁移 |
 | mysql | 账号与文件元数据 |
 | redis | 登录会话等 Redis 数据 |
 | tracker | FastDFS 节点调度 |
 | storage1、storage2、storage3 | 同一 group 的文件存储副本 |
+| qdrant | 扣扣 Claw 文档向量存储，默认启动 |
+
+默认启动包含 Qdrant；启用扣扣 Claw 的模型和功能配置见 2.5。普通 AI 聊天仅调用外部模型 API，不依赖向量库。当前主应用不依赖 Milvus、MinIO、etcd；`index-service` 是另一个待对接索引方案，不能据其旧说明要求主应用启动 Milvus。
 
 MySQL 首次初始化会创建 `cendo` 数据库和 `cendo` 用户，不需要手动创建账号。容器后端使用 `application.example.yml` 作为基线，并由环境变量覆盖，不需要复制本机的 `application.yml`。
 
@@ -129,6 +129,42 @@ docker compose start
 ```
 
 `docker compose ... down` 会删除容器和网络，但默认保留命名卷。**不要执行 `down -v`**，它会删除数据库、Redis、后端本地文件/分片和 FastDFS 数据卷。
+
+### 2.5 启用扣扣 Claw（可选）
+
+在本地环境变量或未提交的 `.env` 中配置模型，不要将真实密钥写入仓库：
+
+```sh
+export CENDO_AI_CLAW_ENABLED=true
+export CENDO_AI_CHAT_BASE_URL='https://模型服务地址/v1'
+export CENDO_AI_CHAT_MODEL='聊天模型名称'
+# 另外设置 CENDO_AI_CHAT_KEY；不要把密钥粘贴到可共享日志。
+export CENDO_AI_EMBEDDING_MODEL='Qwen/Qwen3-VL-Embedding-8B'
+export CENDO_AI_EMBEDDING_DIMENSIONS=4096
+# 嵌入 base-url/key 留空时继承聊天配置；不同供应商需单独设置。
+docker compose config --quiet
+docker compose up -d --build
+```
+
+Qdrant 随 Compose 默认启动，但**不会自动开启后端 Claw 功能**；启用功能仍需设置 `CENDO_AI_CLAW_ENABLED=true`。后端在容器内连接 `http://qdrant:6333`；Qdrant 不发布宿主机端口，数据保存于 `qdrant-data`。可选 `CENDO_AI_VECTOR_KEY` 会同时传给后端和 Qdrant。维度须与嵌入模型实际输出一致，详细配置见 [AI 智能对话接口与配置](AI智能对话接口与配置.md)。
+
+更新或恢复启用 Claw 的环境时也保留同样的环境变量，无需指定 profile。Qdrant 没有启动就绪健康检查，启动后应检查日志并实际执行索引与检索，不把 `Up` 当作可用证明。
+
+### 2.6 宿主机开发与现有容器
+
+如果 MySQL、Redis 和 FastDFS 已由独立容器提供，继续使用它们即可，**不要再启动一套 Compose 基础依赖**。例如现有 `cendo-mysql-local`、`cendo-redis-local`、`fdfs-tracker`、`fdfs-storage` 对应基础网盘四个容器；Claw 另用 `cendodrive-ai-qdrant-1`（实际名称由 Compose 项目名决定）。全新 Compose 则保留三个 storage 副本，不等同于现有单 storage 部署。
+
+宿主机后端需要 Qdrant 时，仅启动该服务，避免重复创建其他依赖：
+
+```sh
+docker compose -f compose.yaml -f compose.local.yaml config --quiet
+docker compose -f compose.yaml -f compose.local.yaml up -d qdrant
+# 后端宿主机配置：CENDO_AI_VECTOR_BASE_URL=http://localhost:6333
+```
+
+宿主机后端仍需单独配置数据库密码、Redis 地址、FastDFS tracker 和模型配置；这些配置不会从 Compose 自动传给宿主机进程。FastDFS 下载还需能访问 tracker 返回的 storage 地址。保留已有项目名以复用 Qdrant 卷，不要随意加 `-p` 创建另一套数据。
+
+Milvus 的 `milvus-standalone`、`milvus-minio`、`milvus-etcd` 不是当前主应用依赖。确认没有其他项目使用后才可停止它们；不需要删卷，也不要把停止动作套用到 MySQL、Redis、FastDFS 或启用 Claw 所需的 Qdrant。
 
 ## 三、只使用 Docker，不使用 Compose
 
@@ -226,14 +262,22 @@ docker build -t cendo-frontend:local ./frontend
 
 docker run -d --name cendo-frontend --network cendo-net \
   -p 127.0.0.1:80:80 \
-  --entrypoint /bin/sh \
-  cendo-frontend:local -c \
-  'sed -i "/listen 80;/a client_max_body_size 100m;" /etc/nginx/conf.d/default.conf; exec nginx -g "daemon off;"'
+  cendo-frontend:local
 ```
 
-这里将容器中的 Nginx 请求大小限制调整为 `100m`，无需修改源码。后端目前的上传文件和请求限制均为 `100MB`，请求还包含 multipart 开销；不应仅通过调大 Nginx 限制来绕过后端限制。
+镜像中的 Nginx 配置已包含 `100m` 请求限制，无需修改容器中的文件。后端目前的上传文件和请求限制均为 `100MB`，请求还包含 multipart 开销；不应仅通过调大 Nginx 限制来绕过后端限制。
 
-打开 **http://localhost**。如果改成 `8081` 等其他前端端口，也要相应修改后端的 `CORS_ALLOWED_ORIGINS`，例如允许 `http://localhost:8081`。
+打开 **http://localhost**。前端与 `/api/` 同源代理时不需要为更换前端端口额外配置 CORS；只有浏览器直接跨源访问后端 API 时，才需配置精确的允许来源。
+
+纯 Docker 如需 Claw，还需在同一网络创建 Qdrant：
+
+```sh
+docker run -d --name cendo-qdrant --network cendo-net \
+  -v cendo-qdrant-data:/qdrant/storage \
+  qdrant/qdrant:v1.15.4
+```
+
+在 3.3 创建后端时额外传入 `-e CENDO_AI_CLAW_ENABLED=true`、`-e CENDO_AI_VECTOR_BASE_URL=http://cendo-qdrant:6333`，以及通过 `-e 变量名` 传递宿主机已设置的聊天/嵌入模型环境变量（见 2.5）。仅启动 Qdrant 不会启用 Claw；不需要 Milvus 三件套。此示例未配置 Qdrant API Key，如需认证应同时为 Qdrant 和后端设置一致的密钥。
 
 ### 3.5 停止、启动和更新
 
@@ -250,6 +294,8 @@ docker start cendo-backend
 # 后端就绪后：
 docker start cendo-frontend
 ```
+
+启用 Claw 时，停止应用后还可执行 `docker stop cendo-qdrant`；恢复时先 `docker start cendo-qdrant`，再启动后端。
 
 如果旧后端没有挂载本地存储卷，先按 2.4 的方法停止并备份 `/app/storage`，再将备份导入 `cendo-backend-storage` 卷；不要直接删除旧容器。
 
@@ -308,7 +354,7 @@ docker logs --tail=100 cendo-storage1
 
 ## 五、数据保留与新设备迁移
 
-- 命名卷保存 MySQL、Redis、tracker、三个 storage 和后端本地存储的数据；普通停止容器不会删除它们。
+- 命名卷保存 MySQL、Redis、tracker、三个 storage 和后端本地存储的数据；普通停止容器不会删除它们。Claw 的 Qdrant 向量数据另存于 `qdrant-data`（纯 Docker 为 `cendo-qdrant-data`），也需纳入备份和迁移。
 - 后端的 `backend-storage`（纯 Docker 为 `cendo-backend-storage`）保存历史本地文件与未完成上传的分片；迁移时也应备份。它不代替 FastDFS 数据卷。
 - 新设备首次启动会创建新数据，旧账号和文件不会随代码出现。
 - 搬迁已有数据时，需要迁移数据库与对应的 FastDFS 数据、配置及节点信息，而不只是复制源码或一个文件目录。跨主机/地址变更应结合 [FastDFS 跨主机 Storage 部署设计](FastDFS跨主机Storage部署设计.md) 制定方案。

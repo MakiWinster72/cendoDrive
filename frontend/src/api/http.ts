@@ -9,7 +9,8 @@ const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const token = getToken();
-  if (token && config.url !== "/auth/restore") config.headers.Authorization = `Bearer ${token}`;
+  if (token && config.url !== "/auth/restore")
+    config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 

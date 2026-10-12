@@ -32,15 +32,17 @@ public class DriveService {
   private final FileStorage fastDfs;
   private final FileQuotaService quota;
   private final StorageCleanupService storageCleanup;
+  private final com.cendodrive.ai.claw.ClawIndexQueue claw;
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(DriveService.class);
 
   public DriveService(DriveFileRepository files, FileStorage fastDfs,
       @Value("${cendo.storage.root:./storage}") String storageRoot, FileQuotaService quota,
-      StorageCleanupService storageCleanup) {
+      StorageCleanupService storageCleanup, com.cendodrive.ai.claw.ClawIndexQueue claw) {
     this.files = files;
     this.quota = quota;
     this.fastDfs = fastDfs;
     this.storageCleanup = storageCleanup;
+    this.claw = claw;
     this.storageRoot = Path.of(storageRoot).toAbsolutePath().normalize();
   }
 
@@ -59,16 +61,20 @@ public class DriveService {
     User locked = quota.check(user, size, uploadId);
     String name = validateUploadTarget(user, rawName, parentId);
     String extension = name.lastIndexOf('.') < 0 ? "" : name.substring(name.lastIndexOf('.') + 1);
-    if (!extension.matches("[A-Za-z0-9]{0,16}")) extension = "";
+    if (!extension.matches("[A-Za-z0-9]{0,16}"))
+      extension = "";
     String key = fastDfs.upload(input, size, extension);
-    boolean synchronizedCleanup = org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive();
-    if (synchronizedCleanup) onRollback(() -> deleteStorage("fastdfs", key));
+    boolean synchronizedCleanup = org.springframework.transaction.support.TransactionSynchronizationManager
+        .isSynchronizationActive();
+    if (synchronizedCleanup)
+      onRollback(() -> deleteStorage("fastdfs", key));
     try {
       FileResponse result = registerUploadedFile(user, parentId, name, size, key);
       quota.refresh(locked);
       return result;
     } catch (RuntimeException ex) {
-      if (!synchronizedCleanup) deleteStorage("fastdfs", key);
+      if (!synchronizedCleanup)
+        deleteStorage("fastdfs", key);
       throw ex;
     }
   }
@@ -93,9 +99,11 @@ public class DriveService {
   public FileResponse saveSharedFile(User recipient, User owner, Long fileId, Long parentId) throws IOException {
     DriveFile source = shareableFile(owner, fileId);
     String name = validateUploadTarget(recipient, source.getName(), parentId);
-    // Lock and check before copying; uploadStream rechecks the actual size under the same lock.
+    // Lock and check before copying; uploadStream rechecks the actual size under
+    // the same lock.
     quota.check(recipient, source.getSize(), null);
-    // Stream via a temporary file: never retain the complete shared content in heap memory.
+    // Stream via a temporary file: never retain the complete shared content in heap
+    // memory.
     Path temp = Files.createTempFile("cendo-share-", ".tmp");
     try {
       Download content = download(owner, fileId);
@@ -116,17 +124,21 @@ public class DriveService {
   @Transactional(readOnly = true)
   public String validateUploadTarget(User user, String rawName, Long parentId) {
     String name = validName(rawName);
-    if (parentId != null) requireFolder(user, parentId);
+    if (parentId != null)
+      requireFolder(user, parentId);
     requireAvailableName(user.getId(), parentId, name, null);
     return name;
   }
 
   @Transactional(readOnly = true)
-  public FileResponse metadata(User user, Long id) { return FileResponse.from(requireActiveOwned(user, id)); }
+  public FileResponse metadata(User user, Long id) {
+    return FileResponse.from(requireActiveOwned(user, id));
+  }
 
   private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
     file=files.saveAndFlush(file);
+    claw.enqueue(file);
     return FileResponse.from(file);
   }
 
@@ -174,6 +186,7 @@ public class DriveService {
         fail(HttpStatus.CONFLICT, "PARENT_IN_TRASH", "Parent folder is still in trash");
       requireAvailableName(user.getId(), file.getParentId(), file.getName(), file);
       file.restore();
+      claw.changed(file);
     });
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
@@ -196,7 +209,7 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
-    doomed.stream().filter(f -> !f.isFolder()).forEach(storageCleanup::enqueue);
+    doomed.stream().filter(f -> !f.isFolder()).forEach(f -> { storageCleanup.enqueue(f); claw.removed(f); });
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
     files.deleteAllInBatch(doomed);
     files.flush();
@@ -210,8 +223,10 @@ public class DriveService {
     var queue = new java.util.ArrayDeque<>(roots);
     while (!queue.isEmpty()) {
       DriveFile f = queue.removeFirst();
-      if (!includeDeleted && f.isDeleted()) continue;
-      if (result.putIfAbsent(f.getId(), f) != null) continue;
+      if (!includeDeleted && f.isDeleted())
+        continue;
+      if (result.putIfAbsent(f.getId(), f) != null)
+        continue;
       queue.addAll(children.getOrDefault(f.getId(), List.of()));
     }
     return List.copyOf(result.values());
@@ -219,19 +234,25 @@ public class DriveService {
 
   private void deleteStorage(String backend, String key) {
     try {
-      if ("fastdfs".equals(backend)) fastDfs.delete(key);
+      if ("fastdfs".equals(backend))
+        fastDfs.delete(key);
       else if ("local".equals(backend)) {
         Path path = storageRoot.resolve(key).normalize();
-        if (path.startsWith(storageRoot)) Files.deleteIfExists(path);
+        if (path.startsWith(storageRoot))
+          Files.deleteIfExists(path);
       }
-    } catch (IOException | RuntimeException e) { LOG.warn("Storage cleanup failed for {}:{}", backend, key, e); }
+    } catch (IOException | RuntimeException e) {
+      LOG.warn("Storage cleanup failed for {}:{}", backend, key, e);
+    }
   }
 
   private static void onRollback(Runnable action) {
     org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
         new org.springframework.transaction.support.TransactionSynchronization() {
-          @Override public void afterCompletion(int status) {
-            if (status == STATUS_ROLLED_BACK) action.run();
+          @Override
+          public void afterCompletion(int status) {
+            if (status == STATUS_ROLLED_BACK)
+              action.run();
           }
         });
   }
@@ -253,6 +274,7 @@ public class DriveService {
     String name = validName(request.name());
     requireAvailableName(user.getId(), file.getParentId(), name, file);
     file.rename(name);
+    if(!file.isFolder()) claw.changed(file);
     return FileResponse.from(files.saveAndFlush(file));
   }
 
@@ -270,6 +292,7 @@ public class DriveService {
     }
     requireAvailableName(user.getId(), targetId, file.getName(), file);
     file.moveTo(targetId);
+    claw.changed(file);
     return FileResponse.from(files.saveAndFlush(file));
   }
 
@@ -299,14 +322,16 @@ public class DriveService {
 
   DriveFile requireActiveOwned(User user, Long id) {
     DriveFile file = requireOwned(user, id);
-    if (!activeTree(user, file)) fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
+    if (!activeTree(user, file))
+      fail(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "File not found");
     return file;
   }
 
   boolean activeTree(User user, DriveFile file) {
     Set<Long> seen = new java.util.HashSet<>();
     while (file != null) {
-      if (file.isDeleted() || !seen.add(file.getId())) return false;
+      if (file.isDeleted() || !seen.add(file.getId()))
+        return false;
       file = file.getParentId() == null ? null : requireOwned(user, file.getParentId());
     }
     return true;
@@ -315,7 +340,8 @@ public class DriveService {
   boolean hiddenTree(User user, DriveFile file) {
     Set<Long> seen = new java.util.HashSet<>();
     while (file != null && seen.add(file.getId())) {
-      if (file.isHidden()) return true;
+      if (file.isHidden())
+        return true;
       file = file.getParentId() == null ? null : requireOwned(user, file.getParentId());
     }
     return false;
@@ -340,7 +366,8 @@ public class DriveService {
     Long cursor = targetId;
     Set<Long> seen = new java.util.HashSet<>();
     while (cursor != null) {
-      if (!seen.add(cursor)) fail(HttpStatus.BAD_REQUEST, "INVALID_TREE", "Folder cycle detected");
+      if (!seen.add(cursor))
+        fail(HttpStatus.BAD_REQUEST, "INVALID_TREE", "Folder cycle detected");
       if (sourceId.equals(cursor))
         fail(HttpStatus.BAD_REQUEST, "INVALID_MOVE", "Cannot move a folder into its descendant");
       cursor = requireFolder(user, cursor).getParentId();
@@ -360,7 +387,8 @@ public class DriveService {
 
   private static String validName(String raw) {
     String value = Objects.requireNonNullElse(raw, "").trim();
-    if (value.isEmpty() || value.length() > 255 || value.equals(".") || value.equals("..") || value.contains("/") || value.contains("\\"))
+    if (value.isEmpty() || value.length() > 255 || value.equals(".") || value.equals("..") || value.contains("/")
+        || value.contains("\\"))
       fail(HttpStatus.BAD_REQUEST, "INVALID_NAME", "Invalid file name");
     return value;
   }

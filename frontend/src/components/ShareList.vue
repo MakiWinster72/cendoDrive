@@ -44,7 +44,12 @@ function shareLink(share: ShareRecord) {
       >
         <div class="share-list-heading">
           <div class="share-list-file">
-            <span><component :is="iconForFile({ name: share.fileName, kind: share.kind })" :size="24" aria-hidden="true" /></span>
+            <span
+              ><component
+                :is="iconForFile({ name: share.fileName, kind: share.kind })"
+                :size="24"
+                aria-hidden="true"
+            /></span>
             <div>
               <strong>{{ share.fileName }}</strong
               ><small
@@ -75,8 +80,7 @@ function shareLink(share: ShareRecord) {
           </button>
         </div>
         <div class="share-list-footer">
-          <small
-            >{{ shareExpiryLabel(share.expiresAt) }}</small
+          <small>{{ shareExpiryLabel(share.expiresAt) }}</small
           ><button
             v-if="active(share)"
             type="button"

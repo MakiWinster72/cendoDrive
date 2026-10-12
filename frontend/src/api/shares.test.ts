@@ -36,24 +36,46 @@ describe("share owner API contract", () => {
   });
 
   it("saves into the recipient root with the authenticated client", async () => {
-    const file = { id: "100", name: "project.pdf", kind: "file", size: 120, parentId: null };
+    const file = {
+      id: "100",
+      name: "project.pdf",
+      kind: "file",
+      size: 120,
+      parentId: null,
+    };
     vi.mocked(http.post).mockResolvedValue({ data: file });
     await expect(saveSharedFile("token/51")).resolves.toEqual(file);
-    expect(http.post).toHaveBeenCalledWith("/shares/token%2F51/save", { parentId: null }, { timeout: 0 });
+    expect(http.post).toHaveBeenCalledWith(
+      "/shares/token%2F51/save",
+      { parentId: null },
+      { timeout: 0 },
+    );
   });
 
   it("can save into a specified recipient folder", async () => {
     vi.mocked(http.post).mockResolvedValue({ data: {} });
     await saveSharedFile("token", "12");
-    expect(http.post).toHaveBeenCalledWith("/shares/token/save", { parentId: "12" }, { timeout: 0 });
+    expect(http.post).toHaveBeenCalledWith(
+      "/shares/token/save",
+      { parentId: "12" },
+      { timeout: 0 },
+    );
   });
 
   it("sends an optional creation code in the body and a transfer code only in the header", async () => {
     vi.mocked(http.post).mockResolvedValue({ data: record });
     await createShare("42", 86400, "Ab12");
-    expect(http.post).toHaveBeenCalledWith("/shares", { fileId: "42", expiresInSeconds: 86400, extractionCode: "Ab12" });
+    expect(http.post).toHaveBeenCalledWith("/shares", {
+      fileId: "42",
+      expiresInSeconds: 86400,
+      extractionCode: "Ab12",
+    });
     await saveSharedFile("opaque", null, "Ab12");
-    expect(http.post).toHaveBeenCalledWith("/shares/opaque/save", { parentId: null }, { timeout: 0, headers: { "X-Share-Code": "Ab12" } });
+    expect(http.post).toHaveBeenCalledWith(
+      "/shares/opaque/save",
+      { parentId: null },
+      { timeout: 0, headers: { "X-Share-Code": "Ab12" } },
+    );
   });
 
   it("cancels a share by its owner-side share id", async () => {

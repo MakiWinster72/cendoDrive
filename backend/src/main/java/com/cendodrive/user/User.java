@@ -77,7 +77,9 @@ public class User {
     return vipLevel;
   }
 
-  public void setStorageUsed(long bytes) { storageUsed = bytes; }
+  public void setStorageUsed(long bytes) {
+    storageUsed = bytes;
+  }
 
   public long getStorageUsed() {
     return storageUsed;
@@ -91,12 +93,34 @@ public class User {
     return active;
   }
 
-  public long getAuthVersion() { return authVersion; }
-  public LocalDateTime getDeletedAt() { return deletedAt; }
-  public void setNickname(String value) { nickname=value; }
-  public void changePassword(String hash) { passwordHash=hash; authVersion++; }
-  public void markDeleted(LocalDateTime time) { active=false; deletedAt=time; authVersion++; }
-  public void restoreAccount() { active=true; deletedAt=null; authVersion++; }
+  public long getAuthVersion() {
+    return authVersion;
+  }
+
+  public LocalDateTime getDeletedAt() {
+    return deletedAt;
+  }
+
+  public void setNickname(String value) {
+    nickname = value;
+  }
+
+  public void changePassword(String hash) {
+    passwordHash = hash;
+    authVersion++;
+  }
+
+  public void markDeleted(LocalDateTime time) {
+    active = false;
+    deletedAt = time;
+    authVersion++;
+  }
+
+  public void restoreAccount() {
+    active = true;
+    deletedAt = null;
+    authVersion++;
+  }
 
   public LocalDateTime getCreatedAt() {
     return createdAt;

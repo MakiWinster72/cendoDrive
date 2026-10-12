@@ -1,4 +1,5 @@
 import http from "./http";
+export { streamChat, ChatStreamError } from "./aiChatStream";
 
 export interface ChatMessage { role: "user" | "assistant"; content: string }
 export interface ChatStatus { configured: boolean; model: string | null }
@@ -13,7 +14,7 @@ export async function sendChat(messages: ChatMessage[], signal: AbortSignal): Pr
 
 // Keep complete turns, dropping the oldest pair instead of splitting the conversation.
 export function chatContext(history: ChatMessage[], question: string): ChatMessage[] {
-  const messages = [...history.slice(-40).map(m => ({ ...m, content: m.content.slice(0, 8000) })), { role: "user" as const, content: question }];
+  const messages = [...history.slice(-40).map(m => ({ role: m.role, content: m.content.slice(0, 8000) })), { role: "user" as const, content: question }];
   while (messages.length > 1 && messages.reduce((sum, m) => sum + m.content.length, 0) > 64000)
     messages.splice(0, 2);
   return messages;

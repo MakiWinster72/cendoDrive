@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
 import {
-  getUsage, listFavorites, listHidden, listFolders, getFileDetails, setFavorite, setHidden, moveFiles, copyFiles, organizeFiles,
+  getUsage,
+  listFavorites,
+  listHidden,
+  listFolders,
+  getFileDetails,
+  setFavorite,
+  setHidden,
+  moveFiles,
+  copyFiles,
+  organizeFiles,
   searchFiles,
   createFolder,
   deleteFilesForever,
@@ -25,7 +34,15 @@ describe("drive API contract", () => {
     const data = { items: [], total: 0, page: 1, size: 20 };
     vi.mocked(http.get).mockResolvedValue({ data });
     const signal = new AbortController().signal;
-    const params = { q: "100%_合同", scope: "folder" as const, parentId: "7", type: "doc" as const, sort: "time" as const, page: 1, size: 20 };
+    const params = {
+      q: "100%_合同",
+      scope: "folder" as const,
+      parentId: "7",
+      type: "doc" as const,
+      sort: "time" as const,
+      page: 1,
+      size: 20,
+    };
     expect(await searchFiles(params, signal)).toEqual(data);
     expect(http.get).toHaveBeenCalledWith("/files/search", { params, signal });
   });
@@ -81,9 +98,29 @@ describe("drive API contract", () => {
   it("uses the extended file-management routes and explicit flag values", async () => {
     vi.mocked(http.get).mockResolvedValue({ data: [] });
     vi.mocked(http.post).mockResolvedValue({ data: [] });
-    await getUsage(); await listFavorites(); await listHidden(); await listFolders(); await getFileDetails("42");
-    expect(vi.mocked(http.get).mock.calls.map(call => call[0])).toEqual(["/files/usage", "/files/favorites", "/files/hidden", "/files/folders", "/files/42/details"]);
-    await setFavorite(["42"], false); await setHidden(["42"], true); await moveFiles(["42"], null); await copyFiles(["42"], "7"); await organizeFiles(["42"]);
-    expect(vi.mocked(http.post).mock.calls).toEqual([["/files/favorite", { ids: ["42"], value: false }], ["/files/hidden", { ids: ["42"], value: true }], ["/files/move", { ids: ["42"], parentId: null }], ["/files/copy", { ids: ["42"], parentId: "7" }], ["/files/organize", { ids: ["42"] }]]);
+    await getUsage();
+    await listFavorites();
+    await listHidden();
+    await listFolders();
+    await getFileDetails("42");
+    expect(vi.mocked(http.get).mock.calls.map((call) => call[0])).toEqual([
+      "/files/usage",
+      "/files/favorites",
+      "/files/hidden",
+      "/files/folders",
+      "/files/42/details",
+    ]);
+    await setFavorite(["42"], false);
+    await setHidden(["42"], true);
+    await moveFiles(["42"], null);
+    await copyFiles(["42"], "7");
+    await organizeFiles(["42"]);
+    expect(vi.mocked(http.post).mock.calls).toEqual([
+      ["/files/favorite", { ids: ["42"], value: false }],
+      ["/files/hidden", { ids: ["42"], value: true }],
+      ["/files/move", { ids: ["42"], parentId: null }],
+      ["/files/copy", { ids: ["42"], parentId: "7" }],
+      ["/files/organize", { ids: ["42"] }],
+    ]);
   });
 });

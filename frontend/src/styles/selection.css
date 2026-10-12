@@ -45,6 +45,7 @@
     box-shadow: 0 -8px 25px #2434470d;
   }
   .m-selection-actions {
+    margin-inline: 12px;
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     row-gap: 22px;

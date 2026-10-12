@@ -1,24 +1,121 @@
-.inline-name-editor { flex: 1; min-width: 0; width: 100%; text-align: left; }
-.inline-name-fields { display: grid; grid-template-columns: minmax(0, 1fr) 40px 40px; gap: 4px; align-items: center; }
-.inline-name-editor .inline-name-input { position: static; box-sizing: border-box; width: 100%; min-width: 0; height: 40px; margin: 0; padding: 6px 8px; border: 1px solid #1677ff; border-radius: 5px; font: inherit; background: #fff; color: #1d2129; }
-.inline-name-editor button { position: static; display: grid; place-items: center; min-width: 0; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid #d5dae3; border-radius: 5px; background: #fff; color: #1677ff; opacity: 1; }
-.inline-name-editor button svg { padding: 0; color: inherit; }
-.inline-name-editor :focus-visible { outline: 2px solid #1677ff; outline-offset: 2px; }
-.inline-name-editor :disabled { opacity: .5; cursor: wait; }
-.inline-name-editor p { margin: 4px 0; color: #b42318; font-size: 12px; overflow-wrap: anywhere; white-space: normal; }
-.inline-name-editor small { color: #667085; }
-.target-draft-row { display: flex; gap: 8px; align-items: flex-start; padding: 12px; border: 1px solid #cddcf7; border-radius: 8px; }
-.target-draft-row > div { min-width: 0; flex: 1; }
-.target-draft-row .inline-name-editor { margin-top: 8px; }
-.file-row.is-editing { min-height: 62px; height: auto; padding-top: 8px; padding-bottom: 8px; }
-.file-grid article.is-editing { height: auto; min-height: 164px; padding: 10px; box-sizing: border-box; }
-.file-grid .inline-name-fields { grid-template-columns: 1fr 1fr; }
-.file-grid .inline-name-input { grid-column: 1 / -1; }
-.file-grid .inline-name-editor button { width: 100%; }
+.inline-name-editor {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+}
+.inline-name-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px 40px;
+  gap: 4px;
+  align-items: center;
+}
+.inline-name-editor .inline-name-input {
+  position: static;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #1677ff;
+  border-radius: 5px;
+  font: inherit;
+  background: #fff;
+  color: #1d2129;
+}
+.inline-name-editor button {
+  position: static;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid #d5dae3;
+  border-radius: 5px;
+  background: #fff;
+  color: #1677ff;
+  opacity: 1;
+}
+.inline-name-editor button svg {
+  padding: 0;
+  color: inherit;
+}
+.inline-name-editor :focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+.inline-name-editor :disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.inline-name-editor p {
+  margin: 4px 0;
+  color: #b42318;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.inline-name-editor small {
+  color: #667085;
+}
+.target-draft-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid #cddcf7;
+  border-radius: 8px;
+}
+.target-draft-row > div {
+  min-width: 0;
+  flex: 1;
+}
+.target-draft-row .inline-name-editor {
+  margin-top: 8px;
+}
+.file-row.is-editing {
+  min-height: 62px;
+  height: auto;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.file-grid article.is-editing {
+  height: auto;
+  min-height: 164px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+.file-grid .inline-name-fields {
+  grid-template-columns: 1fr 1fr;
+}
+.file-grid .inline-name-input {
+  grid-column: 1 / -1;
+}
+.file-grid .inline-name-editor button {
+  width: 100%;
+}
 @media (width < 768px) {
-  .m-file-row.is-editing { height: auto; min-height: 68px; padding-top: 8px; padding-bottom: 8px; grid-template-columns: 36px minmax(0, 1fr); }
-  .m-file-row.is-editing > input[type=checkbox] { display: none; }
-  .inline-name-fields { grid-template-columns: minmax(0, 1fr) 44px 44px; }
-  .inline-name-editor button { width: 44px; height: 44px; }
-  .inline-name-editor .inline-name-input { height: 44px; }
+  .m-file-row.is-editing {
+    height: auto;
+    min-height: 68px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .m-file-row.is-editing > input[type="checkbox"] {
+    display: none;
+  }
+  .inline-name-fields {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+  }
+  .inline-name-editor button {
+    width: 44px;
+    height: 44px;
+  }
+  .inline-name-editor .inline-name-input {
+    height: 44px;
+  }
 }

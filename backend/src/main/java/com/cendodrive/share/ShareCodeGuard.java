@@ -6,7 +6,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/** Recipient verification uses BCrypt; codes are returned only in owner management responses. */
+/**
+ * Recipient verification uses BCrypt; codes are returned only in owner
+ * management responses.
+ */
 @Component
 public class ShareCodeGuard {
   private final PasswordEncoder passwords;
@@ -18,17 +21,20 @@ public class ShareCodeGuard {
   }
 
   String hash(String code) {
-    if (code == null) return null;
+    if (code == null)
+      return null;
     if (!code.matches("[A-Za-z0-9]{4,16}"))
       throw new DriveFailure(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Code requires 4-16 letters or digits");
     return passwords.encode(code);
   }
 
   void verify(ShareLink link, String code, String client) {
-    if (!link.hasExtractionCode()) return;
+    if (!link.hasExtractionCode())
+      return;
     if (code == null || code.isEmpty())
       throw new DriveFailure(HttpStatus.FORBIDDEN, "SHARE_CODE_REQUIRED", "Extraction code required");
-    // Domain separation prevents collisions with account-password limits. Do not trust X-Forwarded-For.
+    // Domain separation prevents collisions with account-password limits. Do not
+    // trust X-Forwarded-For.
     String key = "share-code:" + link.getToken() + ":" + client;
     limiter.check(key);
     if (!code.matches("[A-Za-z0-9]{4,16}") || !passwords.matches(code, link.getExtractionCodeHash())) {

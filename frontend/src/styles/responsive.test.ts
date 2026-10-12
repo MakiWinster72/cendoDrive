@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
-const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+const read = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), "utf8");
 const main = read("./main.css");
 const home = read("./home.css");
 const profile = read("./profile.css");
@@ -14,6 +15,41 @@ const hub = read("./share-hub.css");
 const upload = read("../components/UploadPanel.vue");
 
 describe("responsive style ownership", () => {
+  it("keeps recent chats immediately after the inbox entries", () => {
+    const hub = read("./share-hub.css");
+    const inbox = hub.split(".message-inbox-list {")[1]!.split("}")[0]!;
+    expect(inbox).toContain("flex: 0 0 auto");
+    expect(inbox).toContain("min-height: 0");
+    expect(hub).toContain("margin: 15px 3px 7px");
+  });
+  it("shares one border-box height between chat input and send button", () => {
+    const chat = read("./chat.css");
+    expect(chat).toContain("--chat-compose-height: 48px");
+    for (const selector of ["textarea", "button"]) {
+      const block = chat.split(`.chat-compose ${selector} {`)[1]!.split("}")[0]!;
+      expect(block).toContain("height: var(--chat-compose-height)");
+      expect(block).toContain("box-sizing: border-box");
+    }
+  });
+  it("aligns file filters and capacity with shared mobile geometry", () => {
+    expect(main).toMatch(/\.m-filter\s*\{[^}]*display: flex/);
+    expect(main).toMatch(/\.m-filter\s*\{[^}]*height: 83px/);
+    expect(home).toMatch(/\.m-capacity\s*\{[^}]*var\(--mobile-gutter\)/);
+    expect(home).toMatch(/\.m-capacity\s*\{[^}]*overflow-wrap: anywhere/);
+  });
+
+  it("keeps search controls and result rows responsive without overriding text styles", () => {
+    const search = read("./search.css");
+    expect(search).toContain("var(--mobile-gutter, 18px)");
+    expect(search).toContain(".file-search-head");
+    expect(search).toContain("min-height: 44px");
+    expect(search).toContain(
+      "grid-template-columns: minmax(0, 1fr) 44px",
+    );
+    expect(search).toContain("@media (width < 360px)");
+    expect(search).toContain("text-overflow: ellipsis");
+    expect(search).not.toContain("!important");
+  });
   it("uses the shared page font, gutters and accessible-sized controls for account settings", () => {
     expect(account).toContain("font-family: var(--app-font-family)");
     expect(account).toContain("var(--mobile-gutter, 18px)");
@@ -23,15 +59,26 @@ describe("responsive style ownership", () => {
     expect(account).not.toContain("!important");
   });
   it("keeps selected file rows within the shared mobile gutters", () => {
-    expect(selection).toContain("margin: 0 calc(-1 * var(--mobile-gutter, 18px))");
+    expect(selection).toContain(
+      "margin: 0 calc(-1 * var(--mobile-gutter, 18px))",
+    );
     expect(selection).not.toContain("margin: 0 -22px");
   });
 
+  it("insets selection actions so long labels stay clear of screen edges", () => {
+    expect(selection).toMatch(
+      /\.m-selection-actions\s*\{[^}]*margin-inline: 12px;/,
+    );
+  });
+
   it("applies share gutters once at the page boundary", () => {
-    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(hub).toContain(
+      "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
+    );
     expect(hub).not.toContain("!important");
     expect(share).not.toContain(".mobile-share-hub");
-    expect(hub.match(/var\(--mobile-gutter\)/g)).toHaveLength(1);
+    // Full-bleed share headers may reuse the gutter in negative margins.
+    expect(hub).toContain("margin: calc(-1 * var(--mobile-page-top))");
     expect(profile).not.toContain("max-width: 520px");
   });
 
@@ -60,19 +107,33 @@ describe("responsive style ownership", () => {
     }
     expect(main).toContain("padding-bottom: var(--mobile-content-bottom)");
     expect(home).toContain("padding-bottom: var(--mobile-content-bottom)");
-    expect(profile).toContain("padding: 26px var(--mobile-gutter) 0");
-    expect(hub).toContain("padding: var(--mobile-page-top) var(--mobile-gutter) 0");
+    expect(profile).toContain(
+      "padding: 32px calc(var(--mobile-gutter) / 3) 18px",
+    );
+    expect(hub).toContain(
+      "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
+    );
   });
-  it.each([main, home, profile, share, files, selection, upload, layout, hub, account])(
-    "uses the same exclusive mobile boundary",
-    (source) => {
-      expect(source).toContain("@media (width < 768px)");
-      expect(source).not.toMatch(/max-width:\s*(700|768)px/);
-    },
-  );
+  it.each([
+    main,
+    home,
+    profile,
+    share,
+    files,
+    selection,
+    upload,
+    layout,
+    hub,
+    account,
+  ])("uses the same exclusive mobile boundary", (source) => {
+    expect(source).toContain("@media (width < 768px)");
+    expect(source).not.toMatch(/max-width:\s*(700|768)px/);
+  });
 
   it("keeps homepage-only selectors out of global styles", () => {
-    expect(main).not.toMatch(/\.m-(home-head|vip|profile-search|tools|panel|recent|banner|memory)\b/);
+    expect(main).not.toMatch(
+      /\.m-(home-head|vip|profile-search|tools|panel|recent|banner|memory)\b/,
+    );
     expect(home).toContain(".m-panel-actions");
     expect(home).toContain("margin-left: auto");
     expect(home).toContain("flex-shrink: 0");

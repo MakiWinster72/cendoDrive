@@ -17,27 +17,28 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(prefix = "cendo.upload", name = "cleanup-enabled", havingValue = "true")
 public class ChunkCleanupTask {
-    private static final Logger log = LoggerFactory.getLogger(ChunkCleanupTask.class);
-    private final ChunkStorage chunks;
-    private final UploadStateStore state;
-    private final Duration grace;
+  private static final Logger log = LoggerFactory.getLogger(ChunkCleanupTask.class);
+  private final ChunkStorage chunks;
+  private final UploadStateStore state;
+  private final Duration grace;
 
-    public ChunkCleanupTask(ChunkStorage chunks, UploadStateStore state,
-                            @Value("${cendo.upload.cleanup-grace-minutes:1440}") long graceMinutes) {
-        this.chunks = chunks;
-        this.state = state;
-        this.grace = Duration.ofMinutes(graceMinutes);
-    }
+  public ChunkCleanupTask(ChunkStorage chunks, UploadStateStore state,
+      @Value("${cendo.upload.cleanup-grace-minutes:1440}") long graceMinutes) {
+    this.chunks = chunks;
+    this.state = state;
+    this.grace = Duration.ofMinutes(graceMinutes);
+  }
 
-    @Scheduled(fixedDelayString = "${cendo.upload.cleanup-interval-minutes:60}",
-            initialDelayString = "${cendo.upload.cleanup-interval-minutes:60}", timeUnit = TimeUnit.MINUTES)
-    public void evictOrphans() {
-        Instant cutoff = Instant.now().minus(grace);
-        for (ChunkStorage.Session session : chunks.listSessions()) {
-            if (session.lastModified().isAfter(cutoff)) continue;
-            if (state.findMeta(session.uploadId()).isPresent()) continue;
-            chunks.cleanup(session.uploadId());
-            log.info("Removed orphan chunk session {}", session.uploadId());
-        }
+  @Scheduled(fixedDelayString = "${cendo.upload.cleanup-interval-minutes:60}", initialDelayString = "${cendo.upload.cleanup-interval-minutes:60}", timeUnit = TimeUnit.MINUTES)
+  public void evictOrphans() {
+    Instant cutoff = Instant.now().minus(grace);
+    for (ChunkStorage.Session session : chunks.listSessions()) {
+      if (session.lastModified().isAfter(cutoff))
+        continue;
+      if (state.findMeta(session.uploadId()).isPresent())
+        continue;
+      chunks.cleanup(session.uploadId());
+      log.info("Removed orphan chunk session {}", session.uploadId());
     }
+  }
 }

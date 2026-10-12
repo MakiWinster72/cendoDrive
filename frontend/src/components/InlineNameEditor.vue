@@ -18,12 +18,15 @@ const emit = defineEmits<{
 const input = ref<HTMLInputElement>();
 const errorId = useId();
 
-watch(() => props.saving, async saving => {
-  if (!saving) {
-    await nextTick();
-    input.value?.focus();
-  }
-});
+watch(
+  () => props.saving,
+  async (saving) => {
+    if (!saving) {
+      await nextTick();
+      input.value?.focus();
+    }
+  },
+);
 onMounted(async () => {
   await nextTick();
   input.value?.focus();
@@ -56,12 +59,25 @@ onMounted(async () => {
         :disabled="saving"
         autocomplete="off"
         @keydown.enter="$event.isComposing && $event.preventDefault()"
-        @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+        @input="
+          emit('update:modelValue', ($event.target as HTMLInputElement).value)
+        "
       />
-      <button type="submit" :disabled="saving" :aria-label="creating ? '创建文件夹' : '保存名称'" :title="saving ? '保存中…' : 'Enter 保存'">
+      <button
+        type="submit"
+        :disabled="saving"
+        :aria-label="creating ? '创建文件夹' : '保存名称'"
+        :title="saving ? '保存中…' : 'Enter 保存'"
+      >
         <Check :size="18" />
       </button>
-      <button type="button" :disabled="saving" aria-label="取消编辑" title="Esc 取消" @click="emit('cancel')">
+      <button
+        type="button"
+        :disabled="saving"
+        aria-label="取消编辑"
+        title="Esc 取消"
+        @click="emit('cancel')"
+      >
         <X :size="18" />
       </button>
     </div>

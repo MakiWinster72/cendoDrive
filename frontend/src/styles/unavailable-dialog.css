@@ -61,15 +61,23 @@
   min-height: 42px;
   border: 0;
   border-radius: 13px;
-  background: linear-gradient(110deg,#398cf5,#2879ed);
+  background: linear-gradient(110deg, #398cf5, #2879ed);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
 }
 @keyframes unavailable-enter {
-  from { transform: translateY(6px) scale(.97); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(6px) scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .unavailable-dialog { animation: none; }
+  .unavailable-dialog {
+    animation: none;
+  }
 }

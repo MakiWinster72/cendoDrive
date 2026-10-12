@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlywayMigrationTest {
+  private static final int LATEST_VERSION = 17;
   private static final List<String> MIGRATIONS = List.of(
       "V1__create_users.sql", "V2__create_drive_files.sql", "V3__add_storage_backend.sql",
       "V4__add_drive_trash.sql", "V5__create_share_links.sql", "V6__add_file_features.sql",
@@ -21,7 +22,7 @@ class FlywayMigrationTest {
 
   @Test void freshDatabaseAppliesAllMigrations() {
     Flyway flyway = current(databaseUrl());
-    assertEquals(14, flyway.migrate().migrationsExecuted);
+    assertEquals(LATEST_VERSION, flyway.migrate().migrationsExecuted);
     assertTrue(flyway.validateWithResult().validationSuccessful);
     assertEquals(Integer.valueOf(-1727441758), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("5").equals(migration.getVersion()))
@@ -48,18 +49,56 @@ class FlywayMigrationTest {
           + "VALUES (1, 42, 'historical-share', '保留文件.txt', 123, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
     }
     Flyway flyway = current(url);
-    assertEquals(6, flyway.migrate().migrationsExecuted);
+    assertEquals(LATEST_VERSION - MIGRATIONS.size(), flyway.migrate().migrationsExecuted);
     assertDoesNotThrow(flyway::validate);
-    assertEquals(MigrationVersion.fromVersion("14"), flyway.info().current().getVersion());
+    assertEquals(MigrationVersion.fromVersion(Integer.toString(LATEST_VERSION)), flyway.info().current().getVersion());
     assertEquals(Integer.valueOf(-267370802), java.util.Arrays.stream(flyway.info().all())
         .filter(migration -> MigrationVersion.fromVersion("8").equals(migration.getVersion()))
         .findFirst().orElseThrow().getChecksum());
     try (var connection = DriverManager.getConnection(url, "sa", "");
          var statement = connection.createStatement();
-         var rows = statement.executeQuery("SELECT file_name, size_bytes FROM share_links WHERE token = 'historical-share'")) {
+         var rows = statement.executeQuery("SELECT file_name, size_bytes, extraction_code FROM share_links WHERE token = 'historical-share'")) {
       assertTrue(rows.next());
       assertEquals("保留文件.txt", rows.getString(1));
       assertEquals(123, rows.getLong(2));
+      assertNull(rows.getString(3));
+    }
+  }
+
+  @Test void existingTransferAndShareMigrationsUpgradeWithoutRewritingHistory() throws Exception {
+    // Frozen fixtures reproduce the database shared by the development worktrees.
+    for (int version = 1; version <= 16; version++) {
+      final int v = version;
+      String name;
+      if (version <= 13) {
+        try (var files = Files.list(Path.of("src/main/resources/db/migration"))) {
+          name = files.map(path -> path.getFileName().toString())
+              .filter(file -> file.startsWith("V" + v + "__")).findFirst().orElseThrow();
+        }
+      } else {
+        name = switch (version) {
+          case 14 -> "V14__create_transfer_records.sql";
+          case 15 -> "V15__transfer_file_reference.sql";
+          default -> "V16__persist_share_extraction_code.sql";
+        };
+      }
+      String folder = version >= 14 ? "db/migration-history/" : "db/migration/";
+      try (InputStream input = getClass().getClassLoader().getResourceAsStream(folder + name)) {
+        assertNotNull(input, name);
+        Files.copy(input, history.resolve(name));
+      }
+    }
+    String url = databaseUrl();
+    Flyway.configure().dataSource(url, "sa", "").locations("filesystem:" + history).load().migrate();
+    Flyway upgrade = current(url);
+    assertEquals(1, assertDoesNotThrow(upgrade::migrate, "Existing V14-V16 must keep their checksums").migrationsExecuted);
+    assertTrue(upgrade.validateWithResult().validationSuccessful);
+    assertEquals(MigrationVersion.fromVersion("17"), upgrade.info().current().getVersion());
+    try (var connection = DriverManager.getConnection(url, "sa", ""); var statement = connection.createStatement()) {
+      assertDoesNotThrow(() -> statement.executeQuery("SELECT file_id FROM transfer_records"));
+      assertDoesNotThrow(() -> statement.executeQuery("SELECT extraction_code FROM share_links"));
+      assertDoesNotThrow(() -> statement.executeQuery("SELECT generation FROM claw_documents"));
+      assertDoesNotThrow(() -> statement.executeQuery("SELECT lease_token FROM claw_tasks"));
     }
   }
 
