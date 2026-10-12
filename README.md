@@ -47,11 +47,15 @@ docker compose up -d --build
 # 如端口已被现有容器占用，请先停止现有容器；不要删除原有数据卷。
 ```
 
-打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，Compose 前端使用 Vite Preview 将 `/api/` 代理至后端，无需配置 Nginx（仅用于本机开发）。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
+打开 `http://localhost`（仅本机可访问）；后端 API 位于 `http://localhost:8080`，Compose 前端使用镜像内的 Nginx 提供静态页面并将 `/api/` 代理至后端，已包含上传大小限制和 AI 流式代理配置。Compose 端口仅绑定宿主机回环地址；MySQL 开发账号为 `cendo` / `cendo_dev_password`。可在启动前通过 `MYSQL_PASSWORD`、`MYSQL_ROOT_PASSWORD` 环境变量覆盖，后端自动使用相同的 MySQL 密码。数据存放在 Compose 命名卷；`docker compose down` 不删除数据，**不要执行 `down -v`**。更新代码后运行 `docker compose up -d --build`。已有独立容器占用端口时先停止旧容器，注意新命名卷不会自动迁移旧数据。
+
+基础网盘不启动向量库；启用扣扣 Claw 时，先配置聊天/嵌入模型并设置 `CENDO_AI_CLAW_ENABLED=true`，再运行 `docker compose --profile claw up -d --build`。当前主应用使用 Qdrant，不需要 Milvus、MinIO 或 etcd。普通 AI 聊天不依赖 Qdrant。完整步骤与现有容器复用说明见 [Docker 运行文档](./docs/使用docker和docker%20compose运行.md)。
 
 ```sh
 # 可选：在宿主机分别开发时，需 Java 21、Maven、Node.js/npm；只启动依赖：
 # docker compose up -d mysql redis tracker storage1 storage2 storage3
+# 如已有独立MySQL/Redis/FastDFS容器，则复用现有服务，不重复启动。
+# 宿主机Claw另需：docker compose -f compose.yaml -f compose.local.yaml up -d qdrant
 # 终端 1：后端
 cd backend
 cp src/main/resources/application.example.yml src/main/resources/application.yml
