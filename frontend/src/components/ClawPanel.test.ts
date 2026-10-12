@@ -61,8 +61,11 @@ it("retains failed questions, hides diagnostics and submits confirmed reindex", 
 it("clears the composer immediately and leaves it empty after stopping", async () => {
   vi.mocked(askClaw).mockImplementation(() => new Promise(() => {}));
   wrapper = mount(ClawPanel); await flushPromises();
+  await wrapper.get(".document-status").trigger("click");
+  expect(wrapper.find(".files-panel").exists()).toBe(true);
   await wrapper.get("textarea").setValue("预算");
   await wrapper.get("form").trigger("submit");
+  expect(wrapper.find(".files-panel").exists()).toBe(false);
   expect(wrapper.get("textarea").element.value).toBe("");
   await wrapper.get('[aria-label="停止回答"]').trigger("click");
   expect(wrapper.get("textarea").element.value).toBe("");

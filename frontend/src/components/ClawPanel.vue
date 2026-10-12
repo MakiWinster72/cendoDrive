@@ -58,6 +58,7 @@ async function send() {
   const request = new AbortController(); active = request;
   pending.value = true; error.value = "";
   question.value = ""; conversation.draft = "";
+  filesOpen.value = false;
   void scrollBottom();
   try {
     const previous = conversation.turns.at(-1)?.question.slice(0, 300);
