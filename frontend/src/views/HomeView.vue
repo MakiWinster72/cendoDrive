@@ -112,6 +112,20 @@ import {
 import { demoHomeContent } from "../api/contentDemo";
 import { getLocalSplashAd, localSplashAdId } from "../api/localSplashAd";
 
+const recommendationAds = [
+  { image: "4.jpg", title: "谁还没get到颜值爆棚cp呢" },
+  { image: "3.jpg", title: "九门花絮：全都是被鸟啄的惨叫#曾舜系" },
+  { image: "5.jpg", title: "我草当年凭一己之力掰弯整个港娱，没有人能拒绝..." },
+  { image: "6.jpg", title: "和美女老婆流落荒岛" },
+  { image: "7.jpg", title: "《危险派对》" },
+  { image: "8.jpg", title: "樊拍凯摄" },
+  { image: "9.jpg", title: "禁欲男神又宠又撩" },
+];
+const recommendationColumns = [
+  recommendationAds.filter((_, index) => index % 2 === 0),
+  recommendationAds.filter((_, index) => index % 2 === 1),
+];
+
 type Mode =
   | "all"
   | "recent"
@@ -1138,7 +1152,7 @@ onUnmounted(() => {
       </section>
       <section class="m-memory">
         <div class="m-panel-title">
-          <h2>推荐 <span>创意</span></h2>
+          <h2>推荐</h2>
           <button
             aria-label="更多推荐"
             @click="showUnavailable('更多推荐内容暂未接入。')"
@@ -1146,14 +1160,20 @@ onUnmounted(() => {
             <MoreHorizontal :size="22" />
           </button>
         </div>
-        <div class="m-discover">
-          <button @click="openHomeCategory('image')">
-            <span class="m-discover-art photo"><Image :size="38" /></span
-            ><b>发现云端相册</b><small>随时找回珍贵瞬间</small></button
-          ><button @click="router.push({ name: 'videos' })">
-            <span class="m-discover-art film"><Video :size="38" /></span
-            ><b>收藏精彩视频</b><small>你的回忆都在这里</small>
-          </button>
+        <div class="m-ad-waterfall">
+          <div
+            v-for="(column, index) in recommendationColumns"
+            :key="index"
+            class="m-ad-column"
+          >
+            <article v-for="ad in column" :key="ad.image" class="m-ad-card">
+              <div class="m-ad-cover">
+                <img :src="`/ad/${ad.image}`" :alt="ad.title" loading="lazy" />
+                <span class="m-ad-label">广告</span>
+              </div>
+              <p>{{ ad.title }}</p>
+            </article>
+          </div>
         </div>
       </section>
     </template>
