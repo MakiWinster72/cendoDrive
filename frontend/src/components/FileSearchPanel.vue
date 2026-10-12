@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { ChevronLeft, ChevronRight, FolderInput, X } from "@lucide/vue";
-import { iconForFile } from "./fileIcon";
+import FileThumbnail from "./FileThumbnail.vue";
 import { formatBytes } from "../stores/drive";
 import { useFileSearch } from "./useFileSearch";
 import type { FileSearchHit, SearchType } from "../api/drive";
@@ -103,8 +103,8 @@ const pageCount = computed(() =>
             :aria-label="`打开 ${hit.file.name}`"
             @click="emit('open', hit)"
           >
-            <component
-              :is="iconForFile(hit.file)"
+            <FileThumbnail
+              :file="hit.file"
               :size="34"
               :class="hit.file.kind"
             />
