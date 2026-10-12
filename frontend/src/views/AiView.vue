@@ -150,7 +150,7 @@ onBeforeUnmount(() => { cancel(); statusRequest?.abort(); });
         </div>
       </div>
       <div class="header-actions">
-        <button class="icon-button" aria-label="对话历史" :aria-expanded="mode === 'chat' ? historyOpen : claw?.historyOpen" :aria-controls="mode === 'chat' ? 'ai-history' : 'claw-history'" @click="mode === 'chat' ? historyOpen = !historyOpen : claw?.toggleHistory()"><History :size="22" /></button>
+        <button type="button" class="icon-button" aria-label="对话历史"><History :size="22" /></button>
         <button class="icon-button" aria-label="新建对话" @click="mode === 'chat' ? newConversation() : claw?.newConversation()"><Plus :size="24" /></button>
       </div>
     </header>

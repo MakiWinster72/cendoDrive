@@ -33,11 +33,14 @@ describe("扣扣AI", () => {
     expect(vi.mocked(streamChat).mock.calls[1]![0]).toEqual([{ role: "user", content: "你好" }, { role: "assistant", content: "你好，我是扣扣AI" }, { role: "user", content: "继续" }]);
     expect(w.findAll(".message")).toHaveLength(4);
   });
-  it("provides a real new chat and session-only history", async () => {
+  it("provides a real new chat and a placeholder history button", async () => {
     const w = await open(); await ask(w);
     await w.get('[aria-label="新建对话"]').trigger("click"); expect(w.text()).toContain("Hello!");
-    await w.get('[aria-label="对话历史"]').trigger("click"); await w.get(".history-item").trigger("click");
-    expect(w.findAll(".message")).toHaveLength(2); expect(w.find("#ai-history").exists()).toBe(false);
+    await w.get('[aria-label="对话历史"]').trigger("click");
+    expect(w.findAll(".message")).toHaveLength(0); expect(w.find("#ai-history").exists()).toBe(false);
+    await w.get('[aria-label="切换AI模式"]').trigger("click"); await w.findAll(".mode-menu button")[1]!.trigger("click");
+    await w.get('[aria-label="对话历史"]').trigger("click"); expect(w.get('[aria-label="对话历史"]').attributes("aria-expanded")).toBeUndefined();
+    expect(w.find("#claw-history").exists()).toBe(false);
     await w.get('[aria-label="返回网盘"]').trigger("click"); expect(routing.push).toHaveBeenCalledWith({ name: "home" });
   });
   it("preserves completed chat across switching to Claw", async () => {
@@ -90,8 +93,8 @@ describe("扣扣AI", () => {
     expect(w.text()).toContain("回答已停止，内容未完成"); expect(w.findAll(".message")).toHaveLength(2);
     expect(w.get("textarea").element.value).toBe("");
     progress("迟到的增量"); d.resolve("迟到的完整答案"); await flushPromises(); expect(w.text()).not.toContain("迟到");
-    await w.get('[aria-label="新建对话"]').trigger("click");
-    await w.get('[aria-label="对话历史"]').trigger("click"); await w.get(".history-item").trigger("click");
+    await w.get('[aria-label="对话历史"]').trigger("click");
+    expect(w.find("#ai-history").exists()).toBe(false);
     expect(w.text()).toContain("第二段");
     await ask(w, "继续");
     expect(vi.mocked(streamChat).mock.calls[1]![0]).toEqual([{ role: "user", content: "你好" }, { role: "assistant", content: "**第一段**，第二段" }, { role: "user", content: "继续" }]);
