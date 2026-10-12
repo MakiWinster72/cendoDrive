@@ -6,6 +6,7 @@ import * as api from "../api/drive";
 import { useDrive, type DriveItem } from "../stores/drive";
 vi.mock("vue-router", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("../stores/auth", () => ({
+  getToken: () => "test-session",
   useAuth: () => ({
     user: { value: { username: "搜索用户" } },
     logout: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("../api/drive", async (original) => ({
   ...(await original<typeof api>()),
   searchFiles: vi.fn(),
   listFiles: vi.fn(),
+  listTrash: vi.fn(),
   getUsage: vi.fn(),
 }));
 const root: DriveItem = {
@@ -90,6 +92,7 @@ beforeEach(() => {
   vi.mocked(api.listFiles).mockImplementation(async (id) =>
     id === "8" ? [document] : id === "7" ? [data] : [root],
   );
+  vi.mocked(api.listTrash).mockResolvedValue([]);
   vi.mocked(api.getUsage).mockResolvedValue({
     usedBytes: 10,
     limitBytes: 100,

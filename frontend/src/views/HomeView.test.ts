@@ -26,6 +26,7 @@ vi.mock("../api/users", async (original) => ({
 }));
 const invalidateSession = vi.hoisted(() => vi.fn());
 vi.mock("../stores/auth", () => ({
+  getToken: () => "test-session",
   invalidateSession,
   useAuth: () => ({
     user: { value: { username: "测试用户" } },
