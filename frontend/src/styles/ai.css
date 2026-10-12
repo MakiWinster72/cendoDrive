@@ -56,3 +56,14 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #009eb4; outli
 .history-item { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 12px 8px; background: none; border: 0; border-radius: 10px; font-size: 13px; } .history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .history-item:hover, .history-item[aria-pressed=true] { background: #effafb; }
 @media (max-width: 600px) { .ai-header { padding: 16px 14px; } .header-actions { gap: 0; } .mode-control { margin-left: 40px; } .mode-trigger strong { font-size: 19px; } .ai-scroll { padding: 0 24px; } .ai-welcome { margin-top: 54px; } .greeting-row { gap: 8px; } .greeting h1 { font-size: 52px; letter-spacing: -3px; } .greeting h2 { font-size: 22px; } .greeting p { font-size: 12px; max-width: 200px; } .robot { width: 118px; height: 143px; } .robot-head { height: 82px; border-radius: 28px; padding: 19px 12px; } .robot-face { height: 36px; gap: 22px; } .robot-body { height: 30px; width: 54px; margin-top: 6px; } .robot-shadow { width: 70px; height: 9px; } .suggestion-heading { margin-top: 40px; } .suggestions button { font-size: 12px; padding: 15px 14px; } .composer-wrap { padding: 12px 18px max(16px, env(safe-area-inset-bottom)); } .composer { padding: 14px 14px 10px; border-radius: 19px; } .composer-hint span { display: none; } }
 @media (max-width: 360px) { .ai-scroll { padding: 0 18px; } .robot { transform: scale(.85) rotate(8deg); margin: 0 -9px; } .greeting h1 { font-size: 44px; } .greeting h2 { font-size: 20px; } }
+
+.mode-trigger > svg, .document-status > svg:last-child { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+.mode-menu { transform-origin: top center; }
+.files-panel { transform-origin: bottom left; }
+.mode-popover-enter-active, .files-popover-enter-active { transition: opacity 180ms ease-out, transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+.mode-popover-leave-active, .files-popover-leave-active { transition: opacity 120ms ease-out, transform 120ms cubic-bezier(0.23, 1, 0.32, 1); pointer-events: none; }
+.mode-popover-enter-from, .mode-popover-leave-to { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.97); }
+.files-popover-enter-from, .files-popover-leave-to { opacity: 0; transform: translateY(6px) scale(0.98); }
+@media (prefers-reduced-motion: reduce) {
+  .mode-popover-enter-active, .mode-popover-leave-active, .files-popover-enter-active, .files-popover-leave-active, .mode-trigger > svg, .document-status > svg:last-child { transition: none; }
+}
