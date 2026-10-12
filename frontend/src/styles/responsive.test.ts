@@ -30,6 +30,10 @@ describe("responsive style ownership", () => {
     expect(selection).not.toContain("margin: 0 -22px");
   });
 
+  it("insets selection actions so long labels stay clear of screen edges", () => {
+    expect(selection).toMatch(/\.m-selection-actions\s*\{[^}]*margin-inline: 12px;/);
+  });
+
   it("applies share gutters once at the page boundary", () => {
     expect(hub).toContain(
       "padding: var(--mobile-page-top) var(--mobile-gutter) 0",
