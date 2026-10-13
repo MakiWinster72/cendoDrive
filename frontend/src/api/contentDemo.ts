@@ -78,7 +78,7 @@ export const demoMembershipContent: MembershipContentResponse = {
       title: "储存与传输",
       columns: ["SVIP", "VIP", "普通用户"],
       rows: [
-        { label: "储存空间", values: ["5120G", "—", "—"] },
+        { label: "储存空间", values: ["1TB", "—", "—"] },
         { label: "文件清理", values: ["✓", "✓", "—"] },
         { label: "文件恢复服务", values: ["✓", "✓", "—"] },
       ],
