@@ -53,15 +53,12 @@ public class UploadService {
       if (Objects.equals(s.getParentId(), request.parentId()) && s.getFileName().equals(name)
           && s.getFileSize() == request.fileSize() && s.getChunkSize() == request.chunkSize()
           && s.getTotalChunks() == request.totalChunks()) {
-        if (s.getResultFileId() != null) {
-          try {
-            drive.metadata(user, s.getResultFileId());
-          } catch (DriveFailure e) {
-            if ("FILE_NOT_FOUND".equals(e.code()))
-              continue;
-            throw e;
-          }
-        }
+        // Completed sessions are not resumable uploads. Revalidate the target
+        // below: active names conflict; trashed files allow a fresh upload.
+        // Do not catch failures from transactional metadata(): that can leave
+        // this transaction rollback-only even when the exception is caught.
+        if (s.getResultFileId() != null)
+          continue;
         return new InitResponse(s.getId(), s.getChunkSize(), s.getTotalChunks());
       }
     }

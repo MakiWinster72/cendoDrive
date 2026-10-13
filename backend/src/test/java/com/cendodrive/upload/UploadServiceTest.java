@@ -61,6 +61,32 @@ class UploadServiceTest {
         verify(sessions, never()).saveAndFlush(any());
     }
 
+    @Test void completedUploadWithActiveNameReturnsConflictInsteadOfReusingSession() {
+        UploadSession completed = session();
+        completed.complete(42L);
+        when(sessions.findAllByOwnerIdAndFileHashAndExpiresAtAfter(eq(7L), eq(HASH), any()))
+                .thenReturn(List.of(completed));
+        when(drive.validateUploadTarget(user, "movie.mp4", null)).thenThrow(
+                new DriveFailure(org.springframework.http.HttpStatus.CONFLICT, "NAME_CONFLICT", "Already exists"));
+        DriveFailure error = assertThrows(DriveFailure.class, () -> service.init(user, request()));
+        assertEquals("NAME_CONFLICT", error.code());
+        assertEquals(409, error.status().value());
+        verify(drive, never()).metadata(any(), any());
+        verify(sessions, never()).saveAndFlush(any());
+    }
+
+    @Test void completedUploadInTrashStartsFreshSessionWithoutTransactionalMetadataFailure() {
+        UploadSession completed = session();
+        completed.complete(42L);
+        when(sessions.findAllByOwnerIdAndFileHashAndExpiresAtAfter(eq(7L), eq(HASH), any()))
+                .thenReturn(List.of(completed));
+        when(drive.validateUploadTarget(user, "movie.mp4", null)).thenReturn("movie.mp4");
+        InitResponse response = service.init(user, request());
+        assertNotEquals(UPLOAD_ID, response.uploadId());
+        verify(drive, never()).metadata(any(), any());
+        verify(sessions).saveAndFlush(any());
+    }
+
     @Test void initRejectsInvalidChunkLayout() {
         DriveFailure error = assertThrows(DriveFailure.class, () ->
                 service.init(user, new InitRequest("movie.mp4", 8, HASH, null, 4, 3)));
