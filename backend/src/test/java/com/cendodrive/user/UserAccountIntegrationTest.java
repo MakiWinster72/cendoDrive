@@ -128,7 +128,7 @@ class UserAccountIntegrationTest {
     }
   }
 
-  @Test void singleUploadInterfaceIsPacedForNormalAndMember() throws Exception {
+  @Test void singleUploadInterfaceLimitsNormalButBypassesMember() throws Exception {
     when(storage.upload(any(InputStream.class), anyLong(), anyString())).thenAnswer(call -> {
       InputStream input = call.getArgument(0);
       input.transferTo(OutputStream.nullOutputStream());
@@ -140,7 +140,7 @@ class UserAccountIntegrationTest {
       mvc.perform(multipart("/api/files/upload").file(new MockMultipartFile("file", "paced" + i + ".bin",
           "application/octet-stream", new byte[16384])).header("Authorization", "Bearer " + token))
           .andExpect(status().isCreated());
-      assertTrue(System.nanoTime() - start >= 125_000_000L);
+      if (i == 0) assertTrue(System.nanoTime() - start >= 125_000_000L);
     }
   }
 

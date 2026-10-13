@@ -50,7 +50,7 @@ public class DriveService {
   public FileResponse upload(User user, MultipartFile content, Long parentId) throws IOException {
     if (content == null || content.isEmpty())
       fail(HttpStatus.BAD_REQUEST, "INVALID_INPUT", "File is empty");
-    try (var input = new com.cendodrive.upload.UploadRateInputStream(content.getInputStream())) {
+    try (var input = com.cendodrive.upload.UploadRateInputStream.forUser(content.getInputStream(), user)) {
       return uploadStream(user, input, content.getSize(), content.getOriginalFilename(), parentId, null);
     }
   }

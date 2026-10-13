@@ -311,6 +311,8 @@ function cancelUpload(task: UploadTask) {
 
 function statusText(task: UploadTask) {
   if (task.status === "preparing") return "正在计算文件校验值";
+  if (task.status === "uploading" && task.progress >= 99)
+    return "已发送，服务器处理中，请稍候";
   if (task.status === "uploading" && task.mode === "chunked")
     return "分片上传中";
   return {

@@ -1076,9 +1076,7 @@ onUnmounted(() => {
             class="m-recent"
             @click="openItem(item)"
           >
-            <span class="m-item-icon"
-              ><FileThumbnail :file="item"
-            /></span>
+            <span class="m-item-icon"><FileThumbnail :file="item" /></span>
             <div>
               <b>{{ item.name }}</b
               ><small>{{ dateText(item.updatedAt) }} · 我的资源</small>
@@ -1116,8 +1114,7 @@ onUnmounted(() => {
             :key="item.id"
             @click="openMyShares"
           >
-            <span class="m-item-icon"
-              ><FileThumbnail :file="item" /></span
+            <span class="m-item-icon"><FileThumbnail :file="item" /></span
             ><span
               ><b>{{ item.name }}</b
               ><small>位置：我的资源 ❯</small></span
@@ -1607,9 +1604,18 @@ onUnmounted(() => {
           <div class="profile-identity">
             <div>
               <strong>{{ displayName }}</strong
-              ><span>SVIP 1</span>
+              ><span>{{
+                auth.user.value?.vipLevel === "SVIP" ? "SVIP" : "普通用户"
+              }}</span>
             </div>
-            <p>您还不是超级会员 <ChevronRight :size="17" /></p>
+            <p>
+              {{
+                auth.user.value?.vipLevel === "SVIP"
+                  ? "超级会员 · 无到期时间"
+                  : "您还不是超级会员"
+              }}
+              <ChevronRight :size="17" />
+            </p>
           </div>
           <div class="profile-header-actions">
             <button

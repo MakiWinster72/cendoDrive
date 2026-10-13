@@ -9,6 +9,10 @@ import java.util.function.LongSupplier;
  */
 public final class UploadRateInputStream extends FilterInputStream {
   public static final long BYTES_PER_SECOND = 128 * 1024;
+
+  public static InputStream forUser(InputStream input, com.cendodrive.user.User user) {
+    return "SVIP".equals(user.getVipLevel()) ? input : new UploadRateInputStream(input);
+  }
   private final LongSupplier clock;
   private final Sleeper sleeper;
   private long started;
