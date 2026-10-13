@@ -10,9 +10,8 @@ import {
 } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import UnavailableFeatureDialog from "../components/UnavailableFeatureDialog.vue";
-import SimulatedPaymentDialog from "../components/SimulatedPaymentDialog.vue";
+import { simulateMembershipPayment } from "../api/membership";
 import { useAuth } from "../stores/auth";
-import type { MembershipPlanContent } from "../api/content";
 import {
   getMembershipContent,
   type MembershipContentResponse,
@@ -23,7 +22,7 @@ import "../styles/membership.css";
 
 const router = useRouter();
 const auth = useAuth();
-const paymentPlan = ref<MembershipPlanContent | null>(null);
+const paying = ref(false);
 const content = ref<MembershipContentResponse>(demoMembershipContent);
 const contentSource = ref<"demo" | "backend">("demo");
 const selectedPlan = ref(1);
@@ -54,7 +53,8 @@ function goBack() {
 function showNotice(message: string) {
   notice.value = message;
 }
-function pay() {
+async function pay() {
+  if (paying.value) return;
   if (!activePlan.value) {
     showNotice("当前没有可展示的会员方案。");
     return;
@@ -80,7 +80,17 @@ function pay() {
     showNotice("当前套餐不支持模拟支付，请选择有效的演示套餐");
     return;
   }
-  paymentPlan.value = { ...activePlan.value };
+  const planId = activePlan.value.id;
+  paying.value = true;
+  try {
+    const result = await simulateMembershipPayment(planId);
+    auth.updateUser(result.user);
+    showNotice("开通成功");
+  } catch {
+    showNotice("支付失败，请稍后重试");
+  } finally {
+    paying.value = false;
+  }
 }
 </script>
 
@@ -176,8 +186,7 @@ function pay() {
       <section v-if="contentSource === 'demo'" class="upsell-card single-buy">
         <strong>顺手买一件</strong>
         <button @click="showNotice('该优惠套餐暂未开放')">
-          <span>7天SVIP 专享超低价 <b>¥5</b><del>¥49.9</del></span
-          ><span class="radio-dot"></span>
+          <span>7天SVIP 专享超低价 <b>¥5</b><del>¥49.9</del></span>
         </button>
       </section>
 
@@ -187,17 +196,13 @@ function pay() {
           :class="{ chosen: paymentMethod === 'alipay' }"
           @click="paymentMethod = 'alipay'"
         >
-          <span class="pay-logo alipay-logo">支</span>支付宝<span
-            class="radio-dot"
-          ></span>
+          <span class="pay-logo alipay-logo">支</span>支付宝
         </button>
         <button
           :class="{ chosen: paymentMethod === 'wechat' }"
           @click="paymentMethod = 'wechat'"
         >
-          <span class="pay-logo wechat-logo">微</span>微信支付<span
-            class="radio-dot"
-          ></span>
+          <span class="pay-logo wechat-logo">微</span>微信支付
         </button>
       </section>
 
@@ -252,25 +257,25 @@ function pay() {
           《会员服务协议》
         </button></label
       >
-      <button class="primary-pay" :disabled="!activePlan" @click="pay">
+      <button
+        class="primary-pay"
+        :disabled="!activePlan || paying"
+        @click="pay"
+      >
         {{
-          activePlan
-            ? `立即支付 ¥${activePlan.price}${activePlan.suffix}`
-            : "暂无可选方案"
+          paying
+            ? "处理中…"
+            : activePlan
+              ? `立即支付 ¥${activePlan.price}${activePlan.suffix}`
+              : "暂无可选方案"
         }}
       </button>
     </footer>
-    <SimulatedPaymentDialog
-      v-if="paymentPlan"
-      :plan="paymentPlan"
-      @close="paymentPlan = null"
-      @paid="
-        paymentPlan = null;
-        showNotice('模拟支付成功，已开通 SVIP 会员，不设到期时间');
-      "
-    />
+    <p v-if="notice === '开通成功'" class="membership-success" role="status">
+      开通成功
+    </p>
     <UnavailableFeatureDialog
-      :open="Boolean(notice)"
+      :open="Boolean(notice) && notice !== '开通成功'"
       :message="notice"
       @close="notice = ''"
     />

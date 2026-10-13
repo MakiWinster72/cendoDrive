@@ -151,9 +151,16 @@
   border: 1px solid #eef0f3;
   border-radius: 10px;
 }
-.membership-page .payment-card .radio-dot {
-  margin-left: auto;
-  flex: none;
+.membership-success {
+  position: fixed;
+  left: 50%;
+  bottom: 130px;
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #172b4d;
+  color: #fff;
 }
 .membership-page .pay-logo {
   width: 24px;
