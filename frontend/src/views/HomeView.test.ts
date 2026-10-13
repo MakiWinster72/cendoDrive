@@ -25,11 +25,12 @@ vi.mock("../api/users", async (original) => ({
   getProfile: vi.fn(),
 }));
 const invalidateSession = vi.hoisted(() => vi.fn());
+const authUser = vi.hoisted(() => ({ username: "测试用户", vipLevel: "NORMAL" }));
 vi.mock("../stores/auth", () => ({
   getToken: () => "test-session",
   invalidateSession,
   useAuth: () => ({
-    user: { value: { username: "测试用户" } },
+    user: { value: authUser },
     logout: vi.fn(),
   }),
 }));
@@ -89,6 +90,7 @@ async function startCreate(wrapper: ReturnType<typeof mount>) {
     .trigger("click");
 }
 beforeEach(() => {
+  authUser.vipLevel = "NORMAL";
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute("open", "");
   };
@@ -187,6 +189,14 @@ describe("share creation integration", () => {
 });
 
 describe("account page integration", () => {
+  it.each(["NORMAL", "SVIP"])("shows persisted %s membership on profile", async (level) => {
+    authUser.vipLevel = level;
+    const wrapper = await open();
+    await wrapper.findAll(".mobile-app nav button").find((button) => button.text() === "我的")!.trigger("click");
+    const identity = wrapper.get(".profile-identity").text();
+    expect(identity).toContain(level === "SVIP" ? "超级会员 · 无到期时间" : "您还不是超级会员");
+    if (level === "SVIP") expect(identity).not.toContain("您还不是超级会员");
+  });
   it("omits the identity scan icon while keeping the standalone scan action", async () => {
     const wrapper = await open();
     await wrapper

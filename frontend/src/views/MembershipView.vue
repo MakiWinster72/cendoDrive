@@ -244,8 +244,8 @@ async function pay() {
         </div>
         <p class="demo-caption">
           <ShieldCheck :size="14" />
-          微信模拟支付，不扣款；开通后享有 1TB 总空间，无到期时间。所有用户每文件上传上限
-          128 KB/s，其他展示权益尚未接入。
+          微信模拟支付，不扣款；开通后享有 1TB 总空间，无到期时间。VIP
+          上传不限速，普通用户每文件上传上限 128 KB/s，其他展示权益尚未接入。
         </p>
       </section>
     </div>
