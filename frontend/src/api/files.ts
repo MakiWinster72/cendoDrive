@@ -45,6 +45,14 @@ export function uploadErrorMessage(error: unknown): string {
   if (!error.response) return "网络连接失败，请检查后端服务";
 
   const { code, fields } = error.response.data ?? {};
+  const messages: Record<string, string> = {
+    NAME_CONFLICT: "当前目录已存在同名项目，请重命名文件或选择其他文件夹后上传",
+    QUOTA_EXCEEDED: "网盘空间不足，请清理空间或升级容量后上传",
+    ACCOUNT_INACTIVE: "账号不可用，请联系管理员",
+    FORBIDDEN: "没有上传权限，请选择有权限的文件夹",
+  };
+  if (code && messages[code]) return messages[code];
+  if (error.response.status === 413) return "文件超过大小限制";
   if (error.response.status === 400 && code === "INVALID_INPUT") {
     if (
       fields &&
