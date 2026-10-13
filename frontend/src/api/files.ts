@@ -6,7 +6,7 @@ export interface UploadFileOptions {
   file: File;
   parentId: string | null;
   signal: AbortSignal;
-  onProgress: (progress: number) => void;
+  onProgress: (progress: number, loadedBytes?: number) => void;
 }
 
 export async function uploadFile({
@@ -27,6 +27,7 @@ export async function uploadFile({
       if (event.total)
         onProgress(
           Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          Math.min(file.size, (event.loaded / event.total) * file.size),
         );
     },
   });

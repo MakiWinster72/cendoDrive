@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useTransfers, isActive, type TransferTask } from "../stores/transfers";
 import { formatBytes, formatSize, useDrive } from "../stores/drive";
+import { formatSpeed } from "../utils/transferSpeed";
 import {
   driveErrorMessage,
   getFileDetails,
@@ -304,6 +305,9 @@ function status(task: TransferTask) {
             <h3 :title="task.name">{{ task.name }}</h3>
             <p>
               {{ formatSize(task.size) }} &nbsp; {{ status(task) }}
+              <span v-if="['uploading', 'downloading'].includes(task.status)">
+                · {{ formatSpeed(task.speed) }}</span
+              >
               <ChevronRight v-if="task.status === 'success'" />
             </p>
             <div

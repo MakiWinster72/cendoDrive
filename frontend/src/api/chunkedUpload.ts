@@ -17,7 +17,7 @@ export interface ChunkedUploadOptions {
   parentId: string | null;
   signal: AbortSignal;
   onPhase: (phase: ChunkedUploadPhase) => void;
-  onProgress: (progress: number) => void;
+  onProgress: (progress: number, loadedBytes?: number) => void;
 }
 
 interface InitUploadResponse {
@@ -118,7 +118,10 @@ export async function uploadFileInChunks({
   }
 
   onPhase("uploading");
-  onProgress(Math.min(99, Math.floor((confirmedBytes / file.size) * 100)));
+  onProgress(
+    Math.min(99, Math.floor((confirmedBytes / file.size) * 100)),
+    confirmedBytes,
+  );
 
   for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber += 1) {
     throwIfAborted(signal);
@@ -149,13 +152,17 @@ export async function uploadFileInChunks({
             99,
             Math.floor(((confirmedBytes + sentChunkBytes) / file.size) * 100),
           ),
+          confirmedBytes + sentChunkBytes,
         );
       },
     });
 
     confirmedBytes += chunk.size;
     uploadedChunks.add(chunkNumber);
-    onProgress(Math.min(99, Math.floor((confirmedBytes / file.size) * 100)));
+    onProgress(
+      Math.min(99, Math.floor((confirmedBytes / file.size) * 100)),
+      confirmedBytes,
+    );
   }
 
   throwIfAborted(signal);

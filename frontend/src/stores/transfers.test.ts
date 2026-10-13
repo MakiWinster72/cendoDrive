@@ -40,6 +40,22 @@ beforeEach(() => {
   store.setDownloadLimit(2);
 });
 describe("transfer queue", () => {
+  it("按下载字节采样速度并在完成后清零", async () => {
+    let time = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => time);
+    let finish!: () => void;
+    const done = store.enqueueDownload("speed.bin", 2048, async progress => {
+      time = 1000;
+      progress(50, 1024);
+      await new Promise<void>(resolve => { finish = resolve; });
+    });
+    await Promise.resolve();
+    expect(store.tasks[0]?.speed).toBe(1024);
+    finish();
+    await done;
+    expect(store.tasks[0]?.speed).toBe(0);
+    clock.mockRestore();
+  });
   it("synchronizes upload progress and retry without duplicate tasks", () => {
     const task = {
       id: "u",
