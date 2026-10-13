@@ -2,8 +2,13 @@ import http from "./http";
 import SparkMD5 from "spark-md5";
 import type { DriveItem } from "../stores/drive";
 
-export const CHUNK_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
-export const CHUNK_SIZE = 5 * 1024 * 1024;
+export const CHUNK_UPLOAD_THRESHOLD = 0;
+export const CHUNK_SIZE = 64 * 1024;
+
+// Keep acknowledgements frequent while respecting the server's 2048-chunk limit.
+export function chunkSizeFor(fileSize: number): number {
+  return Math.max(CHUNK_SIZE, Math.ceil(fileSize / 2048));
+}
 const HASH_READ_SIZE = 2 * 1024 * 1024;
 
 export function shouldUseChunkedUpload(fileSize: number): boolean {
@@ -69,7 +74,8 @@ export async function uploadFileInChunks({
   const fileHash = await calculateFileHash(file, signal, onProgress);
   throwIfAborted(signal);
 
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const chunkSize = chunkSizeFor(file.size);
+  const totalChunks = Math.ceil(file.size / chunkSize);
   const { data: upload } = await http.post<InitUploadResponse>(
     "/upload/init",
     {
@@ -77,7 +83,7 @@ export async function uploadFileInChunks({
       fileSize: file.size,
       fileHash,
       parentId,
-      chunkSize: CHUNK_SIZE,
+      chunkSize,
       totalChunks,
     },
     { signal },
@@ -85,7 +91,7 @@ export async function uploadFileInChunks({
 
   if (
     !upload.uploadId ||
-    upload.chunkSize !== CHUNK_SIZE ||
+    upload.chunkSize !== chunkSize ||
     upload.totalChunks !== totalChunks
   ) {
     throw new Error("分片初始化响应与接口协议不一致");
@@ -111,8 +117,8 @@ export async function uploadFileInChunks({
       chunkNumber < totalChunks
     ) {
       confirmedBytes += Math.min(
-        CHUNK_SIZE,
-        file.size - chunkNumber * CHUNK_SIZE,
+        chunkSize,
+        file.size - chunkNumber * chunkSize,
       );
     }
   }
@@ -127,8 +133,8 @@ export async function uploadFileInChunks({
     throwIfAborted(signal);
     if (uploadedChunks.has(chunkNumber)) continue;
 
-    const start = chunkNumber * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const start = chunkNumber * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
     const chunk = file.slice(start, end);
     const form = new FormData();
     form.append("uploadId", upload.uploadId);
@@ -141,20 +147,8 @@ export async function uploadFileInChunks({
       headers: { "Content-Type": "multipart/form-data" },
       signal,
       timeout: 0,
-      onUploadProgress: (event) => {
-        if (!event.total) return;
-        const sentChunkBytes = Math.min(
-          chunk.size,
-          (event.loaded / event.total) * chunk.size,
-        );
-        onProgress(
-          Math.min(
-            99,
-            Math.floor(((confirmedBytes + sentChunkBytes) / file.size) * 100),
-          ),
-          confirmedBytes + sentChunkBytes,
-        );
-      },
+      // Multipart progress measures proxy buffering, not server acceptance.
+      // Only a successful chunk response advances confirmed bytes.
     });
 
     confirmedBytes += chunk.size;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
-import { CHUNK_SIZE, uploadFileInChunks } from "./chunkedUpload";
+import { CHUNK_SIZE, chunkSizeFor, shouldUseChunkedUpload, uploadFileInChunks } from "./chunkedUpload";
 import type { DriveItem } from "../stores/drive";
 
 vi.mock("./http", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -8,6 +8,42 @@ vi.mock("./http", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 beforeEach(() => vi.clearAllMocks());
 
 describe("chunked upload API contract", () => {
+  it("uses server-confirmed chunks even for small non-empty files", () => {
+    expect(shouldUseChunkedUpload(13 * 1024 * 1024)).toBe(true);
+    expect(shouldUseChunkedUpload(1)).toBe(true);
+    expect(shouldUseChunkedUpload(0)).toBe(false);
+    expect(CHUNK_SIZE).toBe(64 * 1024);
+  });
+
+  it("keeps large files within the server chunk-count and size limits", () => {
+    for (const size of [1, 13 * 1024 ** 2, 128 * 1024 ** 2, 1024 ** 3, 10 * 1024 ** 3]) {
+      const chunkSize = chunkSizeFor(size);
+      expect(Math.ceil(size / chunkSize)).toBeLessThanOrEqual(2048);
+      expect(chunkSize).toBeLessThanOrEqual(5 * 1024 ** 2);
+    }
+  });
+
+  it("does not count buffered multipart bytes before server acknowledgement", async () => {
+    const file = Object.assign(new Blob([new Uint8Array(CHUNK_SIZE)]), { name: "photo.png" }) as File;
+    let acknowledge!: () => void;
+    const onProgress = vi.fn();
+    vi.mocked(http.get).mockResolvedValue({ data: { uploadId: "u", totalChunks: 1, uploadedChunks: [] } });
+    vi.mocked(http.post).mockImplementation(async (url, _body, config) => {
+      if (url === "/upload/init") return { data: { uploadId: "u", chunkSize: CHUNK_SIZE, totalChunks: 1 } };
+      if (url === "/upload/chunk") {
+        config?.onUploadProgress?.({ loaded: file.size, total: file.size } as never);
+        await new Promise<void>(resolve => { acknowledge = resolve; });
+      }
+      return { data: { id: "42" } };
+    });
+    const pending = uploadFileInChunks({ file, parentId: null, signal: new AbortController().signal, onPhase: vi.fn(), onProgress });
+    await vi.waitFor(() => expect(acknowledge).toBeTypeOf("function"));
+    expect(onProgress.mock.calls.filter(call => call[1] !== undefined)).toEqual([[0, 0]]);
+    acknowledge();
+    await pending;
+    expect(onProgress).toHaveBeenCalledWith(99, file.size);
+    expect(onProgress).toHaveBeenLastCalledWith(100);
+  });
   it("resumes from server-reported chunks, sends only missing chunks, then merges", async () => {
     const file = Object.assign(new Blob([new Uint8Array(CHUNK_SIZE + 13)]), {
       name: "archive.zip",
