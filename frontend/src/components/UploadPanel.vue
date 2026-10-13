@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { createSpeedSampler, formatSpeed } from "../utils/transferSpeed";
 import {
   Check,
   FileText,
@@ -51,6 +52,7 @@ interface UploadTask {
   file: File;
   status: UploadStatus;
   progress: number;
+  speed?: number;
   mode?: UploadMode;
   parentId?: string | null;
   error?: string;
@@ -114,6 +116,7 @@ watch(
         size: task.file.size,
         status: task.status,
         progress: task.progress,
+        speed: task.speed,
         error: task.error,
         fileId: task.fileId,
       });
@@ -239,6 +242,13 @@ async function runUpload(task: UploadTask) {
   task.status = useChunks ? "preparing" : "uploading";
   task.progress = 0;
   task.error = undefined;
+  task.speed = 0;
+  const sample = createSpeedSampler();
+  if (!useChunks) sample(0);
+  const onProgress = (progress: number, loadedBytes?: number) => {
+    task.progress = progress;
+    if (loadedBytes !== undefined) task.speed = sample(loadedBytes);
+  };
   try {
     const item = useChunks
       ? await uploadFileInChunks({
@@ -248,17 +258,13 @@ async function runUpload(task: UploadTask) {
           onPhase: (phase) => {
             task.status = phase === "hashing" ? "preparing" : "uploading";
           },
-          onProgress: (progress) => {
-            task.progress = progress;
-          },
+          onProgress,
         })
       : await uploadFile({
           file: task.file,
           parentId: task.parentId ?? null,
           signal: controller.signal,
-          onProgress: (progress) => {
-            task.progress = progress;
-          },
+          onProgress,
         });
     task.progress = 100;
     task.fileId = item.id;
@@ -272,6 +278,7 @@ async function runUpload(task: UploadTask) {
       task.error = uploadErrorMessage(error);
     }
   } finally {
+    task.speed = 0;
     controllers.delete(task.id);
   }
 }
@@ -506,7 +513,10 @@ function statusText(task: UploadTask) {
                 <b :title="task.file.name">{{ task.file.name }}</b
                 ><small
                   >{{ formatSize(task.file.size) }} ·
-                  {{ fileType(task.file) }} · {{ statusText(task) }}</small
+                  {{ fileType(task.file) }} · {{ statusText(task) }}
+                  <span v-if="task.status === 'uploading'">
+                    · {{ formatSpeed(task.speed) }}</span
+                  ></small
                 >
                 <div
                   v-if="

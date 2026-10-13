@@ -1,5 +1,6 @@
 import { computed, reactive, watch } from "vue";
 import { useAuth } from "./auth";
+import { createSpeedSampler } from "../utils/transferSpeed";
 import {
   clearTransferRecords,
   deleteTransferRecord,
@@ -21,6 +22,7 @@ export interface TransferTask {
   size: number;
   status: TransferStatus;
   progress: number;
+  speed?: number;
   createdAt: number;
   error?: string | null;
   fileId?: string | null;
@@ -29,7 +31,9 @@ const tasks = reactive<TransferTask[]>([]);
 const settings = reactive({ downloadLimit: 2 });
 const pending: {
   task: TransferTask;
-  operation: (progress: (value: number) => void) => Promise<void>;
+  operation: (
+    progress: (value: number, loadedBytes?: number) => void,
+  ) => Promise<void>;
   resolve: () => void;
   reject: (error: unknown) => void;
 }[] = [];
@@ -202,19 +206,24 @@ function pump() {
     const entry = pending.shift()!;
     active++;
     entry.task.status = "downloading";
+    const sample = createSpeedSampler();
+    sample(0);
     void Promise.resolve()
       .then(() =>
-        entry.operation((value) => {
+        entry.operation((value, loadedBytes) => {
+          if (loadedBytes !== undefined) entry.task.speed = sample(loadedBytes);
           entry.task.progress = Math.min(100, Math.max(0, value));
         }),
       )
       .then(() => {
+        entry.task.speed = 0;
         entry.task.status = "success";
         entry.task.progress = 100;
         queueChange(entry.task, entry.task.id);
         entry.resolve();
       })
       .catch((error) => {
+        entry.task.speed = 0;
         entry.task.status = "failed";
         entry.task.error = error instanceof Error ? error.message : "下载失败";
         queueChange(entry.task, entry.task.id);
@@ -252,7 +261,9 @@ export function useTransfers() {
   function enqueueDownload(
     name: string,
     size: number,
-    operation: (progress: (value: number) => void) => Promise<void>,
+    operation: (
+      progress: (value: number, loadedBytes?: number) => void,
+    ) => Promise<void>,
     fileId?: string,
   ) {
     ensureOwner();

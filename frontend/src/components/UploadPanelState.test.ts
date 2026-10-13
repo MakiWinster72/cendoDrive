@@ -16,6 +16,40 @@ beforeEach(() => {
 });
 
 describe("upload button state", () => {
+  it("显示同名冲突建议并同步到传输列表", async () => {
+    vi.mocked(uploadFile).mockRejectedValue({ isAxiosError: true, response: { status: 409, data: { code: "NAME_CONFLICT" } } });
+    const wrapper = mount(UploadPanel, { props: { open: true } });
+    const input = wrapper.get<HTMLInputElement>(".file-input");
+    Object.defineProperty(input.element, "files", { value: [new File(["x"], "same.txt")] });
+    await input.trigger("change");
+    await wrapper.get(".start-upload-button").trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".task-error").text()).toContain("重命名文件或选择其他文件夹");
+    expect(useTransfers().tasks.find(t => t.name === "same.txt")?.error).toContain("同名项目");
+    wrapper.unmount();
+  });
+  it("上传时显示采样速度，结束后清零", async () => {
+    let time = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => time);
+    let finish!: (value: Awaited<ReturnType<typeof uploadFile>>) => void;
+    vi.mocked(uploadFile).mockImplementation(({ onProgress }) => {
+      time = 1000;
+      onProgress(50, 1024);
+      return new Promise(resolve => { finish = resolve; });
+    });
+    const wrapper = mount(UploadPanel, { props: { open: true } });
+    const input = wrapper.get<HTMLInputElement>(".file-input");
+    Object.defineProperty(input.element, "files", { value: [new File([new Uint8Array(2048)], "speed.txt")] });
+    await input.trigger("change");
+    await wrapper.get(".start-upload-button").trigger("click");
+    expect(wrapper.text()).toContain("1.0 KB/s");
+    finish({ id: "speed", name: "speed.txt", kind: "file", size: 2048, parentId: null, updatedAt: "", deletedAt: null });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("KB/s");
+    expect(useTransfers().tasks.find(t => t.name === "speed.txt")?.speed).toBe(0);
+    wrapper.unmount();
+    clock.mockRestore();
+  });
   it("can dismiss the dialog with an explicit close button", async () => {
     const wrapper = mount(UploadPanel, { props: { open: true } });
     await wrapper.get('button[aria-label="关闭上传弹窗"]').trigger("click");
