@@ -6,6 +6,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UploadRateInputStreamTest {
+  @Test void membershipPolicyBypassesLimiterOnlyForSvip() {
+    var user = new com.cendodrive.user.User("policy", "hash", "Policy");
+    var raw = new ByteArrayInputStream(new byte[1]);
+    assertInstanceOf(UploadRateInputStream.class, UploadRateInputStream.forUser(raw, user));
+    user.activateSimulatedMembership();
+    assertSame(raw, UploadRateInputStream.forUser(raw, user));
+  }
   @Test void bulkReadsCannotBypass128KiBPerSecond() throws Exception {
     AtomicLong time = new AtomicLong();
     byte[] data = new byte[256 * 1024];
