@@ -24,6 +24,15 @@ class DownloadSecurityTest {
   @MockBean AuthService auth;
   @MockBean DriveService drive;
 
+  @Test void errorDispatchDoesNotReplaceBusinessFailureWithUnauthorized() throws Exception {
+    mvc.perform(get("/error").with(request -> { request.setDispatcherType(jakarta.servlet.DispatcherType.ERROR); return request; }))
+        .andExpect(result -> org.junit.jupiter.api.Assertions.assertNotEquals(401, result.getResponse().getStatus()));
+  }
+
+  @Test void directErrorRequestStillRequiresAuthentication() throws Exception {
+    mvc.perform(get("/error")).andExpect(status().isUnauthorized());
+  }
+
   @Test void anonymousDownloadIsRejectedBeforeStorageAccess() throws Exception {
     mvc.perform(get("/api/files/1/download")).andExpect(status().isUnauthorized());
     verifyNoInteractions(drive);

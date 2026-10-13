@@ -8,6 +8,14 @@ vi.mock("../stores/auth", () => ({
 }));
 import http from "./http";
 beforeEach(() => vi.clearAllMocks());
+it("preserves login when a duplicate upload returns NAME_CONFLICT", async () => {
+  await expect(http.post("/upload/init", {}, { adapter: async config => {
+    throw new AxiosError("Already exists", "ERR_BAD_RESPONSE", config, undefined, {
+      data: { code: "NAME_CONFLICT" }, status: 409, statusText: "Conflict", headers: new AxiosHeaders(), config,
+    });
+  } })).rejects.toThrow("Already exists");
+  expect(invalidateSession).not.toHaveBeenCalled();
+});
 it("never attaches a stale bearer to anonymous account recovery and does not clear sessions on its 401", async () => {
   await expect(
     http.post(
