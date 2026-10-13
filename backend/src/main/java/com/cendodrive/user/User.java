@@ -79,6 +79,7 @@ public class User {
 
   public void activateSimulatedMembership() {
     vipLevel = "SVIP";
+    storageLimit = 1024L * 1024 * 1024 * 1024;
   }
 
   public void setStorageUsed(long bytes) {

@@ -99,6 +99,9 @@ class UserAccountIntegrationTest {
         .content("{\"nickname\":\"   \"}")).andExpect(status().isBadRequest());
   }
   @Test void simulatedMembershipIsAuthenticatedPersistentAndIdempotent() throws Exception {
+    User existing = fresh();
+    existing.setStorageUsed(4096L);
+    users.saveAndFlush(existing);
     String body = "{\"planId\":\"year\",\"paymentMethod\":\"wechat\",\"amount\":\"0\",\"userId\":\"" + other.getId() + "\"}";
     mvc.perform(post("/api/membership/simulate-payment").contentType("application/json").content(body))
         .andExpect(status().isUnauthorized());
@@ -106,13 +109,18 @@ class UserAccountIntegrationTest {
       mvc.perform(post("/api/membership/simulate-payment").header("Authorization", "Bearer " + token)
           .contentType("application/json").content(body))
           .andExpect(status().isOk()).andExpect(jsonPath("$.amount").value("152"))
-          .andExpect(jsonPath("$.simulated").value(true)).andExpect(jsonPath("$.user.vipLevel").value("SVIP"));
+          .andExpect(jsonPath("$.simulated").value(true)).andExpect(jsonPath("$.user.vipLevel").value("SVIP"))
+          .andExpect(jsonPath("$.user.storageLimit").value(1099511627776L))
+          .andExpect(jsonPath("$.user.storageUsed").value(4096));
     }
     assertEquals("SVIP", fresh().getVipLevel());
     assertEquals("NORMAL", users.findById(other.getId()).orElseThrow().getVipLevel());
-    assertEquals(1073741824L, fresh().getStorageLimit());
+    assertEquals(1099511627776L, fresh().getStorageLimit());
+    assertEquals(4096L, fresh().getStorageUsed());
+    assertEquals(1073741824L, users.findById(other.getId()).orElseThrow().getStorageLimit());
     mvc.perform(get("/api/user/me").header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk()).andExpect(jsonPath("$.vipLevel").value("SVIP"));
+        .andExpect(status().isOk()).andExpect(jsonPath("$.vipLevel").value("SVIP"))
+        .andExpect(jsonPath("$.storageLimit").value(1099511627776L));
     for (String invalid : new String[]{"{\"planId\":\"invalid\",\"paymentMethod\":\"wechat\"}",
         "{\"planId\":\"trial\",\"paymentMethod\":\"alipay\"}"}) {
       mvc.perform(post("/api/membership/simulate-payment").header("Authorization", "Bearer " + token)

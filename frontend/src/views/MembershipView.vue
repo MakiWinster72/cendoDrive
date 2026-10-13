@@ -126,7 +126,7 @@ async function pay() {
             <strong>SVIP</strong><span>模拟会员账户</span>
           </div>
           <div><strong>VIP</strong><span>基础会员</span></div>
-          <div><strong>空间扩容</strong><span>最高 5T</span></div>
+          <div><strong>空间扩容</strong><span>1TB 空间</span></div>
           <div><strong>SVIP10</strong><span>专属权益</span></div>
         </div>
       </section>
@@ -244,7 +244,7 @@ async function pay() {
         </div>
         <p class="demo-caption">
           <ShieldCheck :size="14" />
-          微信模拟支付，不扣款；仅开通会员身份，无到期时间。所有用户每文件上传上限
+          微信模拟支付，不扣款；开通后享有 1TB 总空间，无到期时间。所有用户每文件上传上限
           128 KB/s，其他展示权益尚未接入。
         </p>
       </section>
