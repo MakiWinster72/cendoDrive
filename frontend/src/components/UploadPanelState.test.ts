@@ -2,12 +2,12 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import UploadPanel from "./UploadPanel.vue";
-import { uploadFile } from "../api/files";
+import { uploadFileInChunks } from "../api/chunkedUpload";
 import { useTransfers } from "../stores/transfers";
 
-vi.mock("../api/files", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/files")>()),
-  uploadFile: vi.fn(),
+vi.mock("../api/chunkedUpload", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/chunkedUpload")>()),
+  uploadFileInChunks: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe("upload button state", () => {
   it("显示同名冲突建议并同步到传输列表", async () => {
-    vi.mocked(uploadFile).mockRejectedValue({ isAxiosError: true, response: { status: 409, data: { code: "NAME_CONFLICT" } } });
+    vi.mocked(uploadFileInChunks).mockRejectedValue({ isAxiosError: true, response: { status: 409, data: { code: "NAME_CONFLICT" } } });
     const wrapper = mount(UploadPanel, { props: { open: true } });
     const input = wrapper.get<HTMLInputElement>(".file-input");
     Object.defineProperty(input.element, "files", { value: [new File(["x"], "same.txt")] });
@@ -31,8 +31,10 @@ describe("upload button state", () => {
   it("上传时显示采样速度，结束后清零", async () => {
     let time = 0;
     const clock = vi.spyOn(performance, "now").mockImplementation(() => time);
-    let finish!: (value: Awaited<ReturnType<typeof uploadFile>>) => void;
-    vi.mocked(uploadFile).mockImplementation(({ onProgress }) => {
+    let finish!: (value: Awaited<ReturnType<typeof uploadFileInChunks>>) => void;
+    vi.mocked(uploadFileInChunks).mockImplementation(({ onProgress, onPhase }) => {
+      onPhase("uploading");
+      onProgress(0, 0);
       time = 1000;
       onProgress(50, 1024);
       return new Promise(resolve => { finish = resolve; });
@@ -69,7 +71,7 @@ describe("upload button state", () => {
     wrapper.unmount();
   });
   it("closing during upload does not abort the upload", async () => {
-    vi.mocked(uploadFile).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(uploadFileInChunks).mockImplementation(() => new Promise(() => {}));
     const wrapper = mount(UploadPanel, { props: { open: true } });
     const input = wrapper.get<HTMLInputElement>(".file-input");
     Object.defineProperty(input.element, "files", {
@@ -78,7 +80,7 @@ describe("upload button state", () => {
     });
     await input.trigger("change");
     await wrapper.get(".start-upload-button").trigger("click");
-    const signal = vi.mocked(uploadFile).mock.calls[0]![0].signal;
+    const signal = vi.mocked(uploadFileInChunks).mock.calls[0]![0].signal;
     await wrapper.get('button[aria-label="关闭上传弹窗"]').trigger("click");
     await wrapper.setProps({ open: false });
     expect(wrapper.emitted("close")).toHaveLength(1);
@@ -88,7 +90,7 @@ describe("upload button state", () => {
   });
 
   it("shows the ready button before upload and the completion button after success", async () => {
-    vi.mocked(uploadFile).mockResolvedValue({
+    vi.mocked(uploadFileInChunks).mockResolvedValue({
       id: "42",
       name: "笔记.md",
       kind: "file",
@@ -109,7 +111,7 @@ describe("upload button state", () => {
     expect(wrapper.find(".upload-complete-button").exists()).toBe(false);
     await wrapper.get(".start-upload-button").trigger("click");
     await flushPromises();
-    expect(uploadFile).toHaveBeenCalledOnce();
+    expect(uploadFileInChunks).toHaveBeenCalledOnce();
     expect(
       useTransfers().tasks.find((task) => task.name === "笔记.md")?.fileId,
     ).toBe("42");

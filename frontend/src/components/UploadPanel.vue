@@ -218,17 +218,6 @@ function removeFile(fileId: string) {
   transfers.removeUpload(fileId);
 }
 
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function fileType(file: File) {
-  if (file.type) return file.type.split("/").pop()?.toUpperCase() || file.type;
-  return file.name.split(".").pop()?.toUpperCase() || "文件";
-}
-
 function selectFolder(folderId: string | null) {
   selectedFolderId.value = folderId;
   folderPickerOpen.value = false;
@@ -309,21 +298,6 @@ function cancelUpload(task: UploadTask) {
   controllers.get(task.id)?.abort();
 }
 
-function statusText(task: UploadTask) {
-  if (task.status === "preparing") return "正在计算文件校验值";
-  if (task.status === "uploading" && task.progress >= 99)
-    return "已发送，服务器处理中，请稍候";
-  if (task.status === "uploading" && task.mode === "chunked")
-    return "分片上传中";
-  return {
-    waiting: "等待上传",
-    preparing: "准备中",
-    uploading: "上传中",
-    success: "上传成功",
-    failed: "上传失败",
-    cancelled: "已取消",
-  }[task.status];
-}
 </script>
 
 <template>
@@ -513,12 +487,8 @@ function statusText(task: UploadTask) {
               /></span>
               <div class="file-meta">
                 <b :title="task.file.name">{{ task.file.name }}</b
-                ><small
-                  >{{ formatSize(task.file.size) }} ·
-                  {{ fileType(task.file) }} · {{ statusText(task) }}
-                  <span v-if="task.status === 'uploading'">
-                    · {{ formatSpeed(task.speed) }}</span
-                  ></small
+                ><small v-if="task.status === 'uploading'"
+                  >{{ formatSpeed(task.speed) }}</small
                 >
                 <div
                   v-if="

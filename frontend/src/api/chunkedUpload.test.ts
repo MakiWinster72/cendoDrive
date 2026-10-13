@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import http from "./http";
 import { CHUNK_SIZE, chunkSizeFor, shouldUseChunkedUpload, uploadFileInChunks } from "./chunkedUpload";
+import { createSpeedSampler } from "../utils/transferSpeed";
 import type { DriveItem } from "../stores/drive";
 
 vi.mock("./http", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -44,6 +45,23 @@ describe("chunked upload API contract", () => {
     expect(onProgress).toHaveBeenCalledWith(99, file.size);
     expect(onProgress).toHaveBeenLastCalledWith(100);
   });
+  it("measures 128 KiB/s from timed server acknowledgements, not network buffering", async () => {
+    let time = 0;
+    const sample = createSpeedSampler(() => time);
+    const speeds: number[] = [];
+    const file = Object.assign(new Blob([new Uint8Array(CHUNK_SIZE * 2)]), { name: "photo.png" }) as File;
+    vi.mocked(http.get).mockResolvedValue({ data: { uploadId: "u", totalChunks: 2, uploadedChunks: [] } });
+    vi.mocked(http.post).mockImplementation(async url => {
+      if (url === "/upload/init") return { data: { uploadId: "u", chunkSize: CHUNK_SIZE, totalChunks: 2 } };
+      if (url === "/upload/chunk") time += 500;
+      return { data: { id: "42" } };
+    });
+    await uploadFileInChunks({ file, parentId: null, signal: new AbortController().signal, onPhase: vi.fn(), onProgress: (_progress, bytes) => {
+      if (bytes !== undefined) speeds.push(sample(bytes));
+    } });
+    expect(speeds).toEqual([0, 128 * 1024, 128 * 1024]);
+  });
+
   it("resumes from server-reported chunks, sends only missing chunks, then merges", async () => {
     const file = Object.assign(new Blob([new Uint8Array(CHUNK_SIZE + 13)]), {
       name: "archive.zip",

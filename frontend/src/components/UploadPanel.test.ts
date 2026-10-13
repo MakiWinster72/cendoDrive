@@ -10,6 +10,13 @@ const { descriptor } = parse(source);
 const template = descriptor.template!.content;
 
 describe("reference upload panel", () => {
+  it("shows only transfer speed beneath the uploading filename", () => {
+    expect(template).toContain("{{ formatSpeed(task.speed) }}");
+    expect(template).not.toContain("formatSize(task.file.size)");
+    expect(template).not.toContain("fileType(task.file)");
+    expect(template).not.toContain("statusText(task)");
+    expect(source).not.toContain("已发送，服务器处理中，请稍候");
+  });
   it("uses the 千度网盘 brand", () => {
     expect(template).toContain("千度网盘保障你的数据安全");
     expect(template).not.toContain("百度网盘");
