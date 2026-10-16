@@ -16,8 +16,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class AiChatController {
   private final AiChatService service;
   private final AiChatExecutor executor;
+
   public AiChatController(AiChatService service, AiChatExecutor executor) {
-    this.service = service; this.executor = executor;
+    this.service = service;
+    this.executor = executor;
   }
 
   @GetMapping("/status")
@@ -36,24 +38,31 @@ public class AiChatController {
     var emitter = new SseEmitter(75000L);
     var active = new AtomicBoolean(true);
     emitter.onCompletion(() -> active.set(false));
-    emitter.onTimeout(() -> { active.set(false); emitter.complete(); });
+    emitter.onTimeout(() -> {
+      active.set(false);
+      emitter.complete();
+    });
     emitter.onError(error -> active.set(false));
     try {
       executor.execute(() -> {
         try {
           service.stream(request, (event, data) -> {
-            if (!active.get()) throw new IOException("Stream closed");
+            if (!active.get())
+              throw new IOException("Stream closed");
             emitter.send(SseEmitter.event().name(event).data(data, MediaType.APPLICATION_JSON));
           });
           emitter.complete();
         } catch (IOException ex) {
-          // Disconnect or timeout: unwind the upstream exchange, no retry or raw diagnostics.
+          // Disconnect or timeout: unwind the upstream exchange, no retry or raw
+          // diagnostics.
           emitter.complete();
         } catch (RuntimeException ex) {
           if (active.get()) {
-            try { emitter.send(SseEmitter.event().name("error").data(Map.of("code", "AI_UNAVAILABLE",
-                "message", "模型连接失败，请稍后重试。"), MediaType.APPLICATION_JSON)); }
-            catch (IOException | IllegalStateException ignored) {}
+            try {
+              emitter.send(SseEmitter.event().name("error").data(Map.of("code", "AI_UNAVAILABLE",
+                  "message", "模型连接失败，请稍后重试。"), MediaType.APPLICATION_JSON));
+            } catch (IOException | IllegalStateException ignored) {
+            }
           }
           emitter.complete();
         }

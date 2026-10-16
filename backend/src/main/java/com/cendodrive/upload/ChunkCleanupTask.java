@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 清理孤儿分片：Redis 会话已过期（或从未写入）且目录超过宽限期仍未改动时删除。
- * 默认关闭，由 cendo.upload.cleanup-enabled 打开；失败只记录日志，不影响业务请求。
+ * 默认关闭，由 cendo.upload.cleanup-enabled 打开；
  */
 @Component
 @ConditionalOnProperty(prefix = "cendo.upload", name = "cleanup-enabled", havingValue = "true")

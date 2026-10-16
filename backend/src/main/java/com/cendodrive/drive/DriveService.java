@@ -137,7 +137,7 @@ public class DriveService {
 
   private FileResponse registerUploadedFile(User user, Long parentId, String name, long size, String storageKey) {
     DriveFile file = DriveFile.uploaded(user.getId(), parentId, name, size, storageKey);
-    file=files.saveAndFlush(file);
+    file = files.saveAndFlush(file);
     claw.enqueue(file);
     return FileResponse.from(file);
   }
@@ -209,7 +209,10 @@ public class DriveService {
   private void purge(User user, List<DriveFile> roots) {
     User locked = quota.lock(user);
     List<DriveFile> doomed = subtree(user, roots, true);
-    doomed.stream().filter(f -> !f.isFolder()).forEach(f -> { storageCleanup.enqueue(f); claw.removed(f); });
+    doomed.stream().filter(f -> !f.isFolder()).forEach(f -> {
+      storageCleanup.enqueue(f);
+      claw.removed(f);
+    });
     // A bulk delete is safe with the self-referencing ON DELETE CASCADE constraint.
     files.deleteAllInBatch(doomed);
     files.flush();
@@ -274,7 +277,8 @@ public class DriveService {
     String name = validName(request.name());
     requireAvailableName(user.getId(), file.getParentId(), name, file);
     file.rename(name);
-    if(!file.isFolder()) claw.changed(file);
+    if (!file.isFolder())
+      claw.changed(file);
     return FileResponse.from(files.saveAndFlush(file));
   }
 

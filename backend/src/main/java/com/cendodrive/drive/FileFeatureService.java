@@ -18,8 +18,13 @@ public class FileFeatureService {
   private final DriveService drive;
   private final FileQuotaService quota;
   private final com.cendodrive.ai.claw.ClawIndexQueue claw;
-  public FileFeatureService(DriveFileRepository files,DriveService drive,FileQuotaService quota,com.cendodrive.ai.claw.ClawIndexQueue claw) {
-    this.files=files; this.drive=drive; this.quota=quota; this.claw=claw;
+
+  public FileFeatureService(DriveFileRepository files, DriveService drive, FileQuotaService quota,
+      com.cendodrive.ai.claw.ClawIndexQueue claw) {
+    this.files = files;
+    this.drive = drive;
+    this.quota = quota;
+    this.claw = claw;
   }
 
   @Transactional(readOnly = true)
@@ -47,8 +52,14 @@ public class FileFeatureService {
   @Transactional
   public List<FileResponse> flag(User user, FlagRequest request, boolean hidden) {
     quota.lock(user);
-    List<DriveFile> selected=selection(user,request.ids());
-    selected.forEach(f -> { if (hidden) { f.setHidden(request.value()); claw.changed(f); } else f.setFavorite(request.value()); });
+    List<DriveFile> selected = selection(user, request.ids());
+    selected.forEach(f -> {
+      if (hidden) {
+        f.setHidden(request.value());
+        claw.changed(f);
+      } else
+        f.setFavorite(request.value());
+    });
     return files.saveAllAndFlush(selected).stream().map(FileResponse::from).toList();
   }
 
@@ -162,8 +173,10 @@ public class FileFeatureService {
         }
         targets.put(group, target);
       }
-      drive.requireAvailableName(user.getId(),target.getId(),source.getName(),source);
-      source.moveTo(target.getId()); claw.changed(source); changed.add(source);
+      drive.requireAvailableName(user.getId(), target.getId(), source.getName(), source);
+      source.moveTo(target.getId());
+      claw.changed(source);
+      changed.add(source);
     }
     return files.saveAllAndFlush(changed).stream().map(FileResponse::from).toList();
   }

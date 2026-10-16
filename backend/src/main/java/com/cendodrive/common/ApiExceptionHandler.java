@@ -22,8 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-  private static final DisconnectedClientHelper disconnectedClient =
-      new DisconnectedClientHelper(ApiExceptionHandler.class.getName());
+  private static final DisconnectedClientHelper disconnectedClient = new DisconnectedClientHelper(
+      ApiExceptionHandler.class.getName());
+
   @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
   ResponseEntity<ApiError> uploadTooLarge() {
     return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
@@ -33,7 +34,8 @@ public class ApiExceptionHandler {
   @ExceptionHandler(java.io.IOException.class)
   ResponseEntity<ApiError> storageUnavailable(java.io.IOException ex, HttpServletResponse response) {
     // A disconnected HTTP client cannot receive another response. Do not confuse
-    // an upstream storage socket reset with a failure writing to the servlet output.
+    // an upstream storage socket reset with a failure writing to the servlet
+    // output.
     if (isClientOutputFailure(ex) && disconnectedClient.checkAndLogClientDisconnectedException(ex))
       return null;
     if (response.isCommitted()) {

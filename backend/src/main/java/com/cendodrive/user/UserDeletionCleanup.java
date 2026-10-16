@@ -68,15 +68,21 @@ public class UserDeletionCleanup {
   // physical cleanup.
   public void purge(Long id) {
     while (Boolean.TRUE.equals(tx.execute(status -> {
-      User user=users.lock(id).orElse(null);
-      if (!due(user)) return false;
-      var candidates=files.findTop100ByOwnerIdAndKindOrderByIdAsc(id,"file");
-      if (candidates.isEmpty()) return false;
-      DriveFile file=candidates.get(0);
-      try { deleteStorage(file); }
-      catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
+      User user = users.lock(id).orElse(null);
+      if (!due(user))
+        return false;
+      var candidates = files.findTop100ByOwnerIdAndKindOrderByIdAsc(id, "file");
+      if (candidates.isEmpty())
+        return false;
+      DriveFile file = candidates.get(0);
+      try {
+        deleteStorage(file);
+      } catch (IOException ex) {
+        throw new java.io.UncheckedIOException(ex);
+      }
       claw.removed(file);
-      files.delete(file); files.flush();
+      files.delete(file);
+      files.flush();
       return true;
     }))) {
       /* Persist progress before processing another key. */ }

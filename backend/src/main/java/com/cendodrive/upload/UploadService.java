@@ -95,7 +95,8 @@ public class UploadService {
     try {
       // required() holds the database session lock: parallel chunks of the same file
       // cannot multiply the acceptance rate, including across server instances.
-      try (InputStream input = UploadRateInputStream.forUser(content.getInputStream(), user); OutputStream out = Files.newOutputStream(temp)) {
+      try (InputStream input = UploadRateInputStream.forUser(content.getInputStream(), user);
+          OutputStream out = Files.newOutputStream(temp)) {
         copyExpected(input, out, expectedSize(s, number));
       }
       // Replacement is atomic: retries never expose half-written chunks to status or
